@@ -1,0 +1,64 @@
+{
+  "testedAtUtc": "2026-11-07T23:43:59Z",
+  "device": "Pixel_4 emulator-5554",
+  "android": "17 / API 37",
+  "resolution": "1080x2280",
+  "fontScale": 1,
+  "driver": "UiAutomator2",
+  "execution": "Appium MCP observed scenarios; no standalone test-runner suite",
+  "results": [
+    {
+      "scenario": "Login A, Today context / timezone / greeting / unit",
+      "status": "PASS",
+      "date": "2026-11-07"
+    },
+    {
+      "scenario": "Scroll to lower domain previews, goals/insight, manual refresh",
+      "status": "PASS"
+    },
+    {
+      "scenario": "Force-stop/reopen restores A session",
+      "status": "PASS"
+    },
+    {
+      "scenario": "Avatar opens Profile with current account preferences",
+      "status": "PASS"
+    },
+    {
+      "scenario": "Changing display unit in Settings updates Today",
+      "status": "PASS"
+    },
+    {
+      "scenario": "Unavailable API shows network error and hides Today data",
+      "status": "PASS"
+    },
+    {
+      "scenario": "Retry after connection recovery restores Today",
+      "status": "PASS"
+    },
+    {
+      "scenario": "UI consent withdrawal blocks Today and hides previously loaded content",
+      "status": "PASS"
+    },
+    {
+      "scenario": "Granting consent again restores Today",
+      "status": "PASS"
+    },
+    {
+      "scenario": "Logout returns to welcome",
+      "status": "PASS"
+    },
+    {
+      "scenario": "Switching A to B shows B name/timezone/date and removes A context",
+      "status": "PASS"
+    },
+    {
+      "scenario": "Manual refresh completes against real API for account B",
+      "status": "PASS"
+    },
+    {
+      "scenario": "Revoked session redirects to login with expired-session message and clears Today",
+      "status": "PASS"
+    }
+  ]
+}

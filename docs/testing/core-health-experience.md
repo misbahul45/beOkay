@@ -1,5 +1,7 @@
 # Verifikasi Core Health — Slice 1
 
+Pembaruan 8 November 2026: [pengujian Appium Today](today-appium.md) sudah dijalankan terhadap API/PostgreSQL nyata, dengan 13 skenario terverifikasi dan screenshot perangkat. Batas cakupan dan perbedaannya dari tes widget tercatat pada laporan tersebut.
+
 Backend wajib Docker; Flutter/Dart di host sesuai AGENTS.md. Jangan jalankan suite pada database produksi/dev. `compose.test.yaml` memakai PostgreSQL tmpfs dan Mailpit terpisah, tanpa port publik.
 
 ```bash
