@@ -20,7 +20,13 @@ Sumber spesifikasi: *Database & UI/UX Master Blueprint v0.1* (proposed design, b
   Skema P0 menunggu 4 artefak: Data Dictionary, Physical ERD, Screen Specification, UI–API Contract Matrix.
 - Desain UI dikerjakan di Figma (figcraft) lebih dulu, baru implementasi.
 
-## Perintah (jalankan dari `server/` kecuali disebut)
+## ATURAN KERAS — EKSEKUSI LEWAT DOCKER
+- **Semua perintah build, migrasi, typecheck, test, dan menjalankan API dilakukan di dalam container Docker, bukan di host.** Pakai `docker compose run --rm` / `docker compose exec`. Jangan menjalankan `bun`, `prisma`, `bun test`, atau `bun index.ts` langsung di host.
+- Perkecualian hanya untuk alat GUI/desain (FigCraft) dan git.
+- Container tidak boleh meninggalkan file milik `root` di bind mount (`./server`, `./app`). Jalankan dengan `--user "$(id -u):$(id -g)"` atau atur `user:` di compose.
+- Pengujian memakai database terisolasi (service/DB terpisah dari data dev), bukan DB dev.
+
+## Perintah (di dalam container; path relatif terhadap `server/`)
 - Dev stack (root): `docker compose up --build` — API `127.0.0.1:3000`, Postgres `127.0.0.1:5433`.
 - Prod stack (root): `docker compose -f compose.prod.yaml --env-file .env.prod up -d --build`.
 - `bun run typecheck` · `bun run db:generate` · `bun run db:migrate:dev` · `bun run db:migrate:deploy` · `bun run db:studio`.
