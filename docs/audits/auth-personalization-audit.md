@@ -267,3 +267,28 @@ Setiap stage berhenti agar bisa Anda commit. Semua perintah di Docker.
 ## 10. Rencana verifikasi
 
 Skenario A–J pada prompt induk dipetakan ke: unit (Stage 08), integrasi dengan DB terisolasi (09), koleksi Bruno + Bruno CLI (10), dan alur nyata + perbandingan visual (11). Tidak ada hasil tes yang dilaporkan sebelum benar-benar dijalankan.
+
+## 11. Status perbaikan (Stage 04–06, backend)
+
+Diperbarui setelah implementasi backend. Bukti: uji eksploratif terhadap API yang berjalan di stack uji Docker terisolasi (36 langkah alur penuh + cek tepi), `tsc --noEmit` lulus, stack dev sehat. **Belum ada tes otomatis** (D-09 tetap terbuka sampai Stage 08–09).
+
+| ID | Status | Bukti |
+|---|---|---|
+| D-01 | Selesai | Berkas root diperbaiki lewat container; container dev/uji kini berjalan sebagai UID host; 0 berkas milik root di repo |
+| D-02 | Selesai | Sign-up tidak membuat sesi; sign-in sebelum verifikasi → `403 EMAIL_NOT_VERIFIED` |
+| D-03 | Selesai | Sign-up email duplikat → `200` tanpa token, sama dengan email baru; reset-password seragam. Asumsi audit terbukti |
+| D-04 | Selesai (sebagian teruji) | Rate limit aktif di semua lingkungan; sign-in terbukti 429 pada percobaan ke-6 |
+| D-05 | Selesai | `trustedOrigins` dari env. Catatan: pemeriksaan Origin hanya untuk sesi cookie (perilaku Better Auth) |
+| D-06 | Ditunda sengaja | Tanpa CORS; klien native. Tinjau ulang bila target web dipakai |
+| D-07 | Selesai | Plugin `bearer`; header `set-auth-token` terverifikasi; `Authorization: Bearer` diterima |
+| D-08 | Selesai | Berkas kosong dihapus; struktur `features/*`, error handler, logger, request id |
+| D-09 | Terbuka | Tes otomatis = Stage 08–09 |
+| D-10 | Terbuka | Flutter = tahap UI |
+| D-11 | Selesai | `AGENTS.md` diperbarui |
+| D-12 | Selesai | `user:` di compose, healthcheck API |
+| D-15 | Selesai | IP klien tercatat di sesi (teramati `172.22.0.5` dalam jaringan Docker) |
+| D-17 | Selesai | `zod` dependensi langsung |
+| D-13, D-14, D-16 | Tidak berubah | Lihat bagian 6 |
+| D-18, D-19 | Terbuka | Bruno/Flutter di Docker, tahap berikutnya |
+
+Keputusan #4 (email) diselesaikan sebagian: SMTP generik (`nodemailer`) dengan Mailpit untuk dev/uji. Penyedia produksi tinggal mengisi `SMTP_*`; penyedia tertentu tidak perlu dipilih sekarang, tetapi produksi belum diuji dengan SMTP sungguhan.

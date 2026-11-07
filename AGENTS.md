@@ -11,13 +11,15 @@ Sumber spesifikasi: *Database & UI/UX Master Blueprint v0.1* (proposed design, b
 
 ## Struktur
 - `server/` — Bun + TypeScript API. ORM: **Prisma 7** (driver adapter `@prisma/adapter-pg`). Ikuti `server/CLAUDE.md` (Bun-first) **kecuali** untuk database: pakai Prisma, bukan `Bun.sql` (keputusan pengguna).
+- `server/src/` — **feature-based**: `features/{auth,consent,onboarding,profile,health-profile,preferences}/` (masing-masing: routes, service, repository, schema Zod), `shared/` (error, HTTP wrapper, audit), `infrastructure/` (database, email), `config/env.ts`. Modul tidak boleh saling bergantung melingkar.
 - `app/` — Flutter (scaffold bawaan, belum dikerjakan).
-- `compose.yaml` (dev), `compose.prod.yaml` (prod), `.env.example`, `.env.prod.example`.
+- `design/` — desain FigCraft + token Dart. `docs/` — audit, arsitektur, database, API.
+- `compose.yaml` (dev), `compose.test.yaml` (uji terisolasi), `compose.prod.yaml` (prod), `.env.example`, `.env.prod.example`.
 
 ## Cakupan saat ini (jangan melebar)
-- Sudah: koneksi DB + Prisma + `/health`; stack Docker dev & prod; **Better Auth** (email+password, PK UUID, tabel `users/sessions/accounts/verifications`, handler di `/api/auth/*`, migrasi `auth_init`).
-- **Belum, dan jangan dibuat tanpa diminta**: model/tabel domain (meal, glucose, dst.), modul domain, verifikasi email/reset password (menunggu penyedia email), UI Flutter.
-  Skema P0 menunggu 4 artefak: Data Dictionary, Physical ERD, Screen Specification, UI–API Contract Matrix.
+- Sudah: koneksi DB + Prisma + `/health`; stack Docker dev, uji, prod; **Better Auth** dengan verifikasi email wajib, reset kata sandi, rate limit, plugin `bearer` (sesi mobile), email via SMTP (Mailpit di dev); tabel domain identitas `user_profiles`, `health_profiles`, `user_settings`, `consent_records`, `onboarding_progress`, `audit_events`; API `/api/me/*` dan `/api/consent-policies/current`.
+- **Belum, dan jangan dibuat tanpa diminta**: tabel/modul domain pencatatan (meal, glucose, activity, medication, dst.), UI Flutter, ringkasan/insight.
+  Skema P0 penuh masih menunggu: Data Dictionary, Physical ERD, Screen Specification, UI–API Contract Matrix.
 - Desain UI dikerjakan di Figma (figcraft) lebih dulu, baru implementasi.
 
 ## ATURAN KERAS — EKSEKUSI LEWAT DOCKER
@@ -27,8 +29,11 @@ Sumber spesifikasi: *Database & UI/UX Master Blueprint v0.1* (proposed design, b
 - Pengujian memakai database terisolasi (service/DB terpisah dari data dev), bukan DB dev.
 
 ## Perintah (di dalam container; path relatif terhadap `server/`)
-- Dev stack (root): `docker compose up --build` — API `127.0.0.1:3000`, Postgres `127.0.0.1:5433`.
-- Prod stack (root): `docker compose -f compose.prod.yaml --env-file .env.prod up -d --build`.
+- Dev stack (root): `docker compose up --build` — API `127.0.0.1:3000`, Postgres `127.0.0.1:5433`, Mailpit UI `127.0.0.1:8025`. Container dev menjalankan `db:generate` dan `db:migrate:deploy` saat start.
+- Perintah satu kali di dev: `docker compose exec api bun run typecheck` (atau `docker compose run --rm api ...`).
+- Stack uji terisolasi (root): `docker compose -f compose.test.yaml up -d --wait api-test`, lalu `docker compose -f compose.test.yaml run --rm tester bun test`; bersihkan dengan `docker compose -f compose.test.yaml down -v`. Setelah mengubah dependensi, rebuild image dan hapus volume `node_modules` (`down -v`), karena Docker hanya mengisi volume saat pertama dibuat.
+- Membuat migrasi baru: jalankan `bun run db:migrate:dev -- --create-only --name <nama>` di container uji (DB kosong), lalu tambahkan CHECK/partial index lewat SQL dan verifikasi `prisma migrate diff` (hanya noise `gen_random_uuid` pada 4 tabel auth yang boleh tersisa).
+- Prod stack (root): `docker compose -f compose.prod.yaml --env-file .env.prod up -d --build` (wajib: password DB, `BETTER_AUTH_*`, `EMAIL_FROM`, `SMTP_HOST`).
 - `bun run typecheck` · `bun run db:generate` · `bun run db:migrate:dev` · `bun run db:migrate:deploy` · `bun run db:studio`.
 - **Pakai script `db:*`, bukan `bunx prisma ...`**: `bunx`/`bun run prisma` tidak memuat `.env` untuk `prisma.config.ts` (DATABASE_URL tidak ter-resolve). Script memanggil `bun --bun ./node_modules/.bin/prisma`.
 
@@ -36,7 +41,8 @@ Sumber spesifikasi: *Database & UI/UX Master Blueprint v0.1* (proposed design, b
 - PK `UUID`, waktu `TIMESTAMPTZ`, ukuran `NUMERIC`, `JSONB` hanya untuk metadata variabel.
 - Nilai tidak diketahui = `NULL`, bukan `0`. Prediksi tidak disimpan di tabel pengukuran.
 - Semua query dibatasi kepemilikan `user_id`. Koreksi data lewat `record_revisions`.
-- Auth = Better Auth (keputusan pengguna). Model auth di `prisma/schema.prisma` dihasilkan CLI: ubah `src/lib/auth.ts` lalu `bun run auth:generate`, bukan edit manual. Jangan buat mekanisme password sendiri.
+- Auth = Better Auth (keputusan pengguna). Model auth di `prisma/schema.prisma` dihasilkan CLI: ubah `src/features/auth/auth.ts` lalu `bun run auth:generate` (di container), bukan edit manual. Pengecualian: baris relasi balik ke tabel domain di model `Users` ditambahkan manual; tambahkan lagi bila `auth:generate` menimpanya. Jangan buat mekanisme password sendiri. Nama tampilan = `users.name` (satu sumber), diubah lewat `auth.api.updateUser`.
+- Tabel baru: kolom snake_case via `@map`, `TIMESTAMPTZ`, default `gen_random_uuid()`, invarian lewat CHECK di SQL migrasi. Query selalu dibatasi `user_id` dari sesi, jangan percaya ID dari klien. Endpoint yang memproses data kesehatan wajib `consentService.requireConsent`.
 - Nama model Prisma auth sengaja `Users/Sessions/Accounts/Verifications` (adapter mencari delegate sesuai `modelName`); kolom auth masih camelCase, penamaan kolom ditentukan di Data Dictionary.
 
 ## Hal yang perlu diketahui
