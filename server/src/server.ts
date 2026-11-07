@@ -1,20 +1,32 @@
+import { env } from "./config/env.ts";
+import { authRoutes } from "./features/auth/auth.routes.ts";
+import { consentRoutes } from "./features/consent/consent.routes.ts";
+import { healthProfileRoutes } from "./features/health-profile/health-profile.routes.ts";
+import { onboardingRoutes } from "./features/onboarding/onboarding.routes.ts";
+import { preferencesRoutes } from "./features/preferences/preferences.routes.ts";
+import { profileRoutes } from "./features/profile/profile.routes.ts";
 import { checkDatabase, prisma } from "./infrastructure/database/prisma.ts";
-import { auth } from "./lib/auth.ts";
-
-const port = Number(process.env.PORT ?? 3000);
+import { route } from "./shared/http/handler.ts";
+import { logEvent } from "./shared/http/logger.ts";
 
 const server = Bun.serve({
-  port,
+  port: env.PORT,
   routes: {
-    "/api/auth/*": (req) => auth.handler(req),
-    "/health": async () => {
+    ...authRoutes,
+    ...consentRoutes,
+    ...onboardingRoutes,
+    ...profileRoutes,
+    ...healthProfileRoutes,
+    ...preferencesRoutes,
+    "/health": route(async () => {
       const db = await checkDatabase();
-      return Response.json({ status: db ? "ok" : "degraded", db }, { status: db ? 200 : 503 });
-    },
+      return { status: db ? 200 : 503, body: { status: db ? "ok" : "degraded", db } };
+    }),
   },
+  fetch: route(async () => ({ status: 404, body: { error: { code: "NOT_FOUND", message: "Rute tidak ditemukan." } } })),
 });
 
-console.log(`beOkay API listening on :${server.port}`);
+logEvent("info", "server_started", { port: server.port, env: env.NODE_ENV });
 
 async function shutdown() {
   await server.stop();
