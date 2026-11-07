@@ -24,9 +24,14 @@ Sumber spesifikasi: *Database & UI/UX Master Blueprint v0.1* (proposed design, b
 
 ## ATURAN KERAS — EKSEKUSI LEWAT DOCKER
 - **Semua perintah build, migrasi, typecheck, test, dan menjalankan API dilakukan di dalam container Docker, bukan di host.** Pakai `docker compose run --rm` / `docker compose exec`. Jangan menjalankan `bun`, `prisma`, `bun test`, atau `bun index.ts` langsung di host.
-- Perkecualian hanya untuk alat GUI/desain (FigCraft) dan git.
+- Perkecualian: alat GUI/desain (FigCraft), git, dan **Flutter/Dart (`app/`) yang dijalankan di host** (keputusan pengguna: tidak memakai image Flutter).
 - Container tidak boleh meninggalkan file milik `root` di bind mount (`./server`, `./app`). Jalankan dengan `--user "$(id -u):$(id -g)"` atau atur `user:` di compose.
 - Pengujian memakai database terisolasi (service/DB terpisah dari data dev), bukan DB dev.
+
+## ATURAN KERAS — KREDENSIAL
+- Jangan menulis kata sandi, token, atau secret sebagai literal di berkas yang di-track (kode, tes, skrip, Bruno). Tes dan skrip membangkitkannya saat dijalankan (acak per eksekusi) atau membacanya dari env.
+- Nilai placeholder dev hanya boleh ada di `*.example`. Skrip sementara jangan ditaruh di dalam repo; pakai scratchpad, atau hapus sebelum selesai.
+- Insiden GitGuardian 8 Nov 2026 (`d9a8749`): kata sandi akun sintetis di skrip uji sementara. Bukan rahasia asli (akun hanya ada di DB uji yang dimusnahkan); tidak perlu rotasi.
 
 ## Perintah (di dalam container; path relatif terhadap `server/`)
 - Dev stack (root): `docker compose up --build` — API `127.0.0.1:3000`, Postgres `127.0.0.1:5433`, Mailpit UI `127.0.0.1:8025`. Container dev menjalankan `db:generate` dan `db:migrate:deploy` saat start.

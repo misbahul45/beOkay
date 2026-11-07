@@ -1,5 +1,29 @@
 # Audit & Gap Analysis — Authentication & Personalization
 
+## Pembaruan audit implementasi — 8 November 2026
+
+Bagian di bawah ini adalah audit historis awal, bukan gambaran status terkini. Pemeriksaan ulang menemukan backend feature-based, migrasi identitas dan Flutter feature-first yang sudah ada; perubahan Flutter masih berada di working tree pengguna. Prisma 7.10.1 dan Better Auth 1.7.18 tetap menjadi pilihan repo. Implementasi UI memakai Riverpod, go_router, HTTP dan secure storage. Bukti utama: `server/src/features/`, `server/prisma/`, `app/lib/features/`, `app/pubspec.yaml`.
+
+| Kelompok | Status saat pemeriksaan ulang | Bukti dan gap | Prioritas / verifikasi |
+|---|---|---|---|
+| Auth dan keamanan | EXISTS_BUT_INCOMPLETE | Better Auth, verifikasi, reset, bearer dan UI tersedia; hasil UI menggunakan fake backend bukan bukti layanan nyata. | P0; uji integrasi DB, email dan sesi |
+| Onboarding | EXISTS_WITH_DEFECT | Intro memperbarui status tetapi redirect mengizinkan layar sebelumnya tetap aktif; tes alur gagal setelah Lanjut. | P0; uji transisi dan resume |
+| Consent | EXISTS_BUT_INCOMPLETE | API dan UI ada; tes menemukan assertion Material pada kartu. Kebijakan perlu peninjauan legal dan penegakan perlu tes integrasi nyata. | P0; uji grant, withdraw dan akses kesehatan |
+| Profil, kesehatan dan preferensi | EXISTS_BUT_INCOMPLETE | Routes, service, repository, skema dan layar tersedia; persistensi lintas sesi dan isolasi pengguna belum dibuktikan oleh tes otomatis backend. | P0; uji DB terisolasi dan ownership |
+| Aksesibilitas dan visual | EXISTS_WITH_DEFECT | `EditorialPhoto` mengecualikan seluruh subtree semantik termasuk judul; gambar berupa CustomPainter, bukan foto. | P1; perbaiki semantik, audit perangkat dan aset berlisensi |
+| Keamanan sesi | EXISTS_BUT_INCOMPLETE | Ada penanganan 401 dan penyimpanan token; tes sesi kedaluwarsa gagal sebelum verifikasi hasil. | P0; uji sesi nyata dan cleanup |
+| Pengujian | EXISTS_WITH_DEFECT | `flutter analyze` lulus; `flutter test` menghasilkan 20 lulus dan 4 gagal. Backend `bun test` tidak menemukan tes. Tes Flutter memakai `FakeBackend`, yang menyimpan sebagian data lintas pengguna dan tidak membuktikan isolasi. | P0; perbaiki kegagalan dan tambah integrasi nyata |
+| Desain FigCraft | MISSING | Berkas lama `design/beOkay-ui.figcraft` tersedia, tetapi tidak ada MCP FigCraft terdaftar atau sumber dan preview desain auth yang diverifikasi. | P1; sambungkan FigCraft lalu audit dan desain sebelum membuat komponen presentasi baru |
+| Bruno dan laporan | MISSING | Koleksi Bruno dan laporan pengujian akhir belum ditemukan. | P1; dokumentasikan dan jalankan terhadap stack uji |
+
+Urutan kerja: perbaiki transisi dan aksesibilitas yang teridentifikasi, buktikan perilaku backend pada PostgreSQL/Mailpit terisolasi, selesaikan tes Flutter, lalu verifikasi perangkat/Appium dan desain setelah sarana tersedia. Jangan menganggap pengujian fake sebagai E2E. `flutter emulators` menemukan Pixel_4, tetapi setelah percobaan peluncuran Flutter dan Appium belum mendeteksi perangkat. Pengujian Appium belum terlaksana.
+
+Verifikasi ulang setelah perbaikan lokal: transisi intro mencapai layar consent pada tes widget; semantik hero tidak lagi mengecualikan subtree, dan assertion Material kartu consent tidak muncul lagi pada tes yang sama. `flutter analyze` lulus. `flutter test` tetap 20 lulus dan 4 gagal: alur baru berhenti pada tap consent yang berada di luar viewport, sesi kedaluwarsa gagal sebelum langkah keamanan akun, dan dua tes menggunakan `pageBack` yang tidak menemukan tombol back kustom. Penyebab lengkap dan dampak produk masing-masing masih perlu dipastikan. `docker compose -f compose.test.yaml exec -T api-test bun run typecheck` lulus dan `/health` mengembalikan 200 dengan DB terhubung; `docker compose -f compose.test.yaml run --rm tester bun test` gagal karena tidak ada tes. Ini bukan bukti E2E atau keamanan.
+
+Pembaruan lanjutan: transisi onboarding setelah consent, profil, profil kesehatan dan preferensi kini mengikuti status server; sesi kedaluwarsa menuju login; navigasi kembali menghormati perubahan yang belum disimpan. `flutter test` terbaru: 24 lulus; `flutter analyze` dan typecheck backend lulus. `server/tests/integration/identity.test.ts` lulus terhadap API, PostgreSQL dan Mailpit terisolasi (1 tes, 20 assertion): registrasi, verifikasi email, login, consent, profil, preferensi, penyelesaian onboarding, penarikan consent dan logout. Ini belum mencakup isolasi dua pengguna, reset kata sandi atau seluruh skenario E2E.
+
+APK debug dibangun dan dipasang pada Pixel_4; Appium UiAutomator2 memverifikasi navigasi welcome ke registrasi dan pesan validasi formulir kosong. Emulator berjendela diluncurkan di host dan API uji dipetakan ke emulator melalui ADB reverse. Pengujian UI end-to-end dengan API nyata dan audit visual terhadap FigCraft tetap belum selesai. Koneksi FigCraft tidak tersedia pada sesi ini.
+
 Stage 01 (audit) + Stage 02 (gap analysis). Tanggal audit: 8 November 2026.
 Cakupan: repo `beOkay` pada commit `eb3a54d` (satu-satunya commit) ditambah perubahan lokal yang belum di-commit saat audit.
 Aturan pengerjaan: tidak ada `git add/commit/push`; sejak instruksi pengguna di tengah audit, **semua eksekusi lewat Docker** (lihat `AGENTS.md`).
