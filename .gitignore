@@ -1,0 +1,151 @@
+# ── Rahasia & env ─────────────────────────────────────────────
+# Hanya file *.example yang boleh masuk git.
+.env
+.env.*
+!.env.example
+!.env.prod.example
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+
+# ── Docker / Compose ─────────────────────────────────────────
+compose.override.yaml
+compose.override.yml
+docker-compose.override.yml
+
+# ── Dump & data lokal ────────────────────────────────────────
+*.dump
+*.sql.gz
+*.bak
+pgdata/
+
+# ── Dependensi & build (lintas subproyek) ────────────────────
+node_modules/
+dist/
+out/
+build/
+coverage/
+*.lcov
+*.tgz
+*.tsbuildinfo
+.cache/
+.eslintcache
+
+# ── Log ──────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Editor & OS ──────────────────────────────────────────────
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ── Alat AI / agen (lokal, per pengguna) ─────────────────────
+# .claude/settings.json (pagar pengaman proyek) tetap di-track.
+.claude/settings.local.json
+.claude/*.local.*
+
+# ── Flutter (app/) ───────────────────────────────────────────
+# Digabung dari .gitignore bawaan `flutter create` (app/, android, ios, linux,
+# macos, windows). Sumber aturan sekarang HANYA file ini.
+# Umum / Dart
+*.class
+*.pyc
+*.ipr
+*.iws
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+app/app.*.symbols
+app/app.*.map.json
+
+# Android
+app/android/**/gradle-wrapper.jar
+/app/android/.gradle
+/app/android/captures/
+/app/android/gradlew
+/app/android/gradlew.bat
+/app/android/local.properties
+app/android/**/GeneratedPluginRegistrant.java
+app/android/**/.cxx/
+app/android/**/key.properties
+/app/android/app/debug
+/app/android/app/profile
+/app/android/app/release
+
+# iOS
+app/ios/**/dgph
+app/ios/**/*.mode1v3
+app/ios/**/*.mode2v3
+app/ios/**/*.moved-aside
+app/ios/**/*.pbxuser
+app/ios/**/*.perspectivev3
+app/ios/**/*sync/
+app/ios/**/.sconsign.dblite
+app/ios/**/.tags*
+app/ios/**/Icon?
+app/ios/**/profile
+app/ios/**/ServiceDefinitions.json
+**/.vagrant/
+**/DerivedData/
+**/Pods/
+**/.symlinks/
+**/.generated/
+**/xcuserdata/
+/app/ios/Flutter/App.framework
+/app/ios/Flutter/Flutter.framework
+/app/ios/Flutter/Flutter.podspec
+/app/ios/Flutter/Generated.xcconfig
+/app/ios/Flutter/ephemeral/
+/app/ios/Flutter/app.flx
+/app/ios/Flutter/app.zip
+/app/ios/Flutter/flutter_assets/
+/app/ios/Flutter/flutter_export_environment.sh
+/app/ios/Runner/GeneratedPluginRegistrant.*
+!app/ios/**/default.mode1v3
+!app/ios/**/default.mode2v3
+!app/ios/**/default.pbxuser
+!app/ios/**/default.perspectivev3
+
+# macOS / Linux / Windows
+app/macos/**/Flutter/ephemeral/
+/app/linux/flutter/ephemeral
+/app/windows/flutter/ephemeral/
+app/windows/**/*.suo
+app/windows/**/*.user
+app/windows/**/*.userosscache
+app/windows/**/*.sln.docstates
+app/windows/**/x64/
+app/windows/**/x86/
+app/windows/**/*.[Cc]ache
+!app/windows/**/*.[Cc]ache/
+
+# Plugin registrant dibuat ulang `flutter pub get` / `flutter run`
+app/macos/Flutter/GeneratedPluginRegistrant.swift
+app/linux/flutter/generated_plugin_registrant.*
+app/linux/flutter/generated_plugins.cmake
+app/windows/flutter/generated_plugin_registrant.*
+app/windows/flutter/generated_plugins.cmake
+
+# ── Hasil generate (jangan edit / commit) ────────────────────
+server/src/generated/
+
+
+.claude

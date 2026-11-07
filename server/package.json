@@ -1,0 +1,28 @@
+{
+  "name": "server",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest",
+    "prisma": "7.10.1"
+  },
+  "peerDependencies": {
+    "typescript": "^7"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
+    "better-auth": "1.7.18"
+  },
+  "scripts": {
+    "dev": "bun --hot index.ts",
+    "start": "bun index.ts",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "bun --bun ./node_modules/.bin/prisma generate",
+    "db:migrate:dev": "bun --bun ./node_modules/.bin/prisma migrate dev",
+    "db:migrate:deploy": "bun --bun ./node_modules/.bin/prisma migrate deploy",
+    "db:studio": "bun --bun ./node_modules/.bin/prisma studio",
+    "auth:generate": "bun --bun x auth@latest generate --config src/lib/auth.ts --adapter prisma -y"
+  }
+}

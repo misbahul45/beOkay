@@ -1,0 +1,15 @@
+node_modules
+src/generated
+.env
+.env.*
+dist
+out
+coverage
+logs
+*.log
+*.tsbuildinfo
+.idea
+.DS_Store
+Dockerfile
+.dockerignore
+tests

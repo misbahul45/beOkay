@@ -1,0 +1,50 @@
+# beOkay — DEVELOPMENT stack.
+#   docker compose up --build        # jalankan
+#   docker compose up --build -V     # setelah dependency berubah (reset volume node_modules)
+#   docker compose down              # stop (data DB tetap) | down -v = hapus data DB
+# Production: lihat compose.prod.yaml.
+name: beokay-dev
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17 # pgvector disiapkan untuk tahap P2 (RAG); tidak aktif sampai extension dibuat
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-beokay}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-beokay_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-beokay}
+    ports:
+      # Hanya loopback. 5433 agar tidak bentrok dengan Postgres proyek lain di 5432.
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  api:
+    build:
+      context: ./server
+      target: dev
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: "3000"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-beokay}:${POSTGRES_PASSWORD:-beokay_dev_password}@postgres:5432/${POSTGRES_DB:-beokay}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-dev-only-secret-change-me-0123456789abcdef}
+      BETTER_AUTH_URL: http://localhost:${API_HOST_PORT:-3000}
+    ports:
+      - "127.0.0.1:${API_HOST_PORT:-3000}:3000"
+    volumes:
+      - ./server:/app
+      - api_node_modules:/app/node_modules # jangan timpa node_modules image dengan milik host
+
+volumes:
+  pgdata:
+  api_node_modules:

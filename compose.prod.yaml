@@ -1,0 +1,90 @@
+# beOkay — PRODUCTION stack.
+#   cp .env.prod.example .env.prod   # isi semua nilai, JANGAN commit
+#   docker compose -f compose.prod.yaml --env-file .env.prod up -d --build
+# Urutan start: postgres (healthy) -> migrate (one-shot, harus sukses) -> api.
+# TLS/reverse proxy tidak termasuk; API hanya di-bind ke loopback, taruh proxy di depannya.
+name: beokay-prod
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [backend] # tidak ada port yang dipublikasikan ke host
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    security_opt: [no-new-privileges:true]
+    logging: *logging
+
+  migrate:
+    build:
+      context: ./server
+      target: build # berisi Prisma CLI + prisma/ + prisma.config.ts
+    image: beokay-migrate:${APP_VERSION:-latest}
+    restart: "no"
+    command: ["bun", "run", "db:migrate:deploy"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [backend]
+    logging: *logging
+
+  api:
+    build:
+      context: ./server
+      target: prod
+    image: beokay-api:${APP_VERSION:-latest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET (min 32 chars)}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:?set BETTER_AUTH_URL (public https URL)}
+    ports:
+      - "127.0.0.1:${API_HOST_PORT:-3000}:3000"
+    networks: [backend, default]
+    healthcheck:
+      test: ["CMD", "bun", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    logging: *logging
+
+networks:
+  backend:
+    internal: true # DB tidak punya jalur keluar ke internet
+
+volumes:
+  pgdata:
