@@ -25,25 +25,53 @@ services:
       retries: 10
       start_period: 5s
 
+  mailpit:
+    image: axllent/mailpit:latest # SMTP penampung untuk dev; email tidak keluar ke internet
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   api:
     build:
       context: ./server
       target: dev
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}" # cegah berkas milik root di bind mount
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
+      mailpit:
+        condition: service_healthy
     environment:
       NODE_ENV: development
+      HOME: /tmp
       PORT: "3000"
       DATABASE_URL: postgresql://${POSTGRES_USER:-beokay}:${POSTGRES_PASSWORD:-beokay_dev_password}@postgres:5432/${POSTGRES_DB:-beokay}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-dev-only-secret-change-me-0123456789abcdef}
       BETTER_AUTH_URL: http://localhost:${API_HOST_PORT:-3000}
+      TRUSTED_ORIGINS: ${TRUSTED_ORIGINS:-http://localhost:${API_HOST_PORT:-3000}}
+      TRUST_PROXY: "false"
+      EMAIL_DRIVER: smtp
+      EMAIL_FROM: "beOkay <no-reply@beokay.local>"
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_SECURE: "false"
     ports:
       - "127.0.0.1:${API_HOST_PORT:-3000}:3000"
     volumes:
       - ./server:/app
       - api_node_modules:/app/node_modules # jangan timpa node_modules image dengan milik host
+    healthcheck:
+      test: ["CMD", "bun", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
 
 volumes:
   pgdata:

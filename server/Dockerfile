@@ -9,12 +9,13 @@ WORKDIR /app
 FROM base AS deps
 COPY package.json bun.lock ./
 RUN --mount=type=cache,target=/root/.bun/install/cache \
-    bun install --frozen-lockfile
+    bun install --frozen-lockfile \
+    && chown -R bun:bun /app
 
 # ---- dev: source di-bind-mount oleh compose.yaml, client di-generate saat start ----
 FROM deps AS dev
-ENV NODE_ENV=development
-COPY . .
+ENV NODE_ENV=development HOME=/tmp
+COPY --chown=bun:bun . .
 EXPOSE 3000
 CMD ["sh", "-c", "bun run db:generate && bun --hot index.ts"]
 

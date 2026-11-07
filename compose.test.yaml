@@ -1,0 +1,82 @@
+# beOkay — STACK UJI terisolasi (tidak menyentuh DB dev).
+#   docker compose -f compose.test.yaml run --rm --build tester            # bun test (unit + integrasi)
+#   docker compose -f compose.test.yaml up -d --build api-test             # API uji, untuk Bruno / smoke
+#   docker compose -f compose.test.yaml down -v                            # buang semuanya
+# Tidak ada port yang dipublikasikan ke host; akses lewat container `tester`/`bruno`.
+name: beokay-test
+
+x-server: &server
+  build:
+    context: ./server
+    target: dev
+  user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+  environment: &server-env
+    NODE_ENV: test
+    HOME: /tmp
+    PORT: "3000"
+    DATABASE_URL: postgresql://beokay_test:beokay_test@postgres-test:5432/beokay_test
+    BETTER_AUTH_SECRET: test-only-secret-0123456789abcdef0123456789
+    BETTER_AUTH_URL: http://api-test:3000
+    TRUSTED_ORIGINS: http://api-test:3000
+    TRUST_PROXY: "false"
+    EMAIL_DRIVER: smtp
+    EMAIL_FROM: "beOkay <no-reply@beokay.test>"
+    SMTP_HOST: mailpit-test
+    SMTP_PORT: "1025"
+    SMTP_SECURE: "false"
+    MAILPIT_API_URL: http://mailpit-test:8025
+  volumes:
+    - ./server:/app
+    - test_node_modules:/app/node_modules
+
+services:
+  postgres-test:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: beokay_test
+      POSTGRES_PASSWORD: beokay_test
+      POSTGRES_DB: beokay_test
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U beokay_test -d beokay_test"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  mailpit-test:
+    image: axllent/mailpit:latest
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  api-test:
+    <<: *server
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      mailpit-test:
+        condition: service_healthy
+    command: ["sh", "-c", "bun run db:generate && bun run db:migrate:deploy && bun index.ts"]
+    healthcheck:
+      test: ["CMD", "bun", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+      start_period: 5s
+
+  tester:
+    <<: *server
+    profiles: [tools]
+    depends_on:
+      api-test:
+        condition: service_healthy
+    environment:
+      <<: *server-env
+      API_BASE_URL: http://api-test:3000
+    command: ["bun", "test"]
+
+volumes:
+  test_node_modules:

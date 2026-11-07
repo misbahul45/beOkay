@@ -13,15 +13,21 @@ datasource db {
 }
 
 model Users {
-  id            String     @id @default(dbgenerated("pg_catalog.gen_random_uuid()")) @db.Uuid
-  name          String
-  email         String
-  emailVerified Boolean    @default(false)
-  image         String?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  sessionss     Sessions[]
-  accountss     Accounts[]
+  id             String              @id @default(dbgenerated("pg_catalog.gen_random_uuid()")) @db.Uuid
+  name           String
+  email          String
+  emailVerified  Boolean             @default(false)
+  image          String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  sessionss      Sessions[]
+  accountss      Accounts[]
+  profile        UserProfile?
+  healthProfile  HealthProfile?
+  settings       UserSettings?
+  onboarding     OnboardingProgress?
+  consentRecords ConsentRecord[]
+  auditEvents    AuditEvent[]
 
   @@unique([email])
   @@map("users")
@@ -73,4 +79,83 @@ model Verifications {
 
   @@index([identifier])
   @@map("verifications")
+}
+
+model UserProfile {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  birthYear Int?     @map("birth_year") @db.SmallInt
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user      Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model HealthProfile {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String   @unique @map("user_id") @db.Uuid
+  diagnosisStatus   String   @map("diagnosis_status")
+  diabetesType      String?  @map("diabetes_type")
+  diagnosedYear     Int?     @map("diagnosed_year") @db.SmallInt
+  treatmentContext  String[] @default([]) @map("treatment_context")
+  dataSource        String   @default("user_reported") @map("data_source")
+  eligibilityStatus String   @default("unknown") @map("eligibility_status")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user              Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("health_profiles")
+}
+
+model UserSettings {
+  userId       String   @id @map("user_id") @db.Uuid
+  locale       String   @default("id-ID")
+  timezone     String   @default("Asia/Jakarta")
+  glucoseUnit  String   @default("mg/dL") @map("glucose_unit")
+  textSize     String   @default("system") @map("text_size")
+  reduceMotion Boolean  @default(false) @map("reduce_motion")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user         Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
+model ConsentRecord {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  purpose       String
+  policyVersion String    @map("policy_version")
+  grantedAt     DateTime  @default(now()) @map("granted_at") @db.Timestamptz(6)
+  withdrawnAt   DateTime? @map("withdrawn_at") @db.Timestamptz(6)
+  source        String
+  user          Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose, grantedAt(sort: Desc)])
+  @@map("consent_records")
+}
+
+model OnboardingProgress {
+  userId      String    @id @map("user_id") @db.Uuid
+  introSeenAt DateTime? @map("intro_seen_at") @db.Timestamptz(6)
+  completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
+  version     Int       @default(0)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user        Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("onboarding_progress")
+}
+
+model AuditEvent {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  eventType  String   @map("event_type")
+  metadata   Json?    @db.JsonB
+  occurredAt DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  user       Users?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, occurredAt(sort: Desc)])
+  @@map("audit_events")
 }
