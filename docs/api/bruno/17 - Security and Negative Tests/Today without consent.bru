@@ -1,0 +1,27 @@
+meta {
+  name: Today without consent
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/me/today
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{restrictedSessionToken}}
+}
+
+tests {
+  test("Rejects missing purpose consent", function () {
+    expect(res.status).to.equal(403);
+    expect(res.body.error.code).to.equal("CONSENT_REQUIRED");
+  });
+}
+
+docs {
+  Inject restrictedSessionToken for a verified test account without one of the required current consents.
+  This request does not withdraw consent or mutate an account.
+}

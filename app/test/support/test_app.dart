@@ -7,6 +7,7 @@ import 'package:app/core/storage/token_storage.dart';
 import 'package:app/core/widgets/app_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -24,6 +25,13 @@ class TestHarness {
 
   Future<void> pump(WidgetTester tester, {Size size = const Size(390, 844)}) async {
     await initializeDateFormatting('id_ID');
+    if (Platform.environment['SHOT_DIR'] != null) {
+      await (FontLoader('Inter')
+        ..addFont(rootBundle.load('assets/fonts/Inter-Regular.ttf'))
+        ..addFont(rootBundle.load('assets/fonts/Inter-SemiBold.ttf'))
+        ..addFont(rootBundle.load('assets/fonts/Inter-Bold.ttf'))).load();
+      await (FontLoader('MaterialIcons')..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
+    }
     tester.view.physicalSize = size * 3;
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);

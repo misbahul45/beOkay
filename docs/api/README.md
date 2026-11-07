@@ -1,4 +1,33 @@
-# API — Authentication & Personalization
+# API — beOkay
+
+## Today Foundation
+
+`GET /api/me/today`: sesi Better Auth verified; consent current `health_data_processing` dan `descriptive_summaries` wajib. Identitas selalu dari sesi, tanpa body/parameter userId. Respons `no-store`, request ID dan error wrapper existing.
+
+```json
+{
+  "displayName": "Nama pengguna",
+  "timezone": "Asia/Jakarta",
+  "glucoseUnit": "mg/dL",
+  "date": "2026-11-09",
+  "greeting": "Selamat pagi",
+  "generatedAt": "2026-11-09T02:00:00.000Z",
+  "computationVersion": "today-foundation-v1",
+  "analyticsState": "NOT_AVAILABLE",
+  "metrics": [
+    { "domain": "glucose", "availability": "NOT_IMPLEMENTED", "value": null },
+    { "domain": "nutrition", "availability": "NOT_IMPLEMENTED", "value": null },
+    { "domain": "activity", "availability": "NOT_IMPLEMENTED", "value": null },
+    { "domain": "medication", "availability": "NOT_IMPLEMENTED", "value": null }
+  ],
+  "goals": { "availability": "NOT_IMPLEMENTED", "items": [] },
+  "timeline": { "availability": "NOT_IMPLEMENTED", "items": [] }
+}
+```
+
+Contoh bersifat sintetis. Nilai null berarti domain belum tersedia, bukan pengukuran nol. 401 untuk sesi hilang/kedaluwarsa, 403 `CONSENT_REQUIRED` untuk consent tidak aktif, 500 generik untuk kegagalan internal. Tidak ada endpoint tracking baru pada slice ini. Koleksi Bruno: [`bruno/`](bruno/); instruksi dan hasil: [pengujian core](../testing/core-health-experience.md).
+
+## Authentication & Personalization
 
 Basis URL dev: `http://localhost:3000`. Semua respons API membawa `X-Request-Id` dan `Cache-Control: no-store`.
 Perilaku di bawah ini diverifikasi dengan menjalankan API di stack uji terisolasi (Docker). Koleksi Bruno menyusul di tahap berikutnya.

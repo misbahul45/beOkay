@@ -5,6 +5,7 @@ import { healthProfileRoutes } from "./features/health-profile/health-profile.ro
 import { onboardingRoutes } from "./features/onboarding/onboarding.routes.ts";
 import { preferencesRoutes } from "./features/preferences/preferences.routes.ts";
 import { profileRoutes } from "./features/profile/profile.routes.ts";
+import { todayRoutes } from "./features/today/today.routes.ts";
 import { checkDatabase, prisma } from "./infrastructure/database/prisma.ts";
 import { route } from "./shared/http/handler.ts";
 import { logEvent } from "./shared/http/logger.ts";
@@ -18,6 +19,7 @@ const server = Bun.serve({
     ...profileRoutes,
     ...healthProfileRoutes,
     ...preferencesRoutes,
+    ...todayRoutes,
     "/health": route(async () => {
       const db = await checkDatabase();
       return { status: db ? 200 : 503, body: { status: db ? "ok" : "degraded", db } };

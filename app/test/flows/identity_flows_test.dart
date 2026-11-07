@@ -139,6 +139,7 @@ void main() {
     await h.pump(tester);
     expect(find.text('Halo, Rina Putri.'), findsOneWidget);
     expect(find.text('Mulai Sekarang'), findsNothing);
+    await h.shot(tester, 'today-foundation');
   });
 
   testWidgets('C. interrupted onboarding resumes at the first incomplete step', (tester) async {

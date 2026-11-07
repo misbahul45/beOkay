@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/router/routes.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/info_card.dart';
@@ -13,6 +11,7 @@ import '../../../core/widgets/pill_button.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../onboarding/application/onboarding_controller.dart';
 import '../../profile/application/profile_controller.dart';
+import '../../today/presentation/today_section.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -23,12 +22,10 @@ class HomeScreen extends ConsumerWidget {
     final onboarding = ref.watch(onboardingControllerProvider).value;
     final profile = ref.watch(profileControllerProvider).value;
     final name = auth is AuthAuthenticated ? auth.user.name : '';
-    final today = DateFormat('EEEE, d MMMM y', 'id_ID').format(DateTime.now());
     return PageScaffold(
       showBack: false,
+      actions: [IconButton(tooltip: 'Buka profil', onPressed: () => context.go(Routes.profile), icon: const Icon(Icons.account_circle_outlined))],
       children: [
-        Text(today.toUpperCase(), style: AppTypography.overline),
-        const SizedBox(height: AppSpacing.xxs),
         Semantics(header: true, child: Text(name.isEmpty ? 'Halo.' : 'Halo, $name.', style: AppTypography.headline)),
         const SizedBox(height: AppSpacing.xs),
         Text('Mulai dari hal yang penting.', style: AppTypography.secondary),
@@ -50,29 +47,7 @@ class HomeScreen extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.md),
         ],
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          decoration: BoxDecoration(color: AppColors.surface, borderRadius: AppRadius.cardRadius, boxShadow: AppShadows.soft),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                height: 44,
-                width: 44,
-                decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
-                child: const ExcludeSemantics(child: Icon(Icons.edit_note_rounded, color: AppColors.primary)),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text('Pencatatan belum tersedia', style: AppTypography.title),
-              const SizedBox(height: AppSpacing.xxs),
-              Text(
-                'Akunmu, persetujuan, profil, dan preferensi sudah siap. Pencatatan makanan, aktivitas, glukosa, dan obat akan hadir di versi berikutnya.',
-                style: AppTypography.secondary,
-              ),
-            ],
-          ),
-        ),
+        const TodaySection(),
       ],
     );
   }

@@ -224,6 +224,19 @@ class FakeBackend {
         return _json({'status': true});
       case 'GET /api/me/onboarding':
         return _json(_onboarding(user));
+      case 'GET /api/me/today':
+        if (!_active(user.id, 'health_data_processing') || !_active(user.id, 'descriptive_summaries')) {
+          return _appError(403, 'CONSENT_REQUIRED', 'Persetujuan diperlukan.');
+        }
+        return _json({
+          'displayName': user.name,
+          'date': '2026-11-09',
+          'greeting': 'Selamat pagi',
+          'timezone': _prefsJson()['timezone'],
+          'glucoseUnit': _prefsJson()['glucoseUnit'],
+          'generatedAt': '2026-11-09T02:00:00Z',
+          'metrics': [for (final domain in ['glucose', 'nutrition', 'activity', 'medication']) {'domain': domain, 'availability': 'NOT_IMPLEMENTED', 'value': null}],
+        });
       case 'PATCH /api/me/onboarding':
         if (body['expectedVersion'] != null && body['expectedVersion'] != _version) return _appError(409, 'VERSION_CONFLICT', 'Konflik versi.');
         if (_introSeenAt == null) {

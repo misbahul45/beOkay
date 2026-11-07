@@ -1,0 +1,18 @@
+meta {
+  name: Today without session
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/me/today
+  body: none
+  auth: none
+}
+
+tests {
+  test("Rejects unauthenticated access", function () {
+    expect(res.status).to.equal(401);
+    expect(res.body.error.code).to.equal("UNAUTHENTICATED");
+  });
+}
