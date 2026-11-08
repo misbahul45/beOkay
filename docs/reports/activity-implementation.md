@@ -20,7 +20,7 @@ Ringkasan mengambil source aktif pada rentang tanggal lokal, recompute on read. 
 
 ## Desain dan Flutter
 
-Native page4085 `12 — Activity` pada `design/beOkay-ui.figcraft`, lima frame editable dibuat/dirender sebelum UI. Overview dan PNG handoff diperiksa. [Desain/screen matrix](../design/activity-figcraft-spec.md). Palet/Inter existing, charcoal editorial card, pill controls dan layout scrollable dipakai. Tidak ada aset foto berlisensi terverifikasi sehingga tidak mengklaim fotografi baru. Tidak mengklaim desktop MCP attach, approval desain pengguna atau pixel-perfect parity.
+Native page 4085 `12 — Activity` pada `design/beOkay-ui.figcraft`, lima frame editable dibuat/dirender sebelum UI. Overview dan PNG handoff diperiksa. [Desain/screen matrix](../design/activity-figcraft-spec.md). Palet/Inter existing, charcoal editorial card, pill controls dan layout scrollable dipakai. Tidak ada aset foto berlisensi terverifikasi sehingga tidak mengklaim fotografi baru. Tidak mengklaim desktop MCP attach, approval desain pengguna atau pixel-perfect parity.
 
 Flutter feature data/application/presentation mencakup form, history/date/archive/pagination, detail/provenance/revisions dan weekly day selector yang membuka histori bertanggal. Shared EditorialFeatureCard mengikuti token existing. Provider mengikuti auth/consent/preferences dan menginvalidasi detail/list/daily/weekly/Today sesudah mutation. HTTP400 tetap editable,503 mempertahankan retry payload,409 meminta reload. Unsaved guard aktif. Form waktu memakai zona perangkat berlabel; histori mengikuti preferensi.
 
@@ -28,8 +28,8 @@ Flutter feature data/application/presentation mencakup form, history/date/archiv
 
 - Backend: **15 tes lulus,264 expect calls**, termasuk regresi auth/Nutrisi/Glukosa.
 - Flutter: **52 tes lulus**;9 tes Activity juga lulus di `TZ=America/New_York`.
-- Bruno: **57/57 requests/tests lulus**,20 Activity cases.
-- Appium: **10 pemeriksaan alur** pada emulator/API nyata, termasuk simpan30→koreksi25 menit, partial weekly total70, archive45→restore70 dan versi4.
+- Bruno: **57/57 requests/tests lulus**, 20 Activity cases.
+- Appium: **10 pemeriksaan alur** pada emulator/API nyata, termasuk simpan30→koreksi25 menit, partial weekly total70, archive45→restore70 dan versi 4.
 - Typecheck, Flutter analyzer, APK debug dan whitespace check lulus. Drift hanya noise UUID-default empat tabel auth.
 
 [Perintah, red/green, cakupan dan screenshot](../testing/activity.md). Defect yang diperbaiki dengan bukti: label Activity pada preview sempat memakai fallback Glucose; week navigation memakai elapsed days sehingga tanggal salah saat DST fallback; filter tanggal gagal untuk selected week mendatang. Tidak menghapus/skip tes gagal atau mengklaim widget fake backend sebagai E2E.

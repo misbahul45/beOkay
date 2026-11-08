@@ -1,0 +1,32 @@
+{
+  "date": "2026-11-08",
+  "mode": "Interactive Appium MCP with persisted API/PostgreSQL assertions; not a standalone CI runner",
+  "device": "Pixel_4 / emulator-5554 / Android 17 / UiAutomator2",
+  "syntheticDataOnly": true,
+  "checks": [
+    { "name": "Synthetic login and correct Today account", "status": "verified" },
+    { "name": "Quick Record creates walking session, 30 minutes, moderate intensity and unknown optional metrics", "status": "verified" },
+    { "name": "Detail shows manual source, version 1, exact 30-minute start/end and null distance/steps", "status": "verified" },
+    { "name": "Correction to 25 minutes updates end, version 2 and retains original 30-minute revision", "status": "verified" },
+    { "name": "History and weekly total 70 minutes with partial optional metric coverage", "status": "verified" },
+    { "name": "Selected weekly day opens dated history and source detail", "status": "verified" },
+    { "name": "Archive reduces active weekly total to 45 minutes", "status": "verified" },
+    { "name": "Archive filter and restore produce version 4 and recover weekly total 70 minutes", "status": "verified" },
+    { "name": "Updated APK launch retains session and persisted records", "status": "verified" },
+    { "name": "Today activity preview opens original session version 4", "status": "verified" }
+  ],
+  "hostWindow": {
+    "title": "Android Emulator - Pixel_4:5554",
+    "width": 407,
+    "height": 864,
+    "mapState": "IsViewable",
+    "leaveRunning": true,
+    "reason": "User explicitly requested visible host emulator"
+  },
+  "limitations": [
+    "Online recording only; no durable offline queue or sync",
+    "No iOS, physical-device or full screen-reader verification",
+    "Goals and global weekly Insights remain later slices",
+    "No calorie, connected-device or clinical interpretation claims"
+  ]
+}
