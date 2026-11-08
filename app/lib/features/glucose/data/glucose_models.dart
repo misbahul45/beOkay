@@ -94,7 +94,10 @@ class GlucoseDay {
       maximum = json['maximum'] as num?,
       displayUnit = json['displayUnit'] as String,
       computationVersion = json['computationVersion'] as String,
-      computedAt = json['computedAt'] as String;
+      computedAt = json['computedAt'] as String,
+      analyticsState = json['analyticsState'] as String? ?? 'READY',
+      freshness = json['freshness'] as String? ?? 'CURRENT';
+  final String analyticsState, freshness;
   final int count, reviewCount, eligibleCount;
   final GlucoseRecord? latest;
   final num? mean, minimum, maximum;

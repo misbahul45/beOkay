@@ -1,4 +1,5 @@
 import 'package:app/core/network/api_exception.dart';
+import 'package:app/core/widgets/timeline_tile.dart';
 import 'package:app/features/today/application/today_controller.dart';
 import 'package:app/features/today/data/today_overview.dart';
 import 'package:app/features/today/presentation/today_section.dart';
@@ -68,8 +69,10 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Jalan kaki · 07:00'));
-    await tester.tap(find.text('Jalan kaki · 07:00'));
+    final tile = find.widgetWithText(TimelineTile, 'Jalan kaki');
+    expect(find.descendant(of: tile, matching: find.textContaining('07:00')), findsOneWidget);
+    await tester.ensureVisible(tile);
+    await tester.tap(tile);
     await tester.pumpAndSettle();
     expect(find.text('Original activity destination'), findsOneWidget);
   });
@@ -120,8 +123,10 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Glukosa · 07:00'));
-    await tester.tap(find.text('Glukosa · 07:00'));
+    final tile = find.byType(TimelineTile);
+    expect(find.descendant(of: tile, matching: find.textContaining('07:00')), findsOneWidget);
+    await tester.ensureVisible(tile);
+    await tester.tap(tile);
     await tester.pumpAndSettle();
     expect(find.text('Original observation destination'), findsOneWidget);
   });
@@ -146,9 +151,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Selamat pagi'), findsOneWidget);
-      expect(find.textContaining('9 November 2026'), findsOneWidget);
-      expect(find.text('Belum tersedia'), findsNWidgets(2));
+      expect(find.text('Sedang disiapkan'), findsOneWidget);
       expect(find.text('Belum ada pengukuran hari ini.'), findsOneWidget);
       expect(find.text('0'), findsNothing);
       expect(tester.takeException(), isNull);

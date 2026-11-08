@@ -14,6 +14,8 @@ import '../../features/health_profile/presentation/health_profile_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/home/presentation/home_shell.dart';
 import '../../features/home/presentation/splash_screen.dart';
+import '../../features/insights/presentation/insights_screen.dart';
+import '../../features/timeline/presentation/log_screen.dart';
 import '../../features/onboarding/application/onboarding_controller.dart';
 import '../../features/onboarding/presentation/complete_screen.dart';
 import '../../features/onboarding/presentation/intro_screen.dart';
@@ -104,6 +106,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _, child) => HomeShell(child: child),
         routes: [
           GoRoute(path: Routes.home, builder: (_, _) => const HomeScreen()),
+          GoRoute(path: Routes.log, builder: (_, _) => const LogScreen()),
+          GoRoute(path: Routes.insights, builder: (_, _) => const InsightsScreen()),
           GoRoute(
             path: Routes.profile,
             builder: (_, _) => const ProfileScreen(),

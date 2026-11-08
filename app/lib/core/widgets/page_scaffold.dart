@@ -14,6 +14,7 @@ class PageScaffold extends StatelessWidget {
     this.bottom,
     this.actions,
     this.background = AppColors.background,
+    this.onRefresh,
   });
 
   final List<Widget> children;
@@ -24,12 +25,20 @@ class PageScaffold extends StatelessWidget {
   final List<Widget>? actions;
   final Color background;
 
+  /// When set, the page supports pull-to-refresh.
+  final Future<void> Function()? onRefresh;
+
+  Widget _withRefresh(Widget scroll) =>
+      onRefresh == null ? scroll : RefreshIndicator(color: AppColors.primary, onRefresh: onRefresh!, child: scroll);
+
   @override
   Widget build(BuildContext context) {
     final canGoBack = showBack && (onBack != null || context.canPop());
+    // Tab roots without title/actions skip the empty app bar and use the space for content.
+    final hasBar = canGoBack || title != null || (actions?.isNotEmpty ?? false);
     return Scaffold(
       backgroundColor: background,
-      appBar: AppBar(
+      appBar: !hasBar ? null : AppBar(
         backgroundColor: background,
         automaticallyImplyLeading: false,
         leadingWidth: AppSpacing.page + 48,
@@ -52,12 +61,15 @@ class PageScaffold extends StatelessWidget {
         actions: actions,
       ),
       body: SafeArea(
-        top: false,
+        top: !hasBar,
         bottom: bottom == null,
-        child: SingleChildScrollView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          padding: const EdgeInsets.fromLTRB(AppSpacing.page, AppSpacing.xs, AppSpacing.page, AppSpacing.lg),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
+        child: _withRefresh(
+          SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            physics: onRefresh == null ? null : const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.fromLTRB(AppSpacing.page, hasBar ? AppSpacing.xs : AppSpacing.md, AppSpacing.page, AppSpacing.lg),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
+          ),
         ),
       ),
       bottomNavigationBar: bottom == null

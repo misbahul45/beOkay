@@ -1,6 +1,7 @@
 import '../../nutrition/data/nutrition_models.dart';
 import '../../glucose/data/glucose_models.dart';
 import '../../activity/data/activity_models.dart';
+import '../../timeline/data/timeline_models.dart';
 
 class TodayOverview {
   const TodayOverview({
@@ -47,21 +48,5 @@ class TodayOverview {
   );
 }
 
-class TodayEvent {
-  TodayEvent.fromJson(Map<String, dynamic> json)
-    : domain = json['domain'] as String,
-      recordId = json['recordId'] as String,
-      localTime = json['localTime'] as String,
-      category = json['category'] as String?,
-      itemCount = json['itemCount'] as int?,
-      displayValue = json['displayValue'] as num?,
-      displayUnit = json['displayUnit'] as String?,
-      qualityStatus = json['qualityStatus'] as String?,
-      activityType = json['activityType'] as String?,
-      durationMinutes = json['durationMinutes'] as int?;
-  final String domain, recordId, localTime;
-  final String? category, displayUnit, qualityStatus;
-  final int? itemCount, durationMinutes;
-  final String? activityType;
-  final num? displayValue;
-}
+/// Today's recent events use the same read model as the Log tab.
+typedef TodayEvent = TimelineItem;
