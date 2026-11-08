@@ -3,6 +3,8 @@ import { preferencesService } from "../preferences/preferences.service.ts";
 import { profileService } from "../profile/profile.service.ts";
 import { buildToday } from "./today.model.ts";
 import { nutritionService } from "../nutrition/nutrition.service.ts";
+import { glucoseService } from "../glucose/glucose.service.ts";
+import { timelineService } from "../timeline/timeline.service.ts";
 
 export const todayService = {
   async get(userId: string) {
@@ -20,20 +22,31 @@ export const todayService = {
       },
       new Date(),
     );
-    const nutrition = await nutritionService.daily(userId, today.date);
+    const [nutrition, glucose, timeline] = await Promise.all([
+      nutritionService.daily(userId, today.date),
+      glucoseService.daily(userId, today.date),
+      timelineService.list(userId, {
+        date: today.date,
+        limit: 5,
+        domain: "all",
+        archived: "false",
+      }),
+    ]);
     return {
       ...today,
-      computationVersion: "today-nutrition-v1",
+      computationVersion: "today-glucose-v1",
       metrics: today.metrics.map((metric) =>
         metric.domain === "nutrition"
           ? { domain: "nutrition", availability: "AVAILABLE", value: nutrition }
-          : metric,
+          : metric.domain === "glucose"
+            ? { domain: "glucose", availability: "AVAILABLE", value: glucose }
+            : metric,
       ),
       nutrition,
+      glucose,
       timeline: {
         availability: "AVAILABLE",
-        supportedDomains: ["meal"],
-        items: nutrition.recent.map((meal) => ({ ...meal, domain: "meal" })),
+        ...timeline,
       },
     };
   },

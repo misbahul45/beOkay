@@ -26,8 +26,16 @@ Future<void> showQuickRecord(BuildContext context) =>
                   context.push(Routes.addMeal);
                 },
               ),
+              ListTile(
+                leading: const Icon(Icons.water_drop_outlined),
+                title: const Text('Glukosa'),
+                subtitle: const Text('Hasil glukometer dan konteks pengukuran'),
+                onTap: () {
+                  Navigator.pop(sheet);
+                  context.push(Routes.addGlucose);
+                },
+              ),
               for (final item in [
-                (Icons.water_drop_outlined, 'Glukosa'),
                 (Icons.directions_walk, 'Aktivitas'),
                 (Icons.medication_outlined, 'Konsumsi obat'),
               ])

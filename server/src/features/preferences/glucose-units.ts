@@ -1,7 +1,7 @@
 export const GLUCOSE_UNITS = ["mg/dL", "mmol/L"] as const;
 export type GlucoseUnit = (typeof GLUCOSE_UNITS)[number];
 
-const MG_DL_PER_MMOL_L = 18.016;
+export const MG_DL_PER_MMOL_L = 18.016;
 
 export function mgDlToMmolL(mgDl: number): number {
   return Math.round((mgDl / MG_DL_PER_MMOL_L) * 10) / 10;

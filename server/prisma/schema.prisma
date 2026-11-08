@@ -31,6 +31,7 @@ model Users {
   foods          FoodCatalog[]
   meals          MealLog[]
   revisions      RecordRevision[]
+  glucose        GlucoseObservation[]
 
   @@unique([email])
   @@map("users")
@@ -229,14 +230,44 @@ model MealItem {
 model RecordRevision {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId      String   @map("user_id") @db.Uuid
-  mealId      String   @map("meal_id") @db.Uuid
+  mealId      String?  @map("meal_id") @db.Uuid
+  glucoseId   String?  @map("glucose_id") @db.Uuid
   version     Int
   reason      String
   snapshot    Json     @db.JsonB
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   user        Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  meal        MealLog  @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  meal        MealLog? @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  glucose     GlucoseObservation? @relation(fields: [glucoseId], references: [id], onDelete: Cascade)
   @@unique([mealId, version])
+  @@unique([glucoseId, version])
   @@index([userId, createdAt(sort: Desc)])
   @@map("record_revisions")
+}
+
+model GlucoseObservation {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  source          String   @default("manual_glucometer")
+  sourceRecordId  String?  @map("source_record_id")
+  measurementType String  @default("capillary_blood") @map("measurement_type")
+  valueMgDl       Decimal  @map("value_mg_dl") @db.Decimal(16,7)
+  originalValue   Decimal  @map("original_value") @db.Decimal(12,4)
+  originalUnit    String   @map("original_unit")
+  measuredAt      DateTime @map("measured_at") @db.Timestamptz(6)
+  recordedAt      DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
+  receivedAt      DateTime @default(now()) @map("received_at") @db.Timestamptz(6)
+  mealContext     String   @default("unknown") @map("meal_context")
+  qualityStatus   String   @default("user_reported") @map("quality_status")
+  qualityFlags    String[] @default([]) @map("quality_flags")
+  notes           String?
+  version         Int      @default(1)
+  createHash      String   @map("create_hash")
+  archivedAt      DateTime? @map("archived_at") @db.Timestamptz(6)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user            Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  revisions       RecordRevision[]
+  @@index([userId, measuredAt(sort: Desc), id(sort: Desc)])
+  @@map("glucose_observations")
 }

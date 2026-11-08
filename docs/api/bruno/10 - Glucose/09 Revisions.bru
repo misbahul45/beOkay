@@ -1,0 +1,29 @@
+meta {
+  name: Revisions
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/me/glucose/{{glucoseId}}/revisions
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+tests {
+  test("Revisions", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.items[0].snapshot.originalValue).to.equal(5.5);
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime sessionToken, otherSessionToken, restrictedSessionToken, newGlucoseId and eventTime.
+  Verified Better Auth session and health_data_processing consent required; summary additionally needs descriptive_summaries.
+  Owner derived from session. Original value/unit immutable under display preference changes; correction requires expectedVersion/reason.
+  See docs/api/glucose.md for parameters, request/response examples, errors, numeric guard and analytics eligibility.
+}

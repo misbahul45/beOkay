@@ -1,5 +1,7 @@
 # Core Health — spesifikasi desain fallback
 
+Pembaruan Slice 3: [Glucose FigCraft specification](glucose-figcraft-spec.md) mendokumentasikan page native `11 — Glucose`, lima frame editable, preview dan ekspor individual. Desain dibuat/dirender lewat native headless FigCraft, dengan perbaikan overflow teks kartu. Desktop MCP tetap terbatas; tidak mengklaim approval pengguna atau parity pixel-perfect.
+
 Pembaruan Slice 2: [Nutrition FigCraft spec](nutrition-figcraft-spec.md) dan halaman native `10 — Nutrition` sudah dibuat, dirender dan diperiksa melalui engine FigCraft headless. Keterbatasan MCP pada catatan Slice 1 di bawah tetap berlaku untuk desktop attach, bukan untuk akses headless native yang sekarang tersedia.
 
 Slice 1: Today Foundation. Dibuat sebelum implementasi UI. FigCraft MCP tidak tersedia; arsip `design/beOkay-ui.figcraft` dipertahankan. Dokumen ini bukan klaim file FigCraft baru atau persetujuan desain pengguna.

@@ -16,6 +16,8 @@ abstract final class Routes {
   static const home = '/home';
   static const meals = '/meals';
   static const addMeal = '/meals/new';
+  static const glucose = '/glucose';
+  static const addGlucose = '/glucose/new';
   static const profile = '/profile';
   static const editProfile = '/profile/edit';
   static const editHealth = '/profile/health';
@@ -23,7 +25,13 @@ abstract final class Routes {
   static const consentManagement = '/settings/consent';
   static const accountSecurity = '/settings/security';
 
-  static const publicRoutes = {welcome, register, login, verifyEmail, forgotPassword};
+  static const publicRoutes = {
+    welcome,
+    register,
+    login,
+    verifyEmail,
+    forgotPassword,
+  };
 
   static const onboardingSequence = [
     onboardingIntro,

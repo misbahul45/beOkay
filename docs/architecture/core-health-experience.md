@@ -1,5 +1,7 @@
 # Core Health Experience
 
+Pembaruan Slice 3: [arsitektur Glucose](glucose.md) memperluas tracking online, Today dan preview sumber, timeline read model meal+glucose serta daily composite. Quick Record food/glucose aktif. Fondasi auth/onboarding tetap dipakai. Bagian Slice 1–2 di bawah adalah histori, bukan status fitur terbaru.
+
 Pembaruan Slice 2: [arsitektur Nutrition](nutrition.md) sudah diterapkan. Today mengonsumsi read model Nutrition nyata, Quick Record food aktif, dan rute meal tersedia. Bagian Slice 1 di bawah dipertahankan sebagai catatan fondasi; daftar fitur belum tersedia harus dibaca bersama laporan Nutrition terbaru.
 
 ## Slice 1 — Today Foundation

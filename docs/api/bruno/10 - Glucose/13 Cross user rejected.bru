@@ -1,0 +1,29 @@
+meta {
+  name: Cross user rejected
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/api/me/glucose/{{glucoseId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{otherSessionToken}}
+}
+
+tests {
+  test("Cross user rejected", function () {
+    expect(res.status).to.equal(404);
+
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime sessionToken, otherSessionToken, restrictedSessionToken, newGlucoseId and eventTime.
+  Verified Better Auth session and health_data_processing consent required; summary additionally needs descriptive_summaries.
+  Owner derived from session. Original value/unit immutable under display preference changes; correction requires expectedVersion/reason.
+  See docs/api/glucose.md for parameters, request/response examples, errors, numeric guard and analytics eligibility.
+}

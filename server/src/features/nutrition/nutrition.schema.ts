@@ -83,6 +83,7 @@ export const mealPatchSchema = mealCreateSchema
   .omit({ id: true })
   .partial()
   .extend({
+    notes:z.string().trim().max(2000).nullable().optional(),
     expectedVersion: z.number().int().positive(),
     reason: text(300),
     archived: z.boolean().optional(),

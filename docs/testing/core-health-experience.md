@@ -1,5 +1,7 @@
 # Verifikasi Core Health — Slice 1
 
+Pembaruan Slice 3: [pengujian Glucose](glucose.md) mencatat hasil terbaru backend, Flutter, Bruno dan Appium. Angka Slice 1–2 di bawah dipertahankan sebagai bukti historis. Semua backend test/migration/typecheck tetap dalam Docker dengan database terisolasi.
+
 Pembaruan Slice 2: [verifikasi Nutrition](nutrition.md) mencatat backend 6 tes/106 assertion, Flutter 33 tes, Bruno 19 request dan 12 skenario Appium. Bagian Slice 1 di bawah adalah histori verifikasi fondasi.
 
 Pembaruan 8 November 2026: [pengujian Appium Today](today-appium.md) sudah dijalankan terhadap API/PostgreSQL nyata, dengan 13 skenario terverifikasi dan screenshot perangkat. Batas cakupan dan perbedaannya dari tes widget tercatat pada laporan tersebut.

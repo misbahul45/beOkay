@@ -3,7 +3,7 @@ import {
   calculateNutrition,
   totalNutrition,
 } from "../../src/features/nutrition/nutrition.model.ts";
-import { mealCreateSchema } from "../../src/features/nutrition/nutrition.schema.ts";
+import { mealCreateSchema,mealPatchSchema } from "../../src/features/nutrition/nutrition.schema.ts";
 
 test("nutrients require grams and preserve unknown values", () => {
   expect(
@@ -61,4 +61,7 @@ test("meal validation rejects empty items, impossible dates and unjustified gram
       items: [{ name: "Food", quantity: 1, unit: "portion", grams: 200 }],
     }).success,
   ).toBe(false);
+});
+test('archive-only correction preserves existing meal notes',()=>{
+  expect(mealPatchSchema.parse({expectedVersion:1,reason:'Archive',archived:true})).not.toHaveProperty('notes');
 });

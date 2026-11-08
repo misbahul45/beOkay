@@ -1,0 +1,37 @@
+meta {
+  name: Stale correction rejected
+  type: http
+  seq: 10
+}
+
+patch {
+  url: {{baseUrl}}/api/me/glucose/{{glucoseId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {
+    "expectedVersion": 1,
+    "reason": "Stale correction",
+    "notes": "denied"
+  }
+}
+
+tests {
+  test("Stale correction rejected", function () {
+    expect(res.status).to.equal(409);
+
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime sessionToken, otherSessionToken, restrictedSessionToken, newGlucoseId and eventTime.
+  Verified Better Auth session and health_data_processing consent required; summary additionally needs descriptive_summaries.
+  Owner derived from session. Original value/unit immutable under display preference changes; correction requires expectedVersion/reason.
+  See docs/api/glucose.md for parameters, request/response examples, errors, numeric guard and analytics eligibility.
+}

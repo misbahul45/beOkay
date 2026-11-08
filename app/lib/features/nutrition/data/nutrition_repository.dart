@@ -1,38 +1,8 @@
-import '../../../core/network/api_client.dart';
-import '../../../core/network/api_exception.dart';
-import '../../../core/storage/token_storage.dart';
+import '../../../core/network/account_scoped_repository.dart';
 import 'nutrition_models.dart';
 
-class NutritionRepository {
-  NutritionRepository(this.api, {required this.isCurrentAccount});
-  final ApiClient api;
-  final bool Function() isCurrentAccount;
-  Future<ApiResponse> write(
-    String method,
-    String path,
-    Map<String, dynamic> body,
-  ) async {
-    final token = await api.tokens.read();
-    if (token == null || !isCurrentAccount()) {
-      throw const ApiException(
-        status: 401,
-        code: 'ACCOUNT_CHANGED',
-        message: 'Akun berubah. Buka kembali formulir.',
-      );
-    }
-    final captured = MemoryTokenStorage();
-    await captured.write(token);
-    final client = ApiClient(
-      client: api.client,
-      tokens: captured,
-      baseUrl: api.baseUrl,
-      onUnauthorized: () {
-        if (isCurrentAccount()) api.onUnauthorized?.call();
-      },
-    );
-    return client.send(method, path, body: body);
-  }
-
+class NutritionRepository extends AccountScopedRepository {
+  NutritionRepository(super.api, {required super.isCurrentAccount});
   Future<MealPage> list({
     String? cursor,
     String? date,

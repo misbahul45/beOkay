@@ -25,6 +25,9 @@ import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/nutrition/presentation/meal_history_screen.dart';
 import '../../features/nutrition/presentation/meal_form_screen.dart';
 import '../../features/nutrition/presentation/meal_detail_screen.dart';
+import '../../features/glucose/presentation/glucose_history_screen.dart';
+import '../../features/glucose/presentation/glucose_form_screen.dart';
+import '../../features/glucose/presentation/glucose_detail_screen.dart';
 import 'redirect.dart';
 import 'routes.dart';
 
@@ -55,31 +58,101 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: Routes.splash, builder: (_, _) => const SplashScreen()),
       GoRoute(path: Routes.welcome, builder: (_, _) => const WelcomeScreen()),
       GoRoute(path: Routes.register, builder: (_, _) => const RegisterScreen()),
-      GoRoute(path: Routes.login, builder: (_, state) => LoginScreen(initialEmail: state.uri.queryParameters['email'])),
-      GoRoute(path: Routes.verifyEmail, builder: (_, state) => VerifyEmailScreen(email: state.uri.queryParameters['email'] ?? '')),
-      GoRoute(path: Routes.forgotPassword, builder: (_, _) => const ForgotPasswordScreen()),
-      GoRoute(path: Routes.onboardingIntro, builder: (_, _) => const OnboardingIntroScreen()),
-      GoRoute(path: Routes.onboardingConsent, builder: (_, _) => const ConsentScreen()),
-      GoRoute(path: Routes.onboardingProfile, builder: (_, _) => const PersonalProfileScreen(onboarding: true)),
-      GoRoute(path: Routes.onboardingHealth, builder: (_, _) => const HealthProfileScreen(onboarding: true)),
-      GoRoute(path: Routes.onboardingPreferences, builder: (_, _) => const PreferencesSetupScreen()),
-      GoRoute(path: Routes.onboardingComplete, builder: (_, _) => const OnboardingCompleteScreen()),
+      GoRoute(
+        path: Routes.login,
+        builder: (_, state) =>
+            LoginScreen(initialEmail: state.uri.queryParameters['email']),
+      ),
+      GoRoute(
+        path: Routes.verifyEmail,
+        builder: (_, state) =>
+            VerifyEmailScreen(email: state.uri.queryParameters['email'] ?? ''),
+      ),
+      GoRoute(
+        path: Routes.forgotPassword,
+        builder: (_, _) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: Routes.onboardingIntro,
+        builder: (_, _) => const OnboardingIntroScreen(),
+      ),
+      GoRoute(
+        path: Routes.onboardingConsent,
+        builder: (_, _) => const ConsentScreen(),
+      ),
+      GoRoute(
+        path: Routes.onboardingProfile,
+        builder: (_, _) => const PersonalProfileScreen(onboarding: true),
+      ),
+      GoRoute(
+        path: Routes.onboardingHealth,
+        builder: (_, _) => const HealthProfileScreen(onboarding: true),
+      ),
+      GoRoute(
+        path: Routes.onboardingPreferences,
+        builder: (_, _) => const PreferencesSetupScreen(),
+      ),
+      GoRoute(
+        path: Routes.onboardingComplete,
+        builder: (_, _) => const OnboardingCompleteScreen(),
+      ),
       ShellRoute(
         builder: (_, _, child) => HomeShell(child: child),
         routes: [
           GoRoute(path: Routes.home, builder: (_, _) => const HomeScreen()),
-          GoRoute(path: Routes.profile, builder: (_, _) => const ProfileScreen()),
+          GoRoute(
+            path: Routes.profile,
+            builder: (_, _) => const ProfileScreen(),
+          ),
         ],
       ),
-      GoRoute(path: Routes.editProfile, builder: (_, _) => const PersonalProfileScreen(onboarding: false)),
+      GoRoute(
+        path: Routes.editProfile,
+        builder: (_, _) => const PersonalProfileScreen(onboarding: false),
+      ),
       GoRoute(path: Routes.meals, builder: (_, _) => const MealHistoryScreen()),
+      GoRoute(
+        path: Routes.glucose,
+        builder: (_, _) => const GlucoseHistoryScreen(),
+      ),
+      GoRoute(
+        path: Routes.addGlucose,
+        builder: (_, _) => const GlucoseFormScreen(),
+      ),
+      GoRoute(
+        path: '/glucose/:id/edit',
+        builder: (_, state) =>
+            GlucoseDetailScreen(id: state.pathParameters['id']!, edit: true),
+      ),
+      GoRoute(
+        path: '/glucose/:id',
+        builder: (_, state) =>
+            GlucoseDetailScreen(id: state.pathParameters['id']!),
+      ),
       GoRoute(path: Routes.addMeal, builder: (_, _) => const MealFormScreen()),
-      GoRoute(path: '/meals/:id/edit', builder: (_, state) => MealDetailScreen(id: state.pathParameters['id']!,edit:true)),
-      GoRoute(path: '/meals/:id', builder: (_, state) => MealDetailScreen(id: state.pathParameters['id']!)),
-      GoRoute(path: Routes.editHealth, builder: (_, _) => const HealthProfileScreen(onboarding: false)),
+      GoRoute(
+        path: '/meals/:id/edit',
+        builder: (_, state) =>
+            MealDetailScreen(id: state.pathParameters['id']!, edit: true),
+      ),
+      GoRoute(
+        path: '/meals/:id',
+        builder: (_, state) =>
+            MealDetailScreen(id: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: Routes.editHealth,
+        builder: (_, _) => const HealthProfileScreen(onboarding: false),
+      ),
       GoRoute(path: Routes.settings, builder: (_, _) => const SettingsScreen()),
-      GoRoute(path: Routes.consentManagement, builder: (_, _) => const ConsentManagementScreen()),
-      GoRoute(path: Routes.accountSecurity, builder: (_, _) => const AccountSecurityScreen()),
+      GoRoute(
+        path: Routes.consentManagement,
+        builder: (_, _) => const ConsentManagementScreen(),
+      ),
+      GoRoute(
+        path: Routes.accountSecurity,
+        builder: (_, _) => const AccountSecurityScreen(),
+      ),
     ],
   );
   ref.onDispose(router.dispose);

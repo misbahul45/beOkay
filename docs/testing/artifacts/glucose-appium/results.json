@@ -1,0 +1,25 @@
+{
+  "date": "2026-11-08",
+  "mode": "Interactive Appium MCP observations with persisted API checks; not a standalone CI runner",
+  "device": "Pixel_4 / emulator-5554 / Android 17 / UiAutomator2",
+  "syntheticDataOnly": true,
+  "checks": [
+    { "name": "Login and persisted Today", "status": "verified" },
+    { "name": "Quick Record creates one 5.5 mmol/L observation, canonical 99.088 mg/dL", "status": "verified" },
+    { "name": "Detail preserves source and shows converted 99 mg/dL", "status": "verified" },
+    { "name": "Correction to 6.1 mmol/L, canonical 109.8976 mg/dL, version 2 and prior revision", "status": "verified" },
+    { "name": "History with real observations and descriptive summary", "status": "verified" },
+    { "name": "Display preference changes without modifying canonical/source/version", "status": "verified" },
+    { "name": "Archive version 3 reduces active summary count from 2 to 1", "status": "verified" },
+    { "name": "Archive filter and restore version 4 recover active count 2", "status": "verified" },
+    { "name": "Restart and updated APK retain account and persisted data", "status": "verified" },
+    { "name": "Chronological Today preview navigates to original version-4 observation", "status": "verified" }
+  ],
+  "limitations": [
+    "No offline recording or synchronization claim",
+    "No iOS or physical-device verification",
+    "No complete accessibility or all-screen-size certification",
+    "Manual source only; no connected-device or clinical interpretation"
+  ],
+  "cleanup": "Owned Appium session, ADB reverse, emulator and disposable Docker test stack removed; temporary credential file removed"
+}

@@ -1,0 +1,40 @@
+meta {
+  name: Retry create
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/me/glucose
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {
+    "id": "{{newGlucoseId}}",
+    "originalValue": 5.5,
+    "originalUnit": "mmol/L",
+    "measuredAt": "{{eventTime}}",
+    "mealContext": "after_meal",
+    "notes": "Synthetic Bruno observation"
+  }
+}
+
+tests {
+  test("Retry create", function () {
+    expect(res.status).to.equal(201);
+    expect(res.body.id).to.equal(bru.getVar("glucoseId"));
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime sessionToken, otherSessionToken, restrictedSessionToken, newGlucoseId and eventTime.
+  Verified Better Auth session and health_data_processing consent required; summary additionally needs descriptive_summaries.
+  Owner derived from session. Original value/unit immutable under display preference changes; correction requires expectedVersion/reason.
+  See docs/api/glucose.md for parameters, request/response examples, errors, numeric guard and analytics eligibility.
+}

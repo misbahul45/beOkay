@@ -25,6 +25,10 @@ tests {
       if (metric.domain === "nutrition") {
         expect(metric.availability).to.equal("AVAILABLE");
         expect(metric.value.mealCount).to.be.a("number");
+      } else if (metric.domain === "glucose") {
+        expect(metric.availability).to.equal("AVAILABLE");
+        expect(metric.value.count).to.be.a("number");
+        if (metric.value.count === 0) expect(metric.value.latest).to.equal(null);
       } else {
         expect(metric.value).to.equal(null);
         expect(metric.availability).to.equal("NOT_IMPLEMENTED");
@@ -38,5 +42,5 @@ docs {
   No request body or date/user query parameters. Date and greeting use saved IANA timezone.
   Inject sessionToken at runtime. Never store tokens in the collection.
   401: inactive/missing session. 403 CONSENT_REQUIRED: missing/withdrawn/obsolete policy consent. 500: safe generic failure.
-  Foundation response has null metrics; no tracking persistence, empty-history verification or analytics computation is claimed.
+  Nutrition and Glucose metrics are AVAILABLE with real source counts; empty glucose is latest=null. Activity/Medication stay NOT_IMPLEMENTED. Broader Insights analyticsState remains NOT_AVAILABLE.
 }

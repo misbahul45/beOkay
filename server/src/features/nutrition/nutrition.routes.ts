@@ -76,40 +76,4 @@ export const nutritionRoutes = {
       body: await nutritionService.revisions(session.userId, recordId(req)),
     })),
   },
-  "/api/me/summaries/daily": {
-    GET: authenticated(async ({ req, session }) => ({
-      body: await nutritionService.daily(
-        session.userId,
-        z.iso
-          .date()
-          .optional()
-          .parse(new URL(req.url).searchParams.get("date") ?? undefined),
-      ),
-    })),
-  },
-  "/api/me/timeline": {
-    GET: authenticated(async ({ req, session }) => {
-      const page = await nutritionService.list(
-        session.userId,
-        mealQuerySchema.parse(
-          Object.fromEntries(new URL(req.url).searchParams),
-        ),
-      );
-      return {
-        body: {
-          supportedDomains: ["meal"],
-          nextCursor: page.nextCursor,
-          items: page.items.map((meal) => ({
-            domain: "meal",
-            recordId: meal.id,
-            occurredAt: meal.consumedAt,
-            localDate: meal.localDate,
-            localTime: meal.localTime,
-            category: meal.category,
-            itemCount: meal.items.length,
-          })),
-        },
-      };
-    }),
-  },
 };

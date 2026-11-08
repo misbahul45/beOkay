@@ -1,5 +1,7 @@
 # Health Tracking Schema — status Slice 1
 
+Pembaruan Slice 3: migration `20261108110400_glucose` menambahkan glucose_observations dan memperluas record_revisions dengan sumber eksklusif meal/glucose. [Data dictionary Glucose](glucose-schema.md). Tidak membuat daily/weekly summaries, activity, medication, goals atau sync tables pada slice ini.
+
 Pembaruan Slice 2: migration `20261108070202_nutrition` menambahkan food_catalog, meal_logs, meal_items dan record_revisions. [Data dictionary dan relasi Nutrition](nutrition-schema.md). Pernyataan tanpa tabel baru di bawah adalah status historis Slice 1.
 
 Tidak ada migrasi, tabel, index atau model Prisma baru dalam Today Foundation. Sumber identitas tetap Better Auth `Users` UUID, nama dari `users.name`; preferensi dari `user_settings`; consent dari `consent_records`. Profil dan preferensi dibaca melalui service existing dengan session userId.
