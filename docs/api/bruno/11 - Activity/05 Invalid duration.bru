@@ -1,0 +1,40 @@
+meta {
+  name: Invalid duration
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/me/activities
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {
+    "id": "{{newActivityId}}",
+    "activityType": "walking",
+    "startedAt": "{{eventTime}}",
+    "durationMinutes": 0,
+    "notes": "Synthetic Bruno session"
+  }
+}
+
+tests {
+  test("Invalid duration", function () {
+    expect(res.status).to.equal(400);
+
+  });
+}
+
+docs {
+  Synthetic isolated-test data only. Verified session and health_data_processing consent required.
+  Summaries additionally need descriptive_summaries. Owner comes from session; source manual only.
+  Stable create UUID and expectedVersion/reason corrections; unknown metrics stay null.
+  Inject sessionToken, otherSessionToken, restrictedSessionToken, newActivityId and eventTime at runtime.
+  See docs/api/activity.md for contracts, parameters, responses, errors and aggregation rules.
+}

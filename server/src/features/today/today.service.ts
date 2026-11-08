@@ -4,6 +4,7 @@ import { profileService } from "../profile/profile.service.ts";
 import { buildToday } from "./today.model.ts";
 import { nutritionService } from "../nutrition/nutrition.service.ts";
 import { glucoseService } from "../glucose/glucose.service.ts";
+import { activityService } from "../activity/activity.service.ts";
 import { timelineService } from "../timeline/timeline.service.ts";
 
 export const todayService = {
@@ -22,9 +23,10 @@ export const todayService = {
       },
       new Date(),
     );
-    const [nutrition, glucose, timeline] = await Promise.all([
+    const [nutrition, glucose, activity, timeline] = await Promise.all([
       nutritionService.daily(userId, today.date),
       glucoseService.daily(userId, today.date),
+      activityService.daily(userId, today.date),
       timelineService.list(userId, {
         date: today.date,
         limit: 5,
@@ -34,16 +36,23 @@ export const todayService = {
     ]);
     return {
       ...today,
-      computationVersion: "today-glucose-v1",
+      computationVersion: "today-activity-v1",
       metrics: today.metrics.map((metric) =>
         metric.domain === "nutrition"
           ? { domain: "nutrition", availability: "AVAILABLE", value: nutrition }
           : metric.domain === "glucose"
             ? { domain: "glucose", availability: "AVAILABLE", value: glucose }
-            : metric,
+            : metric.domain === "activity"
+              ? {
+                  domain: "activity",
+                  availability: "AVAILABLE",
+                  value: activity,
+                }
+              : metric,
       ),
       nutrition,
       glucose,
+      activity,
       timeline: {
         availability: "AVAILABLE",
         ...timeline,

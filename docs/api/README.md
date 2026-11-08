@@ -1,5 +1,7 @@
 # API — beOkay
 
+Pembaruan Slice 4: [Activity API](activity.md) menambah pencatatan sesi, revisions/archive dan summary harian/mingguan. Today dan timeline sekarang mendukung makanan/glukosa/aktivitas. Bruno folder11 Activity menambah20 executable cases; environment tetap satu.
+
 Pembaruan Slice 3: [Glucose API](glucose.md) aktif dengan source/original units, koreksi/revisions/archive dan summary. Today memuat Nutrition/Glucose AVAILABLE; timeline kini meal+glucose; daily summary mempertahankan kontrak Nutrition dengan anggota glucose. Folder Bruno `10 - Glucose` menambahkan 18 kasus. Contoh foundation di bawah bersifat historis.
 
 Pembaruan Slice 2: [Nutrition API](nutrition.md) menambahkan personal food catalog, meal create/read/correct/archive/restore, revisions, meal-only timeline dan daily Nutrition summary. Today sekarang memuat `nutrition` nyata dan metric nutrition AVAILABLE. Contoh Today Foundation di bawah adalah kontrak tahap awal; domain selain Nutrition tetap belum tersedia.

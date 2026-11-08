@@ -29,6 +29,9 @@ tests {
         expect(metric.availability).to.equal("AVAILABLE");
         expect(metric.value.count).to.be.a("number");
         if (metric.value.count === 0) expect(metric.value.latest).to.equal(null);
+      } else if (metric.domain === "activity") {
+        expect(metric.availability).to.equal("AVAILABLE");
+        expect(metric.value.count).to.be.a("number");
       } else {
         expect(metric.value).to.equal(null);
         expect(metric.availability).to.equal("NOT_IMPLEMENTED");

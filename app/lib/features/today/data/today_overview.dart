@@ -1,5 +1,6 @@
 import '../../nutrition/data/nutrition_models.dart';
 import '../../glucose/data/glucose_models.dart';
+import '../../activity/data/activity_models.dart';
 
 class TodayOverview {
   const TodayOverview({
@@ -10,6 +11,7 @@ class TodayOverview {
     required this.generatedAt,
     this.nutrition,
     this.glucose,
+    this.activity,
     this.events = const [],
   });
 
@@ -20,6 +22,7 @@ class TodayOverview {
   final DateTime generatedAt;
   final NutritionDay? nutrition;
   final GlucoseDay? glucose;
+  final ActivitySummary? activity;
   final List<TodayEvent> events;
 
   factory TodayOverview.fromJson(Map<String, dynamic> json) => TodayOverview(
@@ -33,6 +36,9 @@ class TodayOverview {
         : null,
     glucose: json['glucose'] is Map<String, dynamic>
         ? GlucoseDay.fromJson(json['glucose'] as Map<String, dynamic>)
+        : null,
+    activity: json['activity'] is Map<String, dynamic>
+        ? ActivitySummary.fromJson(json['activity'] as Map<String, dynamic>)
         : null,
     events:
         ((json['timeline'] as Map<String, dynamic>?)?['items'] as List? ?? [])
@@ -50,9 +56,12 @@ class TodayEvent {
       itemCount = json['itemCount'] as int?,
       displayValue = json['displayValue'] as num?,
       displayUnit = json['displayUnit'] as String?,
-      qualityStatus = json['qualityStatus'] as String?;
+      qualityStatus = json['qualityStatus'] as String?,
+      activityType = json['activityType'] as String?,
+      durationMinutes = json['durationMinutes'] as int?;
   final String domain, recordId, localTime;
   final String? category, displayUnit, qualityStatus;
-  final int? itemCount;
+  final int? itemCount, durationMinutes;
+  final String? activityType;
   final num? displayValue;
 }

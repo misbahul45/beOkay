@@ -18,6 +18,9 @@ abstract final class Routes {
   static const addMeal = '/meals/new';
   static const glucose = '/glucose';
   static const addGlucose = '/glucose/new';
+  static const activities = '/activities';
+  static const addActivity = '/activities/new';
+  static const activityWeek = '/activities/weekly';
   static const profile = '/profile';
   static const editProfile = '/profile/edit';
   static const editHealth = '/profile/health';

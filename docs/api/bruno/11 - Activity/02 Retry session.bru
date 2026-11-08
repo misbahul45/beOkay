@@ -1,0 +1,40 @@
+meta {
+  name: Retry session
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/me/activities
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {
+    "id": "{{newActivityId}}",
+    "activityType": "walking",
+    "startedAt": "{{eventTime}}",
+    "durationMinutes": 30,
+    "notes": "Synthetic Bruno session"
+  }
+}
+
+tests {
+  test("Retry session", function () {
+    expect(res.status).to.equal(201);
+    expect(res.body.id).to.equal(bru.getVar("activityId"));
+  });
+}
+
+docs {
+  Synthetic isolated-test data only. Verified session and health_data_processing consent required.
+  Summaries additionally need descriptive_summaries. Owner comes from session; source manual only.
+  Stable create UUID and expectedVersion/reason corrections; unknown metrics stay null.
+  Inject sessionToken, otherSessionToken, restrictedSessionToken, newActivityId and eventTime at runtime.
+  See docs/api/activity.md for contracts, parameters, responses, errors and aggregation rules.
+}

@@ -1,5 +1,7 @@
 # Core Health — spesifikasi desain fallback
 
+Pembaruan Slice 4: [Activity FigCraft specification](activity-figcraft-spec.md), native page4085 `12 — Activity`, lima frame dan PNG handoff tersedia. Render diperiksa sebelum implementasi UI. Responsive editable variants/full design parity belum diklaim.
+
 Pembaruan Slice 3: [Glucose FigCraft specification](glucose-figcraft-spec.md) mendokumentasikan page native `11 — Glucose`, lima frame editable, preview dan ekspor individual. Desain dibuat/dirender lewat native headless FigCraft, dengan perbaikan overflow teks kartu. Desktop MCP tetap terbatas; tidak mengklaim approval pengguna atau parity pixel-perfect.
 
 Pembaruan Slice 2: [Nutrition FigCraft spec](nutrition-figcraft-spec.md) dan halaman native `10 — Nutrition` sudah dibuat, dirender dan diperiksa melalui engine FigCraft headless. Keterbatasan MCP pada catatan Slice 1 di bawah tetap berlaku untuk desktop attach, bukan untuk akses headless native yang sekarang tersedia.

@@ -1,5 +1,7 @@
 # Health Tracking Schema — status Slice 1
 
+Pembaruan Slice 4: migration20261108130338_activity menambah activity_sessions dan activity_id pada record_revisions. [Data dictionary Activity](activity-schema.md). Migrasi hanya diterapkan pada database uji, bukan dev/produksi.
+
 Pembaruan Slice 3: migration `20261108110400_glucose` menambahkan glucose_observations dan memperluas record_revisions dengan sumber eksklusif meal/glucose. [Data dictionary Glucose](glucose-schema.md). Tidak membuat daily/weekly summaries, activity, medication, goals atau sync tables pada slice ini.
 
 Pembaruan Slice 2: migration `20261108070202_nutrition` menambahkan food_catalog, meal_logs, meal_items dan record_revisions. [Data dictionary dan relasi Nutrition](nutrition-schema.md). Pernyataan tanpa tabel baru di bawah adalah status historis Slice 1.

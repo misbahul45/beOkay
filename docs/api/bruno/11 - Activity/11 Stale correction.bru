@@ -1,0 +1,38 @@
+meta {
+  name: Stale correction
+  type: http
+  seq: 11
+}
+
+patch {
+  url: {{baseUrl}}/api/me/activities/{{activityId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {
+    "expectedVersion": 1,
+    "reason": "Stale edit",
+    "notes": "denied"
+  }
+}
+
+tests {
+  test("Stale correction", function () {
+    expect(res.status).to.equal(409);
+
+  });
+}
+
+docs {
+  Synthetic isolated-test data only. Verified session and health_data_processing consent required.
+  Summaries additionally need descriptive_summaries. Owner comes from session; source manual only.
+  Stable create UUID and expectedVersion/reason corrections; unknown metrics stay null.
+  Inject sessionToken, otherSessionToken, restrictedSessionToken, newActivityId and eventTime at runtime.
+  See docs/api/activity.md for contracts, parameters, responses, errors and aggregation rules.
+}

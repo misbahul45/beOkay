@@ -1,0 +1,38 @@
+meta {
+  name: Restore session
+  type: http
+  seq: 19
+}
+
+patch {
+  url: {{baseUrl}}/api/me/activities/{{activityId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {
+    "expectedVersion": 3,
+    "reason": "Restore synthetic session",
+    "archived": false
+  }
+}
+
+tests {
+  test("Restore session", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.version).to.equal(4); expect(res.body.archivedAt).to.equal(null);
+  });
+}
+
+docs {
+  Synthetic isolated-test data only. Verified session and health_data_processing consent required.
+  Summaries additionally need descriptive_summaries. Owner comes from session; source manual only.
+  Stable create UUID and expectedVersion/reason corrections; unknown metrics stay null.
+  Inject sessionToken, otherSessionToken, restrictedSessionToken, newActivityId and eventTime at runtime.
+  See docs/api/activity.md for contracts, parameters, responses, errors and aggregation rules.
+}

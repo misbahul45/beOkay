@@ -1,5 +1,7 @@
 # Verifikasi Core Health — Slice 1
 
+Pembaruan Slice 4: [pengujian Activity](activity.md) mencatat regresi backend/Flutter/Bruno/Appium terbaru. Angka Slice1–3 di bawah dipertahankan sebagai histori. Emulator host terlihat dan API uji tetap aktif atas permintaan pengguna.
+
 Pembaruan Slice 3: [pengujian Glucose](glucose.md) mencatat hasil terbaru backend, Flutter, Bruno dan Appium. Angka Slice 1–2 di bawah dipertahankan sebagai bukti historis. Semua backend test/migration/typecheck tetap dalam Docker dengan database terisolasi.
 
 Pembaruan Slice 2: [verifikasi Nutrition](nutrition.md) mencatat backend 6 tes/106 assertion, Flutter 33 tes, Bruno 19 request dan 12 skenario Appium. Bagian Slice 1 di bawah adalah histori verifikasi fondasi.

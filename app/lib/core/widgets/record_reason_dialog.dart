@@ -26,7 +26,7 @@ class _RecordReasonDialogState extends State<RecordReasonDialog> {
         mainAxisSize: MainAxisSize.min,
         children: [
           const Text(
-            'Versi lama tetap tersimpan. Perubahan ini memengaruhi ringkasan harian.',
+            'Versi lama tetap tersimpan. Perubahan ini memengaruhi ringkasan.',
           ),
           const SizedBox(height: 12),
           AppTextField(

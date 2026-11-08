@@ -9,6 +9,7 @@ import { todayRoutes } from "./features/today/today.routes.ts";
 import { nutritionRoutes } from "./features/nutrition/nutrition.routes.ts";
 import { glucoseRoutes } from "./features/glucose/glucose.routes.ts";
 import { timelineRoutes } from "./features/timeline/timeline.routes.ts";
+import { activityRoutes } from "./features/activity/activity.routes.ts";
 import { insightsRoutes } from "./features/insights/insights.routes.ts";
 import { checkDatabase, prisma } from "./infrastructure/database/prisma.ts";
 import { route } from "./shared/http/handler.ts";
@@ -26,6 +27,7 @@ const server = Bun.serve({
     ...todayRoutes,
     ...nutritionRoutes,
     ...glucoseRoutes,
+    ...activityRoutes,
     ...timelineRoutes,
     ...insightsRoutes,
     "/health": route(async () => {

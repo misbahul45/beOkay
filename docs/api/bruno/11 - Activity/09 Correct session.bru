@@ -1,0 +1,40 @@
+meta {
+  name: Correct session
+  type: http
+  seq: 9
+}
+
+patch {
+  url: {{baseUrl}}/api/me/activities/{{activityId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {
+    "expectedVersion": 1,
+    "reason": "Correct synthetic session",
+    "durationMinutes": 45,
+    "distanceKm": 2.5,
+    "steps": 0
+  }
+}
+
+tests {
+  test("Correct session", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.version).to.equal(2); expect(res.body.steps).to.equal(0); expect(Date.parse(res.body.endedAt)-Date.parse(res.body.startedAt)).to.equal(2700000);
+  });
+}
+
+docs {
+  Synthetic isolated-test data only. Verified session and health_data_processing consent required.
+  Summaries additionally need descriptive_summaries. Owner comes from session; source manual only.
+  Stable create UUID and expectedVersion/reason corrections; unknown metrics stay null.
+  Inject sessionToken, otherSessionToken, restrictedSessionToken, newActivityId and eventTime at runtime.
+  See docs/api/activity.md for contracts, parameters, responses, errors and aggregation rules.
+}

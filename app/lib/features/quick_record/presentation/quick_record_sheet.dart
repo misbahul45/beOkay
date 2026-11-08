@@ -35,16 +35,23 @@ Future<void> showQuickRecord(BuildContext context) =>
                   context.push(Routes.addGlucose);
                 },
               ),
-              for (final item in [
-                (Icons.directions_walk, 'Aktivitas'),
-                (Icons.medication_outlined, 'Konsumsi obat'),
-              ])
-                ListTile(
-                  enabled: false,
-                  leading: Icon(item.$1),
-                  title: Text(item.$2),
-                  subtitle: const Text('Belum tersedia'),
+              ListTile(
+                leading: const Icon(Icons.directions_walk),
+                title: const Text('Aktivitas'),
+                subtitle: const Text(
+                  'Sesi, durasi, dan intensitas yang kamu rasakan',
                 ),
+                onTap: () {
+                  Navigator.pop(sheet);
+                  context.push(Routes.addActivity);
+                },
+              ),
+              const ListTile(
+                enabled: false,
+                leading: Icon(Icons.medication_outlined),
+                title: Text('Konsumsi obat'),
+                subtitle: Text('Belum tersedia'),
+              ),
             ],
           ),
         ),

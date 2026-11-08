@@ -28,6 +28,10 @@ import '../../features/nutrition/presentation/meal_detail_screen.dart';
 import '../../features/glucose/presentation/glucose_history_screen.dart';
 import '../../features/glucose/presentation/glucose_form_screen.dart';
 import '../../features/glucose/presentation/glucose_detail_screen.dart';
+import '../../features/activity/presentation/activity_form_screen.dart';
+import '../../features/activity/presentation/activity_history_screen.dart';
+import '../../features/activity/presentation/activity_detail_screen.dart';
+import '../../features/activity/presentation/activity_week_screen.dart';
 import 'redirect.dart';
 import 'routes.dart';
 
@@ -111,6 +115,30 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const PersonalProfileScreen(onboarding: false),
       ),
       GoRoute(path: Routes.meals, builder: (_, _) => const MealHistoryScreen()),
+      GoRoute(
+        path: Routes.activities,
+        builder: (_, state) => ActivityHistoryScreen(
+          initialDate: state.uri.queryParameters['date'],
+        ),
+      ),
+      GoRoute(
+        path: Routes.addActivity,
+        builder: (_, _) => const ActivityFormScreen(),
+      ),
+      GoRoute(
+        path: Routes.activityWeek,
+        builder: (_, _) => const ActivityWeekScreen(),
+      ),
+      GoRoute(
+        path: '/activities/:id/edit',
+        builder: (_, state) =>
+            ActivityDetailScreen(id: state.pathParameters['id']!, edit: true),
+      ),
+      GoRoute(
+        path: '/activities/:id',
+        builder: (_, state) =>
+            ActivityDetailScreen(id: state.pathParameters['id']!),
+      ),
       GoRoute(
         path: Routes.glucose,
         builder: (_, _) => const GlucoseHistoryScreen(),

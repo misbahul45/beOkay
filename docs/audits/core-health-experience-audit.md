@@ -1,5 +1,7 @@
 # Core Health Experience — audit awal
 
+Pembaruan Slice 4: Activity manual online, histori/koreksi/archive, total harian/mingguan dan integrasi Today/Quick Record/timeline sudah dikerjakan. [Laporan Activity](../reports/activity-implementation.md). Audit awal di bawah tetap historis; Medication/Goals/offline dan Insights penuh belum selesai.
+
 Pembaruan Slice 3: Glucose manual online, koreksi/revisi/archive, satuan asli/kanonik, grafik titik, Today dan timeline meal+glucose sudah diimplementasikan. Lihat [laporan Glucose](../reports/glucose-implementation.md). Tabel klasifikasi awal di bawah tetap histori audit; Activity/Medication/Goals, offline/sync dan weekly Insights belum selesai.
 
 Pembaruan Slice 2: Nutrition online, integrasi Today, meal-only timeline/daily read dan Quick Record food sudah dikerjakan; lihat [laporan Nutrition](../reports/nutrition-implementation.md). Klasifikasi tabel di bawah adalah audit sebelum implementasi. Offline, weekly analytics dan domain lain tetap belum selesai.

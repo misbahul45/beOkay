@@ -1,0 +1,30 @@
+meta {
+  name: Summary consent required
+  type: http
+  seq: 17
+}
+
+get {
+  url: {{baseUrl}}/api/me/activities/weekly
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{restrictedSessionToken}}
+}
+
+tests {
+  test("Summary consent required", function () {
+    expect(res.status).to.equal(403);
+
+  });
+}
+
+docs {
+  Synthetic isolated-test data only. Verified session and health_data_processing consent required.
+  Summaries additionally need descriptive_summaries. Owner comes from session; source manual only.
+  Stable create UUID and expectedVersion/reason corrections; unknown metrics stay null.
+  Inject sessionToken, otherSessionToken, restrictedSessionToken, newActivityId and eventTime at runtime.
+  See docs/api/activity.md for contracts, parameters, responses, errors and aggregation rules.
+}

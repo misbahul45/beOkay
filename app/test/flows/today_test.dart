@@ -22,6 +22,57 @@ TodayOverview overview() => TodayOverview.fromJson({
 });
 
 void main() {
+  testWidgets('Today activity preview labels and opens its source session', (
+    tester,
+  ) async {
+    await initializeDateFormatting('id_ID');
+    final today = TodayOverview.fromJson({
+      'date': '2026-11-08',
+      'greeting': 'Selamat pagi',
+      'timezone': 'Asia/Jakarta',
+      'glucoseUnit': 'mg/dL',
+      'generatedAt': '2026-11-08T00:00:00Z',
+      'timeline': {
+        'items': [
+          {
+            'domain': 'activity',
+            'recordId': 'session-original',
+            'localTime': '07:00',
+            'activityType': 'walking',
+            'durationMinutes': 30,
+            'qualityStatus': 'user_reported',
+          },
+        ],
+      },
+    });
+    final router = GoRouter(
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (_, _) => const Scaffold(
+            body: SingleChildScrollView(child: TodaySection()),
+          ),
+        ),
+        GoRoute(
+          path: '/activities/session-original',
+          builder: (_, _) =>
+              const Scaffold(body: Text('Original activity destination')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [todayProvider.overrideWith((ref) async => today)],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Jalan kaki · 07:00'));
+    await tester.tap(find.text('Jalan kaki · 07:00'));
+    await tester.pumpAndSettle();
+    expect(find.text('Original activity destination'), findsOneWidget);
+  });
   testWidgets('Today preview opens the original glucose observation', (
     tester,
   ) async {
@@ -97,7 +148,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Selamat pagi'), findsOneWidget);
       expect(find.textContaining('9 November 2026'), findsOneWidget);
-      expect(find.text('Belum tersedia'), findsNWidgets(3));
+      expect(find.text('Belum tersedia'), findsNWidgets(2));
       expect(find.text('Belum ada pengukuran hari ini.'), findsOneWidget);
       expect(find.text('0'), findsNothing);
       expect(tester.takeException(), isNull);

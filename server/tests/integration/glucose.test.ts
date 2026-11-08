@@ -182,7 +182,7 @@ test("Glucose lifecycle preserves source values and units, revisions and account
       await call("/api/me/timeline?limit=2", a.token)
     ).json()) as any;
     expect(events.items).toHaveLength(2);
-    expect(events.supportedDomains).toEqual(["meal", "glucose"]);
+    expect(events.supportedDomains).toEqual(["meal", "glucose", "activity"]);
     expect(events.items[0].recordId).toBe(meal.id);
     expect(events.nextCursor).toBeTruthy();
     const second = (await (

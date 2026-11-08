@@ -32,6 +32,7 @@ model Users {
   meals          MealLog[]
   revisions      RecordRevision[]
   glucose        GlucoseObservation[]
+  activities     ActivitySession[]
 
   @@unique([email])
   @@map("users")
@@ -232,6 +233,7 @@ model RecordRevision {
   userId      String   @map("user_id") @db.Uuid
   mealId      String?  @map("meal_id") @db.Uuid
   glucoseId   String?  @map("glucose_id") @db.Uuid
+  activityId  String?  @map("activity_id") @db.Uuid
   version     Int
   reason      String
   snapshot    Json     @db.JsonB
@@ -239,8 +241,10 @@ model RecordRevision {
   user        Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
   meal        MealLog? @relation(fields: [mealId], references: [id], onDelete: Cascade)
   glucose     GlucoseObservation? @relation(fields: [glucoseId], references: [id], onDelete: Cascade)
+  activity    ActivitySession? @relation(fields: [activityId], references: [id], onDelete: Cascade)
   @@unique([mealId, version])
   @@unique([glucoseId, version])
+  @@unique([activityId, version])
   @@index([userId, createdAt(sort: Desc)])
   @@map("record_revisions")
 }
@@ -270,4 +274,30 @@ model GlucoseObservation {
   revisions       RecordRevision[]
   @@index([userId, measuredAt(sort: Desc), id(sort: Desc)])
   @@map("glucose_observations")
+}
+
+model ActivitySession {
+  id                String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String @map("user_id") @db.Uuid
+  activityType      String @map("activity_type")
+  startedAt         DateTime @map("started_at") @db.Timestamptz(6)
+  endedAt           DateTime @map("ended_at") @db.Timestamptz(6)
+  durationMinutes   Int @map("duration_minutes")
+  distanceKm        Decimal? @map("distance_km") @db.Decimal(10,3)
+  steps             Int?
+  reportedIntensity String @default("unknown") @map("reported_intensity")
+  source            String @default("manual")
+  qualityStatus     String @default("user_reported") @map("quality_status")
+  notes             String?
+  version           Int @default(1)
+  createHash        String @map("create_hash")
+  archivedAt        DateTime? @map("archived_at") @db.Timestamptz(6)
+  recordedAt        DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
+  receivedAt        DateTime @default(now()) @map("received_at") @db.Timestamptz(6)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user              Users @relation(fields:[userId],references:[id],onDelete:Cascade)
+  revisions         RecordRevision[]
+  @@index([userId,startedAt(sort:Desc),id(sort:Desc)])
+  @@map("activity_sessions")
 }

@@ -14,6 +14,7 @@ import '../../../core/widgets/pill_button.dart';
 import '../../../core/widgets/health_card.dart';
 import '../application/today_controller.dart';
 import '../../nutrition/data/nutrition_models.dart';
+import '../../activity/data/activity_models.dart';
 import '../../nutrition/presentation/nutrition_widgets.dart';
 import '../../quick_record/presentation/quick_record_sheet.dart';
 
@@ -101,7 +102,7 @@ class _TodaySectionState extends ConsumerState<TodaySection>
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       Text(
-                        'Catat makanan dan pengukuran glukosa hari ini. Setiap catatan tetap dalam kendalimu.',
+                        'Catat makanan, glukosa, dan aktivitas hari ini. Setiap catatan tetap dalam kendalimu.',
                         style: AppTypography.body.copyWith(
                           color: AppColors.onPrimary,
                         ),
@@ -192,6 +193,45 @@ class _TodaySectionState extends ConsumerState<TodaySection>
                   ),
                 ),
                 const SizedBox(height: 12),
+                if (today.activity != null) ...[
+                  HealthCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Aktivitas', style: AppTypography.title),
+                        const SizedBox(height: 8),
+                        Text(
+                          today.activity!.count == 0
+                              ? 'Belum ada sesi aktivitas hari ini.'
+                              : '${today.activity!.count} sesi aktivitas hari ini.',
+                        ),
+                        Text(
+                          today.activity!.durationMinutes == null
+                              ? 'Durasi belum tersedia.'
+                              : '${today.activity!.durationMinutes} menit sesi tercatat',
+                          style: AppTypography.heading,
+                        ),
+                        if (today.activity!.reviewCount > 0)
+                          Text(
+                            '${today.activity!.reviewCount} sesi perlu ditinjau',
+                          ),
+                        Wrap(
+                          children: [
+                            TextButton(
+                              onPressed: () => context.push(Routes.addActivity),
+                              child: const Text('Catat aktivitas'),
+                            ),
+                            TextButton(
+                              onPressed: () => context.push(Routes.activities),
+                              child: const Text('Riwayat aktivitas'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 for (final item in [
                   if (today.nutrition == null)
                     (
@@ -199,11 +239,6 @@ class _TodaySectionState extends ConsumerState<TodaySection>
                       'Nutrisi',
                       'Pencatatan makanan sedang disiapkan.',
                     ),
-                  (
-                    Icons.directions_walk_rounded,
-                    'Aktivitas',
-                    'Pencatatan aktivitas sedang disiapkan.',
-                  ),
                   (
                     Icons.medication_outlined,
                     'Obat',
@@ -250,16 +285,26 @@ class _TodaySectionState extends ConsumerState<TodaySection>
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(
-                        '${event.domain == 'meal' ? mealCategories[event.category] : 'Glukosa'} · ${event.localTime}',
+                        '${event.domain == 'meal'
+                            ? mealCategories[event.category]
+                            : event.domain == 'activity'
+                            ? activityTypes[event.activityType]
+                            : 'Glukosa'} · ${event.localTime}',
                       ),
                       subtitle: Text(
                         event.domain == 'meal'
                             ? '${event.itemCount} item makanan'
+                            : event.domain == 'activity'
+                            ? '${event.durationMinutes} menit · dilaporkan sendiri${event.qualityStatus == 'needs_review' ? ' · perlu ditinjau' : ''}'
                             : '${event.displayValue} ${event.displayUnit} · glukometer manual${event.qualityStatus == 'needs_review' ? ' · perlu ditinjau' : ''}',
                       ),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => context.push(
-                        '${event.domain == 'meal' ? Routes.meals : Routes.glucose}/${event.recordId}',
+                        '${event.domain == 'meal'
+                            ? Routes.meals
+                            : event.domain == 'activity'
+                            ? Routes.activities
+                            : Routes.glucose}/${event.recordId}',
                       ),
                     ),
                   const SizedBox(height: 16),
