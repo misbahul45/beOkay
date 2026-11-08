@@ -42,7 +42,9 @@ abstract final class AppTheme {
       colorScheme: scheme,
       scaffoldBackgroundColor: AppColors.background,
       canvasColor: AppColors.background,
-      splashFactory: reduceMotion ? NoSplash.splashFactory : InkRipple.splashFactory,
+      splashFactory: reduceMotion
+          ? NoSplash.splashFactory
+          : InkRipple.splashFactory,
       pageTransitionsTheme: reduceMotion ? instant : transitions,
       dividerColor: AppColors.border,
       textTheme: const TextTheme(
@@ -63,22 +65,51 @@ abstract final class AppTheme {
         centerTitle: true,
         titleTextStyle: AppTypography.title,
       ),
+      textButtonTheme: TextButtonThemeData(
+        // Text buttons read as buttons (tonal pill), not as loose text.
+        style: TextButton.styleFrom(
+          foregroundColor: AppColors.primary,
+          backgroundColor: AppColors.surfaceMuted,
+          minimumSize: const Size(AppSpacing.minTouchTarget, 40),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+          shape: const StadiumBorder(),
+          textStyle: AppTypography.secondaryStrong,
+          tapTargetSize: MaterialTapTargetSize.padded,
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        shape: const StadiumBorder(side: BorderSide(color: AppColors.border)),
+        backgroundColor: AppColors.surface,
+        selectedColor: AppColors.primary,
+        checkmarkColor: AppColors.onPrimary,
+        labelStyle: AppTypography.secondaryStrong,
+        secondaryLabelStyle: AppTypography.secondaryStrong.copyWith(
+          color: AppColors.onPrimary,
+        ),
+        side: const BorderSide(color: AppColors.border),
+      ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: AppColors.primary,
-        contentTextStyle: AppTypography.secondaryStrong.copyWith(color: AppColors.onPrimary),
+        contentTextStyle: AppTypography.secondaryStrong.copyWith(
+          color: AppColors.onPrimary,
+        ),
         shape: RoundedRectangleBorder(borderRadius: AppRadius.pillRadius),
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.card)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.card),
+        ),
         titleTextStyle: AppTypography.heading,
         contentTextStyle: AppTypography.secondary,
       ),
       switchTheme: SwitchThemeData(
         thumbColor: const WidgetStatePropertyAll(AppColors.surface),
         trackColor: WidgetStateProperty.resolveWith(
-          (states) => states.contains(WidgetState.selected) ? AppColors.primary : AppColors.overlay,
+          (states) => states.contains(WidgetState.selected)
+              ? AppColors.primary
+              : AppColors.overlay,
         ),
         trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
       ),

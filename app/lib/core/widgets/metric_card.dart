@@ -4,13 +4,13 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import 'info_card.dart';
-import 'pill_button.dart';
 
-/// Domain summary card used on Today and Insights.
+/// Compact domain card used on Today and Insights (UI Refresh v2).
 ///
-/// Hierarchy: icon + title (+ status) → value → caption → actions.
-/// [value] is shown in the large style only when real data exists; an empty
-/// domain passes [emptyMessage] instead so "no data" never looks like a number.
+/// Row layout: icon · text column · trailing action. The whole card opens the
+/// history ([onSecondary]); [onPrimary] is a "+" shortcut to record. [value] is
+/// shown only when real data exists; an empty domain passes [emptyMessage]
+/// instead so "no data" never looks like a number.
 class MetricCard extends StatelessWidget {
   const MetricCard({
     super.key,
@@ -26,6 +26,7 @@ class MetricCard extends StatelessWidget {
     this.secondaryLabel,
     this.onSecondary,
     this.footnote,
+    this.prominentValue = false,
   });
 
   final IconData icon;
@@ -35,73 +36,150 @@ class MetricCard extends StatelessWidget {
   final String? emptyMessage;
   final List<String> details;
   final StatusBadge? badge;
+
+  /// Accessible name of the "+" shortcut, e.g. "Catat glukosa".
   final String? primaryLabel;
   final VoidCallback? onPrimary;
+
+  /// Accessible name of the card action, e.g. "Riwayat glukosa".
   final String? secondaryLabel;
   final VoidCallback? onSecondary;
   final String? footnote;
 
+  /// Larger value (Insights) instead of the compact one (Today).
+  final bool prominentValue;
+
   @override
   Widget build(BuildContext context) {
     final hasValue = value != null;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: AppRadius.cardRadius, boxShadow: AppShadows.soft),
-      child: Column(
+    final body = Padding(
+      padding: const EdgeInsets.all(AppSpacing.cardPadding - 2).copyWith(
+        left: AppSpacing.cardPadding,
+        right: AppSpacing.cardPadding - 2,
+      ),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              ExcludeSemantics(
-                child: Container(
-                  height: 40,
-                  width: 40,
-                  decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
-                  child: Icon(icon, size: 22, color: AppColors.primary),
-                ),
+          ExcludeSemantics(
+            child: Container(
+              height: 36,
+              width: 36,
+              decoration: const BoxDecoration(
+                color: AppColors.accent,
+                shape: BoxShape.circle,
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(child: Semantics(header: true, child: Text(title, style: AppTypography.title))),
-            ],
+              child: Icon(icon, size: 18, color: AppColors.primary),
+            ),
           ),
-          // Own line: a badge beside the title squeezed both into per-letter wrapping at large text sizes.
-          if (badge != null) Padding(padding: const EdgeInsets.only(top: AppSpacing.xs), child: badge!),
-          const SizedBox(height: AppSpacing.sm),
-          if (hasValue) ...[
-            Text(value!, style: AppTypography.heading),
-            if (valueCaption != null) Text(valueCaption!, style: AppTypography.secondary),
-          ] else if (emptyMessage != null)
-            Text(emptyMessage!, style: AppTypography.body.copyWith(color: AppColors.textSecondary)),
-          for (final detail in details) Padding(padding: const EdgeInsets.only(top: 2), child: Text(detail, style: AppTypography.secondary)),
-          if (footnote != null) Padding(padding: const EdgeInsets.only(top: AppSpacing.xs), child: Text(footnote!, style: AppTypography.caption)),
-          if (primaryLabel != null || secondaryLabel != null) ...[
-            const SizedBox(height: AppSpacing.md),
-            Wrap(
-              spacing: AppSpacing.xs,
-              runSpacing: AppSpacing.xs,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                if (primaryLabel != null) PillButton(label: primaryLabel!, kind: PillButtonKind.secondary, expand: false, icon: Icons.add_rounded, onPressed: onPrimary),
-                if (secondaryLabel != null)
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 1),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Semantics(
-                    button: true,
-                    label: secondaryLabel,
-                    excludeSemantics: true,
-                    onTap: onSecondary,
-                    child: TextButton.icon(
-                      onPressed: onSecondary,
-                      style: TextButton.styleFrom(minimumSize: const Size(AppSpacing.minTouchTarget, AppSpacing.minTouchTarget), foregroundColor: AppColors.textPrimary),
-                      iconAlignment: IconAlignment.end,
-                      icon: const Icon(Icons.chevron_right_rounded, size: 20),
-                      label: Text(secondaryLabel!, style: AppTypography.secondaryStrong),
+                    header: true,
+                    child: Text(title, style: AppTypography.title),
+                  ),
+                  if (badge != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: badge!,
+                    ),
+                  if (hasValue) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      value!,
+                      style: prominentValue
+                          ? AppTypography.headline.copyWith(
+                              fontSize: 22,
+                              height: 1.25,
+                            )
+                          : AppTypography.bodyStrong,
+                    ),
+                    if (valueCaption != null)
+                      Text(valueCaption!, style: AppTypography.caption),
+                  ] else if (emptyMessage != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        emptyMessage!,
+                        style: AppTypography.secondary,
+                      ),
+                    ),
+                  for (final detail in details)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(detail, style: AppTypography.secondary),
+                    ),
+                  if (footnote != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(footnote!, style: AppTypography.caption),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          if (primaryLabel != null)
+            Tooltip(
+              message: primaryLabel!,
+              child: Semantics(
+                button: true,
+                label: primaryLabel,
+                excludeSemantics: true,
+                onTap: onPrimary,
+                child: SizedBox(
+                  // 48dp touch target around a 40dp visual button.
+                  height: AppSpacing.minTouchTarget,
+                  width: AppSpacing.minTouchTarget,
+                  child: Center(
+                    child: Material(
+                      color: AppColors.primary,
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: onPrimary,
+                        child: const SizedBox(
+                          height: 40,
+                          width: 40,
+                          child: Icon(
+                            Icons.add_rounded,
+                            size: 22,
+                            color: AppColors.onPrimary,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-              ],
+                ),
+              ),
+            )
+          else if (onSecondary != null)
+            const Padding(
+              padding: EdgeInsets.only(top: 6),
+              child: Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.decorative,
+              ),
             ),
-          ],
         ],
       ),
     );
+
+    final card = Material(
+      color: AppColors.surface,
+      borderRadius: AppRadius.cardRadius,
+      child: onSecondary == null
+          ? body
+          : InkWell(
+              borderRadius: AppRadius.cardRadius,
+              onTap: onSecondary,
+              child: body,
+            ),
+    );
+    return card;
   }
 }

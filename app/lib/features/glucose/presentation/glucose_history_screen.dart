@@ -36,8 +36,6 @@ class _GlucoseHistoryScreenState extends ConsumerState<GlucoseHistoryScreen> {
       title: 'Riwayat glukosa',
       onBack: () => context.go(Routes.home),
       children: [
-        Text('Setiap pengukuran berarti.', style: AppTypography.headline),
-        const SizedBox(height: 16),
         PillButton(
           label: 'Catat glukosa',
           onPressed: () => context.push(Routes.addGlucose),
@@ -109,20 +107,19 @@ class _GlucoseHistoryScreenState extends ConsumerState<GlucoseHistoryScreen> {
                       ),
                       Text(
                         '${day.count} pengukuran · ${day.reviewCount} perlu ditinjau',
+                        style: AppTypography.secondary,
                       ),
                       Text(
                         day.mean == null
-                            ? 'Rata-rata belum tersedia: perlu minimal 2 pengukuran yang tidak ditandai.'
-                            : 'Rata-rata ${day.mean} ${day.displayUnit}\nMinimum ${day.minimum} · maksimum ${day.maximum} ${day.displayUnit}',
-                      ),
-                      Text(
-                        'Cakupan: ${day.eligibleCount} pengukuran glukometer manual. Ringkasan hanya menggambarkan catatan yang tersedia.',
+                            ? 'Rata-rata belum tersedia: perlu minimal 2 pengukuran.'
+                            : 'Rata-rata ${day.mean} ${day.displayUnit} · min ${day.minimum} · maks ${day.maximum}',
+                        style: AppTypography.secondary,
                       ),
                       ExpansionTile(
                         title: const Text('Metode dan sumber'),
                         children: [
                           Text(
-                            'Rata-rata aritmetika pengukuran darah kapiler yang dilaporkan sendiri. Konversi: 18.016 mg/dL per mmol/L.\n${day.computationVersion}\nDihitung: ${day.computedAt}',
+                            'Cakupan: ${day.eligibleCount} pengukuran glukometer manual; ringkasan hanya menggambarkan catatan yang tersedia.\nRata-rata aritmetika pengukuran darah kapiler yang dilaporkan sendiri. Konversi: 18.016 mg/dL per mmol/L.\n${day.computationVersion}\nDihitung: ${day.computedAt}',
                           ),
                         ],
                       ),

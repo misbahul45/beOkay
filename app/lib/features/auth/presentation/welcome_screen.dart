@@ -60,7 +60,7 @@ class WelcomeScreen extends StatelessWidget {
                         const SizedBox(height: AppSpacing.xs),
                         Center(
                           child: TextButton(
-                            style: TextButton.styleFrom(minimumSize: const Size(48, 48), foregroundColor: AppColors.onPrimary),
+                            style: TextButton.styleFrom(minimumSize: const Size(48, 48), foregroundColor: AppColors.onPrimary, backgroundColor: Colors.transparent),
                             onPressed: () => context.go(Routes.login),
                             child: Text('Sudah punya akun? Masuk', style: AppTypography.bodyStrong.copyWith(color: AppColors.onPrimary)),
                           ),

@@ -16,13 +16,16 @@ import '../../../core/widgets/settings_group.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/data/session_user.dart';
 
-final sessionsProvider = FutureProvider.autoDispose<List<DeviceSession>>((ref) => ref.watch(authRepositoryProvider).listSessions());
+final sessionsProvider = FutureProvider.autoDispose<List<DeviceSession>>(
+  (ref) => ref.watch(authRepositoryProvider).listSessions(),
+);
 
 class AccountSecurityScreen extends ConsumerStatefulWidget {
   const AccountSecurityScreen({super.key});
 
   @override
-  ConsumerState<AccountSecurityScreen> createState() => _AccountSecurityScreenState();
+  ConsumerState<AccountSecurityScreen> createState() =>
+      _AccountSecurityScreenState();
 }
 
 class _AccountSecurityScreenState extends ConsumerState<AccountSecurityScreen> {
@@ -51,11 +54,20 @@ class _AccountSecurityScreenState extends ConsumerState<AccountSecurityScreen> {
     });
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await ref.read(authRepositoryProvider).changePassword(currentPassword: _current.text, newPassword: _next.text);
+      await ref
+          .read(authRepositoryProvider)
+          .changePassword(
+            currentPassword: _current.text,
+            newPassword: _next.text,
+          );
       _current.clear();
       _next.clear();
       _confirm.clear();
-      messenger.showSnackBar(const SnackBar(content: Text('Kata sandi diperbarui. Sesi lain dikeluarkan.')));
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Kata sandi diperbarui. Sesi lain dikeluarkan.'),
+        ),
+      );
       ref.invalidate(sessionsProvider);
     } catch (error) {
       if (mounted) setState(() => _passwordError = messageFor(error));
@@ -69,10 +81,18 @@ class _AccountSecurityScreenState extends ConsumerState<AccountSecurityScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Keluarkan sesi lain?'),
-        content: const Text('Semua perangkat lain akan keluar. Perangkat ini tetap masuk.'),
+        content: const Text(
+          'Semua perangkat lain akan keluar. Perangkat ini tetap masuk.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Batal')),
-          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Keluarkan')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Keluarkan'),
+          ),
         ],
       ),
     );
@@ -104,12 +124,18 @@ class _AccountSecurityScreenState extends ConsumerState<AccountSecurityScreen> {
           children: [
             SettingsRow(
               icon: Icons.alternate_email,
-              title: 'Email',
-              value: user?.email ?? '',
-              trailing: StatusBadge(
-                label: (user?.emailVerified ?? false) ? 'Terverifikasi' : 'Belum terverifikasi',
-                icon: (user?.emailVerified ?? false) ? Icons.check : Icons.warning_amber_rounded,
-                tone: (user?.emailVerified ?? false) ? InfoTone.info : InfoTone.warning,
+              title: user?.email ?? 'Email',
+              subtitle: (user?.emailVerified ?? false)
+                  ? 'Email terverifikasi'
+                  : 'Email belum terverifikasi',
+              trailing: Icon(
+                (user?.emailVerified ?? false)
+                    ? Icons.check_circle_rounded
+                    : Icons.warning_amber_rounded,
+                size: 20,
+                color: (user?.emailVerified ?? false)
+                    ? AppColors.primary
+                    : AppColors.warningForeground,
               ),
             ),
           ],
@@ -119,25 +145,52 @@ class _AccountSecurityScreenState extends ConsumerState<AccountSecurityScreen> {
         const SizedBox(height: AppSpacing.sm),
         Container(
           padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(color: AppColors.surface, borderRadius: AppRadius.cardRadius, boxShadow: AppShadows.soft),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: AppRadius.cardRadius,
+            boxShadow: AppShadows.soft,
+          ),
           child: Form(
             key: _form,
             child: Column(
               children: [
-                AppTextField(label: 'Kata sandi saat ini', controller: _current, obscure: true, autofillHints: const [AutofillHints.password], validator: (value) => validateRequired(value, 'Isi kata sandi saat ini.')),
+                AppTextField(
+                  label: 'Kata sandi saat ini',
+                  controller: _current,
+                  obscure: true,
+                  autofillHints: const [AutofillHints.password],
+                  validator: (value) =>
+                      validateRequired(value, 'Isi kata sandi saat ini.'),
+                ),
                 const SizedBox(height: AppSpacing.md),
-                AppTextField(label: 'Kata sandi baru', controller: _next, obscure: true, helper: 'Minimal 10 karakter.', autofillHints: const [AutofillHints.newPassword], validator: validateNewPassword),
+                AppTextField(
+                  label: 'Kata sandi baru',
+                  controller: _next,
+                  obscure: true,
+                  helper: 'Minimal 10 karakter.',
+                  autofillHints: const [AutofillHints.newPassword],
+                  validator: validateNewPassword,
+                ),
                 const SizedBox(height: AppSpacing.md),
                 AppTextField(
                   label: 'Ulangi kata sandi baru',
                   controller: _confirm,
                   obscure: true,
                   autofillHints: const [AutofillHints.newPassword],
-                  validator: (value) => value == _next.text ? null : 'Konfirmasi kata sandi belum sama.',
+                  validator: (value) => value == _next.text
+                      ? null
+                      : 'Konfirmasi kata sandi belum sama.',
                 ),
-                if (_passwordError != null) ...[const SizedBox(height: AppSpacing.md), ErrorBanner(_passwordError!)],
+                if (_passwordError != null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  ErrorBanner(_passwordError!),
+                ],
                 const SizedBox(height: AppSpacing.md),
-                PillButton(label: 'Simpan Kata Sandi', loading: _changing, onPressed: _changePassword),
+                PillButton(
+                  label: 'Simpan Kata Sandi',
+                  loading: _changing,
+                  onPressed: _changePassword,
+                ),
               ],
             ),
           ),
@@ -155,18 +208,37 @@ class _AccountSecurityScreenState extends ConsumerState<AccountSecurityScreen> {
                 children: [
                   for (final session in items)
                     SettingsRow(
-                      icon: session.isCurrent ? Icons.phone_android : Icons.devices_other,
-                      title: session.isCurrent ? 'Perangkat ini' : 'Perangkat lain',
-                      subtitle: 'Masuk ${formatDate(session.createdAt)}${session.userAgent.isEmpty ? '' : ' · ${_shortAgent(session.userAgent)}'}',
-                      trailing: session.isCurrent ? const StatusBadge(label: 'Sekarang', icon: Icons.check, tone: InfoTone.info) : null,
+                      icon: session.isCurrent
+                          ? Icons.phone_android
+                          : Icons.devices_other,
+                      title: session.isCurrent
+                          ? 'Perangkat ini'
+                          : 'Perangkat lain',
+                      subtitle:
+                          'Masuk ${formatDate(session.createdAt)}${session.userAgent.isEmpty ? '' : ' · ${_shortAgent(session.userAgent)}'}',
+                      trailing: session.isCurrent
+                          ? const StatusBadge(
+                              label: 'Sekarang',
+                              icon: Icons.check,
+                              tone: InfoTone.info,
+                            )
+                          : null,
                     ),
                 ],
               ),
               if (items.any((item) => !item.isCurrent)) ...[
                 const SizedBox(height: AppSpacing.sm),
-                PillButton(label: 'Keluarkan sesi lain', kind: PillButtonKind.secondary, loading: _revoking, onPressed: _revokeOthers),
+                PillButton(
+                  label: 'Keluarkan sesi lain',
+                  kind: PillButtonKind.secondary,
+                  loading: _revoking,
+                  onPressed: _revokeOthers,
+                ),
               ],
-              if (_sessionError != null) ...[const SizedBox(height: AppSpacing.sm), ErrorBanner(_sessionError!)],
+              if (_sessionError != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                ErrorBanner(_sessionError!),
+              ],
             ],
           ),
         ),
@@ -180,5 +252,6 @@ class _AccountSecurityScreenState extends ConsumerState<AccountSecurityScreen> {
     );
   }
 
-  String _shortAgent(String agent) => agent.length <= 32 ? agent : '${agent.substring(0, 32)}…';
+  String _shortAgent(String agent) =>
+      agent.length <= 32 ? agent : '${agent.substring(0, 32)}…';
 }

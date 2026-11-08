@@ -22,7 +22,8 @@ class TodaySection extends ConsumerStatefulWidget {
   ConsumerState<TodaySection> createState() => _TodaySectionState();
 }
 
-class _TodaySectionState extends ConsumerState<TodaySection> with WidgetsBindingObserver {
+class _TodaySectionState extends ConsumerState<TodaySection>
+    with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
@@ -53,10 +54,17 @@ class _TodaySectionState extends ConsumerState<TodaySection> with WidgetsBinding
               return InfoCard(
                 title: 'Persetujuan diperlukan',
                 text: 'Tinjau persetujuan untuk membuka ringkasan kesehatan.',
-                action: PillButton(label: 'Kelola persetujuan', expand: false, onPressed: () => context.push(Routes.consentManagement)),
+                action: PillButton(
+                  label: 'Kelola persetujuan',
+                  expand: false,
+                  onPressed: () => context.push(Routes.consentManagement),
+                ),
               );
             }
-            return ErrorState(error: error, onRetry: () => ref.invalidate(todayProvider));
+            return ErrorState(
+              error: error,
+              onRetry: () => ref.invalidate(todayProvider),
+            );
           },
           data: (today) {
             if (today == null) return const SizedBox.shrink();
@@ -68,46 +76,71 @@ class _TodaySectionState extends ConsumerState<TodaySection> with WidgetsBinding
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Semantics(header: true, child: Text('Ringkasan hari ini', style: AppTypography.heading)),
-                const SizedBox(height: AppSpacing.sm),
+                Semantics(
+                  header: true,
+                  child: Text('Hari ini', style: AppTypography.heading),
+                ),
+                const SizedBox(height: AppSpacing.xs + 2),
                 MetricCard(
                   icon: DomainStyle.glucose.icon,
                   title: 'Glukosa',
-                  badge: latest != null && latest.qualityStatus == 'needs_review' ? const StatusBadge(label: 'Perlu ditinjau', tone: InfoTone.warning) : null,
+                  badge:
+                      latest != null && latest.qualityStatus == 'needs_review'
+                      ? const StatusBadge(
+                          label: 'Perlu ditinjau',
+                          tone: InfoTone.warning,
+                        )
+                      : null,
                   value: latest?.label,
-                  valueCaption: latest == null ? null : 'Pukul ${latest.localTime} · glukometer manual',
-                  emptyMessage: 'Belum ada pengukuran hari ini.',
+                  valueCaption: latest == null
+                      ? null
+                      : 'Pukul ${latest.localTime} · glukometer manual',
+                  emptyMessage: 'Belum ada pengukuran.',
                   primaryLabel: 'Catat glukosa',
                   onPrimary: () => context.push(Routes.addGlucose),
-                  secondaryLabel: 'Riwayat',
+                  secondaryLabel: 'Riwayat glukosa',
                   onSecondary: () => context.push(Routes.glucose),
                 ),
                 if (nutrition != null) ...[
-                  const SizedBox(height: AppSpacing.sm),
+                  const SizedBox(height: 10),
                   MetricCard(
                     icon: DomainStyle.meal.icon,
                     title: 'Nutrisi',
-                    value: nutrition.mealCount == 0 ? null : '${nutrition.mealCount} catatan makan',
-                    emptyMessage: 'Belum ada catatan makanan hari ini.',
-                    details: [if (nutrition.mealCount > 0) 'Energi: ${calories?.label('kkal') ?? 'Belum tersedia'}'],
+                    value: nutrition.mealCount == 0
+                        ? null
+                        : '${nutrition.mealCount} catatan makan',
+                    emptyMessage: 'Belum ada catatan makan.',
+                    details: [
+                      if (nutrition.mealCount > 0)
+                        'Energi: ${calories?.label('kkal') ?? 'Belum tersedia'}',
+                    ],
                     primaryLabel: 'Catat makanan',
                     onPrimary: () => context.push(Routes.addMeal),
-                    secondaryLabel: 'Riwayat',
+                    secondaryLabel: 'Riwayat makanan',
                     onSecondary: () => context.push(Routes.meals),
                   ),
                 ],
                 if (activity != null) ...[
-                  const SizedBox(height: AppSpacing.sm),
+                  const SizedBox(height: 10),
                   MetricCard(
                     icon: DomainStyle.activity.icon,
                     title: 'Aktivitas',
-                    badge: activity.reviewCount > 0 ? StatusBadge(label: '${activity.reviewCount} perlu ditinjau', tone: InfoTone.warning) : null,
-                    value: activity.count == 0 ? null : '${activity.durationMinutes ?? 0} menit',
-                    valueCaption: activity.count == 0 ? null : '${activity.count} sesi hari ini',
-                    emptyMessage: 'Belum ada sesi aktivitas hari ini.',
+                    badge: activity.reviewCount > 0
+                        ? StatusBadge(
+                            label: '${activity.reviewCount} perlu ditinjau',
+                            tone: InfoTone.warning,
+                          )
+                        : null,
+                    value: activity.count == 0
+                        ? null
+                        : '${activity.durationMinutes ?? 0} menit',
+                    valueCaption: activity.count == 0
+                        ? null
+                        : '${activity.count} sesi hari ini',
+                    emptyMessage: 'Belum ada sesi.',
                     primaryLabel: 'Catat aktivitas',
                     onPrimary: () => context.push(Routes.addActivity),
-                    secondaryLabel: 'Riwayat',
+                    secondaryLabel: 'Riwayat aktivitas',
                     onSecondary: () => context.push(Routes.activities),
                   ),
                 ],
@@ -116,22 +149,44 @@ class _TodaySectionState extends ConsumerState<TodaySection> with WidgetsBinding
                   tone: InfoTone.neutral,
                   icon: Icons.schedule_rounded,
                   title: 'Sedang disiapkan',
-                  text: 'Jadwal dan konfirmasi obat, serta tujuan personal, belum tersedia di versi ini.',
+                  text:
+                      'Obat dan tujuan personal belum tersedia.',
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                Semantics(header: true, child: Text('Catatan terbaru', style: AppTypography.heading)),
+                Semantics(
+                  header: true,
+                  child: Text('Catatan terbaru', style: AppTypography.heading),
+                ),
                 const SizedBox(height: AppSpacing.sm),
                 if (today.events.isEmpty)
-                  Text('Belum ada catatan hari ini. Catatan yang kamu simpan muncul di sini.', style: AppTypography.secondary)
+                  Text(
+                    'Belum ada catatan hari ini. Catatan yang kamu simpan muncul di sini.',
+                    style: AppTypography.secondary,
+                  )
                 else
                   for (final event in today.events) ...[
-                    TimelineTile(item: event, onTap: () => context.push(DomainStyle.of(event.domain).detailRoute(event.recordId))),
+                    TimelineTile(
+                      item: event,
+                      onTap: () => context.push(
+                        DomainStyle.of(
+                          event.domain,
+                        ).detailRoute(event.recordId),
+                      ),
+                    ),
                     const SizedBox(height: AppSpacing.xs),
                   ],
                 const SizedBox(height: AppSpacing.xs),
-                PillButton(label: 'Lihat semua catatan', kind: PillButtonKind.secondary, onPressed: () => context.go(Routes.log)),
+                PillButton(
+                  label: 'Lihat semua catatan',
+                  kind: PillButtonKind.secondary,
+                  onPressed: () => context.go(Routes.log),
+                ),
                 const SizedBox(height: AppSpacing.xs),
-                PillButton(label: 'Buka wawasan', kind: PillButtonKind.ghost, onPressed: () => context.go(Routes.insights)),
+                PillButton(
+                  label: 'Buka wawasan',
+                  kind: PillButtonKind.ghost,
+                  onPressed: () => context.go(Routes.insights),
+                ),
               ],
             );
           },

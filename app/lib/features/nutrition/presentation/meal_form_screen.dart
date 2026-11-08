@@ -178,13 +178,6 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  widget.initial == null
-                      ? 'Apa yang kamu makan?'
-                      : 'Perbarui catatanmu.',
-                  style: AppTypography.headline,
-                ),
-                const SizedBox(height: 24),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -205,13 +198,13 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
                 const SizedBox(height: 16),
                 PillButton(
                   label:
-                      'Waktu makan: ${DateFormat('d MMM y, HH:mm', 'id_ID').format(time)}',
+                      'Waktu: ${DateFormat('d MMM y, HH:mm', 'id_ID').format(time)}',
                   kind: PillButtonKind.secondary,
                   onPressed: busy || uncertain ? null : pickTime,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Waktu dipilih dalam zona perangkat (${time.timeZoneName}). Histori ditampilkan dalam zona waktu preferensimu.',
+                  'Zona waktu perangkat: ${time.timeZoneName}.',
                   style: AppTypography.secondary,
                 ),
                 const SizedBox(height: 24),

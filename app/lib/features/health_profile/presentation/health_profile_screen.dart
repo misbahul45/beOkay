@@ -33,9 +33,12 @@ class HealthProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final health = ref.watch(healthControllerProvider);
     final loaded = health.isLoading || health.hasError ? null : health.value;
-    if (loaded != null) return _HealthForm(profile: loaded, onboarding: onboarding);
+    if (loaded != null) {
+      return _HealthForm(profile: loaded, onboarding: onboarding);
+    }
     final error = health.error;
-    final consentMissing = error is ApiException && error.code == 'CONSENT_REQUIRED';
+    final consentMissing =
+        error is ApiException && error.code == 'CONSENT_REQUIRED';
     return PageScaffold(
       title: onboarding ? null : 'Profil Kesehatan',
       showBack: !onboarding,
@@ -44,8 +47,14 @@ class HealthProfileScreen extends ConsumerWidget {
           InfoCard(
             tone: InfoTone.warning,
             title: 'Persetujuan diperlukan',
-            text: 'Profil kesehatan hanya bisa dibuka bila persetujuan pencatatan data kesehatan aktif.',
-            action: PillButton(label: 'Tinjau persetujuan', kind: PillButtonKind.secondary, expand: false, onPressed: () => context.push(Routes.consentManagement)),
+            text:
+                'Profil kesehatan hanya bisa dibuka bila persetujuan pencatatan data kesehatan aktif.',
+            action: PillButton(
+              label: 'Tinjau persetujuan',
+              kind: PillButtonKind.secondary,
+              expand: false,
+              onPressed: () => context.push(Routes.consentManagement),
+            ),
           )
         else
           AsyncBody<HealthProfile?>(
@@ -72,7 +81,9 @@ class _HealthFormState extends ConsumerState<_HealthForm> {
   final _form = GlobalKey<FormState>();
   late DiagnosisStatus? _status = widget.profile.diagnosisStatus;
   late DiabetesType? _type = widget.profile.diabetesType;
-  late final TextEditingController _year = TextEditingController(text: widget.profile.diagnosedYear?.toString() ?? '');
+  late final TextEditingController _year = TextEditingController(
+    text: widget.profile.diagnosedYear?.toString() ?? '',
+  );
   late final Set<Treatment> _treatments = {...widget.profile.treatments};
   bool _loading = false;
   bool _saved = false;
@@ -114,7 +125,10 @@ class _HealthFormState extends ConsumerState<_HealthForm> {
 
   Future<void> _save() async {
     if (_status == null) {
-      setState(() => _error = 'Pilih salah satu status diagnosis. Kamu boleh memilih "Tidak ingin menjawab".');
+      setState(
+        () => _error =
+            'Pilih salah satu status diagnosis. Kamu boleh memilih "Tidak ingin menjawab".',
+      );
       return;
     }
     if (!_form.currentState!.validate()) return;
@@ -123,18 +137,24 @@ class _HealthFormState extends ConsumerState<_HealthForm> {
       _error = null;
     });
     try {
-      await ref.read(healthControllerProvider.notifier).save(
+      await ref
+          .read(healthControllerProvider.notifier)
+          .save(
             status: _status!,
             type: _type,
             year: int.tryParse(_year.text.trim()),
-            treatments: _status == DiagnosisStatus.undisclosed ? const [] : _treatments.toList(),
+            treatments: _status == DiagnosisStatus.undisclosed
+                ? const []
+                : _treatments.toList(),
           );
       if (!mounted) return;
       setState(() => _saved = true);
       if (!widget.onboarding) {
         await WidgetsBinding.instance.endOfFrame;
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Perubahan tersimpan.')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Perubahan tersimpan.')));
         context.pop();
       } else {
         final status = ref.read(onboardingControllerProvider).value;
@@ -150,27 +170,53 @@ class _HealthFormState extends ConsumerState<_HealthForm> {
   @override
   Widget build(BuildContext context) {
     final diagnosed = _status == DiagnosisStatus.diagnosed;
-    final askTreatment = _status != null && _status != DiagnosisStatus.undisclosed;
+    final askTreatment =
+        _status != null && _status != DiagnosisStatus.undisclosed;
     final currentYear = DateTime.now().year;
     return DiscardGuard(
       dirty: _dirty && !widget.onboarding,
       child: PageScaffold(
         title: widget.onboarding ? null : 'Profil Kesehatan',
         showBack: !widget.onboarding,
-        bottom: PillButton(label: widget.onboarding ? 'Lanjut' : 'Simpan', loading: _loading, onPressed: _save),
+        bottom: PillButton(
+          label: widget.onboarding ? 'Lanjut' : 'Simpan',
+          loading: _loading,
+          onPressed: _save,
+        ),
         children: [
-          if (widget.onboarding) ...[const StepHeader(current: 3, total: 4), const SizedBox(height: AppSpacing.lg)],
-          Semantics(header: true, child: Text(widget.onboarding ? 'Kenali Kondisi Kesehatanmu' : 'Ubah Profil Kesehatan', style: AppTypography.headline)),
-          const SizedBox(height: AppSpacing.xs),
-          Text('Informasi ini berdasarkan yang kamu ketahui atau pernah disampaikan oleh tenaga kesehatan.', style: AppTypography.secondary),
+          if (widget.onboarding) ...[
+            const StepHeader(current: 3, total: 4),
+            const SizedBox(height: AppSpacing.lg),
+          ],
+          if (widget.onboarding) ...[
+            Semantics(
+              header: true,
+              child: Text(
+                'Kenali Kondisi Kesehatanmu',
+                style: AppTypography.headline,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+          ],
+          Text(
+            'Informasi ini berdasarkan yang kamu ketahui atau pernah disampaikan oleh tenaga kesehatan.',
+            style: AppTypography.secondary,
+          ),
           const SizedBox(height: AppSpacing.md),
           const InfoCard(
-            text: 'Dilaporkan sendiri oleh kamu. beOkay tidak memverifikasi diagnosis dan tidak memberi saran medis. Kamu boleh memilih "Belum yakin".',
+            text:
+                'Dilaporkan sendiri oleh kamu. beOkay tidak memverifikasi diagnosis dan tidak memberi saran medis. Kamu boleh memilih "Belum yakin".',
             icon: Icons.person_outline,
             tone: InfoTone.neutral,
           ),
           const SizedBox(height: AppSpacing.lg),
-          Semantics(header: true, child: Text('Status diagnosis diabetes', style: AppTypography.title)),
+          Semantics(
+            header: true,
+            child: Text(
+              'Status diagnosis diabetes',
+              style: AppTypography.title,
+            ),
+          ),
           const SizedBox(height: AppSpacing.sm),
           for (final option in DiagnosisStatus.values) ...[
             SelectionCard(
@@ -190,10 +236,17 @@ class _HealthFormState extends ConsumerState<_HealthForm> {
           ],
           if (diagnosed) ...[
             const SizedBox(height: AppSpacing.md),
-            Semantics(header: true, child: Text('Jenis diabetes', style: AppTypography.title)),
+            Semantics(
+              header: true,
+              child: Text('Jenis diabetes', style: AppTypography.title),
+            ),
             const SizedBox(height: AppSpacing.sm),
             for (final option in DiabetesType.values) ...[
-              SelectionCard(title: option.label, selected: _type == option, onTap: () => setState(() => _type = option)),
+              SelectionCard(
+                title: option.label,
+                selected: _type == option,
+                onTap: () => setState(() => _type = option),
+              ),
               const SizedBox(height: AppSpacing.xs),
             ],
             const SizedBox(height: AppSpacing.sm),
@@ -207,27 +260,47 @@ class _HealthFormState extends ConsumerState<_HealthForm> {
                 maxLength: 4,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 onChanged: (_) => setState(() {}),
-                validator: (value) => validateOptionalYear(value, minYear: 1900, maxYear: currentYear, label: 'Tahun diagnosis'),
+                validator: (value) => validateOptionalYear(
+                  value,
+                  minYear: 1900,
+                  maxYear: currentYear,
+                  label: 'Tahun diagnosis',
+                ),
               ),
             ),
           ] else
             Form(key: _form, child: const SizedBox.shrink()),
           if (askTreatment) ...[
             const SizedBox(height: AppSpacing.lg),
-            Semantics(header: true, child: Text('Konteks pengobatan', style: AppTypography.title)),
+            Semantics(
+              header: true,
+              child: Text('Konteks pengobatan', style: AppTypography.title),
+            ),
             const SizedBox(height: 2),
-            Text('Boleh pilih lebih dari satu. Tanpa dosis atau resep.', style: AppTypography.secondary.copyWith(color: AppColors.textSecondary)),
+            Text(
+              'Boleh pilih lebih dari satu. Tanpa dosis atau resep.',
+              style: AppTypography.secondary.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
             const SizedBox(height: AppSpacing.sm),
             Wrap(
               spacing: AppSpacing.xs,
               runSpacing: AppSpacing.xs,
               children: [
                 for (final treatment in Treatment.values)
-                  PillChip(label: treatment.label, selected: _treatments.contains(treatment), onTap: () => _toggleTreatment(treatment)),
+                  PillChip(
+                    label: treatment.label,
+                    selected: _treatments.contains(treatment),
+                    onTap: () => _toggleTreatment(treatment),
+                  ),
               ],
             ),
           ],
-          if (_error != null) ...[const SizedBox(height: AppSpacing.md), ErrorBanner(_error!)],
+          if (_error != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            ErrorBanner(_error!),
+          ],
         ],
       ),
     );

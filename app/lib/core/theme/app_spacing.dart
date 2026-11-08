@@ -5,21 +5,24 @@ abstract final class AppSpacing {
   static const double xs = 8;
   static const double sm = 12;
   static const double md = 16;
-  static const double page = 20;
+  static const double page = 16;
   static const double lg = 24;
   static const double xl = 32;
   static const double xxl = 40;
   static const double huge = 48;
   static const double giant = 64;
   static const double minTouchTarget = 48;
-  static const double buttonHeight = 52;
-  static const double fieldHeight = 56;
+  static const double buttonHeight = 48;
+  static const double fieldHeight = 48;
+  static const double cardPadding = 14;
+  static const double chipHeight = 36;
+  static const double navHeight = 64;
 }
 
 abstract final class AppRadius {
-  static const double input = 16;
-  static const double card = 24;
-  static const double sheet = 32;
+  static const double input = 14;
+  static const double card = 20;
+  static const double sheet = 28;
   static const double chip = 18;
   static const double pill = 999;
 

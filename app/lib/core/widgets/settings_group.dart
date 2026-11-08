@@ -16,7 +16,14 @@ class SettingsGroup extends StatelessWidget {
     for (var index = 0; index < children.length; index++) {
       rows.add(children[index]);
       if (index < children.length - 1) {
-        rows.add(const Divider(height: 1, indent: AppSpacing.md, endIndent: AppSpacing.md, color: AppColors.border));
+        rows.add(
+          const Divider(
+            height: 1,
+            indent: AppSpacing.md,
+            endIndent: AppSpacing.md,
+            color: AppColors.border,
+          ),
+        );
       }
     }
     return Column(
@@ -25,10 +32,16 @@ class SettingsGroup extends StatelessWidget {
         if (title != null)
           Padding(
             padding: const EdgeInsets.only(left: 4, bottom: AppSpacing.xs),
-            child: Semantics(header: true, child: Text(title!.toUpperCase(), style: AppTypography.overline)),
+            child: Semantics(
+              header: true,
+              child: Text(title!.toUpperCase(), style: AppTypography.overline),
+            ),
           ),
         Container(
-          decoration: BoxDecoration(color: AppColors.surface, borderRadius: AppRadius.cardRadius, boxShadow: AppShadows.soft),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: AppRadius.cardRadius,
+          ),
           clipBehavior: Clip.antiAlias,
           child: Column(children: rows),
         ),
@@ -38,7 +51,16 @@ class SettingsGroup extends StatelessWidget {
 }
 
 class SettingsRow extends StatelessWidget {
-  const SettingsRow({super.key, required this.title, this.icon, this.value, this.subtitle, this.onTap, this.trailing, this.destructive = false});
+  const SettingsRow({
+    super.key,
+    required this.title,
+    this.icon,
+    this.value,
+    this.subtitle,
+    this.onTap,
+    this.trailing,
+    this.destructive = false,
+  });
 
   final String title;
   final IconData? icon;
@@ -50,7 +72,14 @@ class SettingsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = destructive ? AppColors.errorForeground : AppColors.textPrimary;
+    final color = destructive
+        ? AppColors.errorForeground
+        : AppColors.textPrimary;
+    // A long value goes under the title so the title keeps one line.
+    final stacked =
+        value != null &&
+        subtitle == null &&
+        title.length + value!.length > 28;
     return Semantics(
       button: onTap != null,
       label: [title, ?value, ?subtitle].join('. '),
@@ -59,29 +88,67 @@ class SettingsRow extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 60),
+          constraints: const BoxConstraints(minHeight: 52),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: 10,
+            ),
             child: Row(
               children: [
-                if (icon != null) ...[Icon(icon, size: 22, color: destructive ? color : AppColors.textPrimary), const SizedBox(width: AppSpacing.sm)],
+                if (icon != null) ...[
+                  Icon(
+                    icon,
+                    size: 20,
+                    color: destructive ? color : AppColors.textPrimary,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                ],
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title, style: AppTypography.bodyStrong.copyWith(color: color)),
-                      if (subtitle != null) Text(subtitle!, style: AppTypography.caption),
+                      Text(
+                        title,
+                        maxLines: title.contains(' ') ? 2 : 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.body.copyWith(
+                          fontWeight: FontWeight.w500,
+                          color: color,
+                        ),
+                      ),
+                      if (subtitle != null)
+                        Text(subtitle!, style: AppTypography.caption)
+                      else if (stacked)
+                        Text(value!, style: AppTypography.caption),
                     ],
                   ),
                 ),
-                if (value != null) ...[
+                if (value != null && !stacked) ...[
                   const SizedBox(width: AppSpacing.xs),
-                  Flexible(child: Text(value!, textAlign: TextAlign.end, style: AppTypography.secondary)),
+                  Flexible(
+                    flex: 0,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 150),
+                      child: Text(
+                        value!,
+                        textAlign: TextAlign.end,
+                        style: AppTypography.secondary,
+                      ),
+                    ),
+                  ),
                 ],
-                if (trailing != null) ...[const SizedBox(width: AppSpacing.xs), trailing!],
+                if (trailing != null) ...[
+                  const SizedBox(width: AppSpacing.xs),
+                  trailing!,
+                ],
                 if (onTap != null && trailing == null) ...[
                   const SizedBox(width: 4),
-                  const Icon(Icons.chevron_right, color: AppColors.decorative),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 20,
+                    color: AppColors.decorative,
+                  ),
                 ],
               ],
             ),

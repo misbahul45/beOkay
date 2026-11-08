@@ -5,7 +5,12 @@ import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
 class PillChip extends StatelessWidget {
-  const PillChip({super.key, required this.label, required this.selected, required this.onTap});
+  const PillChip({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   final String label;
   final bool selected;
@@ -19,24 +24,48 @@ class PillChip extends StatelessWidget {
       label: label,
       excludeSemantics: true,
       onTap: onTap,
-      child: Material(
-        color: selected ? AppColors.primary : AppColors.surface,
-        shape: StadiumBorder(side: BorderSide(color: selected ? AppColors.primary : AppColors.border)),
-        child: InkWell(
-          customBorder: const StadiumBorder(),
-          onTap: onTap,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: AppSpacing.minTouchTarget),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        // 48dp hit area around a 36dp visual pill (Material minimum target, WCAG 2.5.8 AA = 24).
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: AppSpacing.minTouchTarget,
+          ),
+          child: Center(
+            widthFactor: 1,
+            child: Container(
+              constraints: const BoxConstraints(
+                minHeight: AppSpacing.chipHeight,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: ShapeDecoration(
+                color: selected ? AppColors.primary : AppColors.surface,
+                shape: StadiumBorder(
+                  side: BorderSide(
+                    color: selected ? AppColors.primary : AppColors.border,
+                  ),
+                ),
+              ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (selected) ...[const Icon(Icons.check, size: 18, color: AppColors.onPrimary), const SizedBox(width: 6)],
+                  if (selected) ...[
+                    const Icon(
+                      Icons.check,
+                      size: 16,
+                      color: AppColors.onPrimary,
+                    ),
+                    const SizedBox(width: 6),
+                  ],
                   Flexible(
                     child: Text(
                       label,
-                      style: AppTypography.secondaryStrong.copyWith(color: selected ? AppColors.onPrimary : AppColors.textPrimary),
+                      style: AppTypography.secondaryStrong.copyWith(
+                        color: selected
+                            ? AppColors.onPrimary
+                            : AppColors.textPrimary,
+                      ),
                     ),
                   ),
                 ],
@@ -50,7 +79,12 @@ class PillChip extends StatelessWidget {
 }
 
 class SegmentedPills<T> extends StatelessWidget {
-  const SegmentedPills({super.key, required this.options, required this.value, required this.onChanged});
+  const SegmentedPills({
+    super.key,
+    required this.options,
+    required this.value,
+    required this.onChanged,
+  });
 
   final List<(T, String)> options;
   final T value;
@@ -60,7 +94,10 @@ class SegmentedPills<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(color: AppColors.surfaceMuted, borderRadius: BorderRadius.circular(AppRadius.input)),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceMuted,
+        borderRadius: BorderRadius.circular(AppRadius.input),
+      ),
       child: Row(
         children: [
           for (final (optionValue, label) in options)
@@ -76,18 +113,22 @@ class SegmentedPills<T> extends StatelessWidget {
                   onTap: () => onChanged(optionValue),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
-                    constraints: const BoxConstraints(minHeight: 44),
+                    constraints: const BoxConstraints(minHeight: 40),
                     alignment: Alignment.center,
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     decoration: BoxDecoration(
-                      color: optionValue == value ? AppColors.surface : Colors.transparent,
+                      color: optionValue == value
+                          ? AppColors.surface
+                          : Colors.transparent,
                       borderRadius: BorderRadius.circular(AppRadius.input - 4),
                       boxShadow: optionValue == value ? AppShadows.soft : null,
                     ),
                     child: Text(
                       label,
                       textAlign: TextAlign.center,
-                      style: optionValue == value ? AppTypography.secondaryStrong : AppTypography.secondary,
+                      style: optionValue == value
+                          ? AppTypography.secondaryStrong
+                          : AppTypography.secondary,
                     ),
                   ),
                 ),

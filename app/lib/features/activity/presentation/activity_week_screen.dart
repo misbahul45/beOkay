@@ -33,8 +33,6 @@ class _ActivityWeekState extends ConsumerState<ActivityWeekScreen> {
     onBack: () =>
         context.canPop() ? context.pop() : context.go(Routes.activities),
     children: [
-      Text('Minggu aktivitasmu.', style: AppTypography.headline),
-      const SizedBox(height: 16),
       ref
           .watch(activityWeekProvider(date))
           .when(

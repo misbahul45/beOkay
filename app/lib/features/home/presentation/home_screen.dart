@@ -37,37 +37,65 @@ class HomeScreen extends ConsumerWidget {
       actions: [
         IconButton(
           tooltip: 'Buka profil',
-          constraints: const BoxConstraints(minWidth: AppSpacing.minTouchTarget, minHeight: AppSpacing.minTouchTarget),
+          constraints: const BoxConstraints(
+            minWidth: AppSpacing.minTouchTarget,
+            minHeight: AppSpacing.minTouchTarget,
+          ),
           onPressed: () => context.go(Routes.profile),
           icon: const Icon(Icons.account_circle_outlined, size: 28),
         ),
       ],
       children: [
-        Semantics(header: true, child: Text(name.isEmpty ? 'Halo.' : 'Halo, $name.', style: AppTypography.headline)),
+        Semantics(
+          header: true,
+          child: Text(
+            name.isEmpty ? 'Halo.' : 'Halo, $name.',
+            style: AppTypography.headline,
+          ),
+        ),
         if (today != null) ...[
           const SizedBox(height: AppSpacing.xs),
           Text(today.greeting, style: AppTypography.title),
-          Text('${DateFormat('EEEE, d MMMM y', 'id_ID').format(DateTime.parse(today.date))} · ${today.timezone}', style: AppTypography.secondary),
+          Text(
+            '${DateFormat('EEEE, d MMMM y', 'id_ID').format(DateTime.parse(today.date))} · ${today.timezone}',
+            style: AppTypography.secondary,
+          ),
         ],
         const SizedBox(height: AppSpacing.md),
         if (!consentBlocked) ...[
-          PillButton(label: 'Quick Record', icon: Icons.add_rounded, onPressed: () => showQuickRecord(context)),
+          PillButton(
+            label: 'Quick Record',
+            icon: Icons.add_rounded,
+            onPressed: () => showQuickRecord(context),
+          ),
           const SizedBox(height: AppSpacing.lg),
         ],
         if (consentBlocked) ...[
           InfoCard(
             tone: InfoTone.warning,
             title: 'Persetujuan perlu ditinjau',
-            text: 'Sebagian persetujuan wajib belum aktif, jadi fitur yang memproses data kesehatan dihentikan sementara.',
-            action: PillButton(label: 'Tinjau persetujuan', kind: PillButtonKind.secondary, expand: false, onPressed: () => context.push(Routes.consentManagement)),
+            text:
+                'Sebagian persetujuan wajib belum aktif, jadi fitur yang memproses data kesehatan dihentikan sementara.',
+            action: PillButton(
+              label: 'Tinjau persetujuan',
+              kind: PillButtonKind.secondary,
+              expand: false,
+              onPressed: () => context.push(Routes.consentManagement),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
         ],
         if (profile != null && !profile.isComplete) ...[
           InfoCard(
             title: 'Lengkapi profilmu',
-            text: 'Tahun lahir belum diisi. Ini opsional, tetapi membantu menyesuaikan pengalaman.',
-            action: PillButton(label: 'Lengkapi', kind: PillButtonKind.secondary, expand: false, onPressed: () => context.push(Routes.editProfile)),
+            text:
+                'Tahun lahir belum diisi. Ini opsional, tetapi membantu menyesuaikan pengalaman.',
+            action: PillButton(
+              label: 'Lengkapi',
+              kind: PillButtonKind.secondary,
+              expand: false,
+              onPressed: () => context.push(Routes.editProfile),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
         ],

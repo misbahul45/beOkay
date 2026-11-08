@@ -10,7 +10,6 @@ import '../../../core/widgets/health_error.dart';
 import '../../../core/widgets/info_card.dart';
 import '../../../core/widgets/page_scaffold.dart';
 import '../../../core/widgets/pill_button.dart';
-import '../../../core/widgets/editorial_feature_card.dart';
 import '../application/activity_controller.dart';
 import '../data/activity_models.dart';
 import 'activity_summary_card.dart';
@@ -37,14 +36,6 @@ class _ActivityHistoryState extends ConsumerState<ActivityHistoryScreen> {
       title: 'Riwayat aktivitas',
       onBack: () => context.go(Routes.home),
       children: [
-        Text('Gerakmu, tercatat.', style: AppTypography.headline),
-        const SizedBox(height: 16),
-        const EditorialFeatureCard(
-          title: 'Mulai dari aktivitasmu.',
-          description:
-              'Catat sesi yang kamu jalani. Jarak dan langkah dapat ditambahkan bila diketahui.',
-        ),
-        const SizedBox(height: 16),
         PillButton(
           label: 'Catat aktivitas',
           onPressed: () => context.push(Routes.addActivity),

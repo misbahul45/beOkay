@@ -33,8 +33,6 @@ class _MealHistoryScreenState extends ConsumerState<MealHistoryScreen> {
       title: 'Riwayat makanan',
       onBack: () => context.go(Routes.home),
       children: [
-        Text('Makananmu, tercatat.', style: AppTypography.headline),
-        const SizedBox(height: 12),
         PillButton(
           label: 'Catat makanan',
           onPressed: () => context.push(Routes.addMeal),

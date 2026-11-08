@@ -153,7 +153,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Belum ada catatan di hari ini'), findsOneWidget);
-    expect(find.text('Belum ada pengukuran pada hari ini.'), findsOneWidget);
+    expect(find.text('Belum ada pengukuran.'), findsOneWidget);
     expect(find.text('0'), findsNothing);
     expect(tester.takeException(), isNull);
   });

@@ -49,16 +49,18 @@ class _AppTextFieldState extends State<AppTextField> {
   late bool _hidden = widget.obscure;
 
   OutlineInputBorder _border(Color color, double width) => OutlineInputBorder(
-        borderRadius: AppRadius.inputRadius,
-        borderSide: BorderSide(color: color, width: width),
-      );
+    borderRadius: AppRadius.inputRadius,
+    borderSide: BorderSide(color: color, width: width),
+  );
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ExcludeSemantics(child: Text(widget.label, style: AppTypography.secondaryStrong)),
+        ExcludeSemantics(
+          child: Text(widget.label, style: AppTypography.secondaryStrong),
+        ),
         const SizedBox(height: AppSpacing.xs),
         Semantics(
           label: widget.label,
@@ -81,14 +83,19 @@ class _AppTextFieldState extends State<AppTextField> {
             cursorColor: AppColors.primary,
             decoration: InputDecoration(
               hintText: widget.hint,
-              hintStyle: AppTypography.body.copyWith(color: AppColors.decorative),
+              hintStyle: AppTypography.body.copyWith(
+                color: AppColors.decorative,
+              ),
               helperText: widget.helper,
               helperMaxLines: 3,
               helperStyle: AppTypography.caption,
               counterText: '',
               filled: true,
               fillColor: AppColors.surface,
-              contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 17),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: 13,
+              ),
               border: _border(AppColors.border, 1),
               enabledBorder: _border(AppColors.border, 1),
               focusedBorder: _border(AppColors.focus, 2),
@@ -96,11 +103,21 @@ class _AppTextFieldState extends State<AppTextField> {
               focusedErrorBorder: _border(AppColors.errorForeground, 2),
               disabledBorder: _border(AppColors.border, 1),
               errorMaxLines: 3,
-              errorStyle: AppTypography.caption.copyWith(color: AppColors.errorForeground, fontWeight: FontWeight.w600),
+              errorStyle: AppTypography.caption.copyWith(
+                color: AppColors.errorForeground,
+                fontWeight: FontWeight.w600,
+              ),
               suffixIcon: widget.obscure
                   ? IconButton(
-                      tooltip: _hidden ? 'Tampilkan kata sandi' : 'Sembunyikan kata sandi',
-                      icon: Icon(_hidden ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: AppColors.textSecondary),
+                      tooltip: _hidden
+                          ? 'Tampilkan kata sandi'
+                          : 'Sembunyikan kata sandi',
+                      icon: Icon(
+                        _hidden
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                        color: AppColors.textSecondary,
+                      ),
                       onPressed: () => setState(() => _hidden = !_hidden),
                     )
                   : null,

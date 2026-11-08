@@ -27,24 +27,50 @@ class PillButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (background, foreground, side) = switch (kind) {
-      PillButtonKind.primary => (AppColors.primary, AppColors.onPrimary, BorderSide.none),
-      PillButtonKind.secondary => (AppColors.surface, AppColors.textPrimary, const BorderSide(color: AppColors.border)),
-      PillButtonKind.ghost => (Colors.transparent, AppColors.textPrimary, BorderSide.none),
-      PillButtonKind.danger => (AppColors.errorBackground, AppColors.errorForeground, BorderSide.none),
-      PillButtonKind.light => (AppColors.surface, AppColors.textPrimary, BorderSide.none),
+      PillButtonKind.primary => (
+        AppColors.primary,
+        AppColors.onPrimary,
+        BorderSide.none,
+      ),
+      PillButtonKind.secondary => (
+        AppColors.surface,
+        AppColors.textPrimary,
+        const BorderSide(color: AppColors.border),
+      ),
+      PillButtonKind.ghost => (
+        Colors.transparent,
+        AppColors.textPrimary,
+        BorderSide.none,
+      ),
+      PillButtonKind.danger => (
+        AppColors.errorBackground,
+        AppColors.errorForeground,
+        BorderSide.none,
+      ),
+      PillButtonKind.light => (
+        AppColors.surface,
+        AppColors.textPrimary,
+        BorderSide.none,
+      ),
     };
     final enabled = onPressed != null && !loading;
     final content = loading
         ? SizedBox(
             height: 20,
             width: 20,
-            child: CircularProgressIndicator(strokeWidth: 2.4, color: foreground),
+            child: CircularProgressIndicator(
+              strokeWidth: 2.4,
+              color: foreground,
+            ),
           )
         : Row(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (icon != null) ...[Icon(icon, size: 20, color: foreground), const SizedBox(width: AppSpacing.xs)],
+              if (icon != null) ...[
+                Icon(icon, size: 20, color: foreground),
+                const SizedBox(width: AppSpacing.xs),
+              ],
               Flexible(
                 child: Text(
                   label,
@@ -59,10 +85,17 @@ class PillButton extends StatelessWidget {
       style: FilledButton.styleFrom(
         backgroundColor: background,
         foregroundColor: foreground,
-        disabledBackgroundColor: kind == PillButtonKind.primary ? AppColors.disabled : background.withValues(alpha: 0.6),
-        disabledForegroundColor: kind == PillButtonKind.primary ? AppColors.onPrimary : AppColors.decorative,
-        minimumSize: const Size(AppSpacing.minTouchTarget, AppSpacing.buttonHeight),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        disabledBackgroundColor: kind == PillButtonKind.primary
+            ? AppColors.disabled
+            : background.withValues(alpha: 0.6),
+        disabledForegroundColor: kind == PillButtonKind.primary
+            ? AppColors.onPrimary
+            : AppColors.decorative,
+        minimumSize: const Size(
+          AppSpacing.minTouchTarget,
+          AppSpacing.buttonHeight,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md + 4),
         shape: const StadiumBorder(),
         side: side,
         elevation: 0,

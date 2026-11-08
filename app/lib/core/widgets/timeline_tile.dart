@@ -28,16 +28,22 @@ class TimelineTile extends StatelessWidget {
           borderRadius: AppRadius.cardRadius,
           onTap: onTap,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 72),
+            constraints: const BoxConstraints(minHeight: 60),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.cardPadding,
+                vertical: 10,
+              ),
               child: Row(
                 children: [
                   Container(
-                    height: 44,
-                    width: 44,
-                    decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
-                    child: Icon(style.icon, size: 22, color: AppColors.primary),
+                    height: 36,
+                    width: 36,
+                    decoration: const BoxDecoration(
+                      color: AppColors.accent,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(style.icon, size: 18, color: AppColors.primary),
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
@@ -45,12 +51,14 @@ class TimelineTile extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(item.title, style: AppTypography.bodyStrong),
-                        const SizedBox(height: 2),
-                        Text(item.subtitle, style: AppTypography.secondary),
+                        Text(item.subtitle, style: AppTypography.caption),
                       ],
                     ),
                   ),
-                  const Icon(Icons.chevron_right_rounded, color: AppColors.decorative),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.decorative,
+                  ),
                 ],
               ),
             ),

@@ -37,33 +37,48 @@ class ProfileScreen extends ConsumerWidget {
       children: [
         Row(
           children: [
-            Expanded(child: Semantics(header: true, child: Text('Profil', style: AppTypography.headline))),
+            Expanded(
+              child: Semantics(
+                header: true,
+                child: Text('Profil', style: AppTypography.headline),
+              ),
+            ),
             ExcludeSemantics(
               child: Container(
-                height: 56,
-                width: 56,
-                decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
+                height: 44,
+                width: 44,
+                decoration: const BoxDecoration(
+                  color: AppColors.accent,
+                  shape: BoxShape.circle,
+                ),
                 alignment: Alignment.center,
-                child: Text(initial, style: AppTypography.heading),
+                child: Text(initial, style: AppTypography.title),
               ),
             ),
           ],
         ),
         const SizedBox(height: AppSpacing.xxs),
-        Text(name.isEmpty ? email : '$name · $email', style: AppTypography.secondary),
-        const SizedBox(height: AppSpacing.lg),
+        Text(
+          name.isEmpty ? email : '$name · $email',
+          style: AppTypography.secondary,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: AppSpacing.sm + 2),
         SettingsGroup(
           title: 'Informasi pribadi',
           children: [
             SettingsRow(
               icon: Icons.badge_outlined,
               title: 'Nama dan tahun lahir',
-              value: profile?.birthYear == null ? 'Tahun lahir belum diisi' : 'Lahir ${profile!.birthYear}',
+              value: profile?.birthYear == null
+                  ? 'Tahun lahir belum diisi'
+                  : 'Lahir ${profile!.birthYear}',
               onTap: () => context.push(Routes.editProfile),
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.sm + 2),
         SettingsGroup(
           title: 'Profil kesehatan',
           children: [
@@ -76,26 +91,55 @@ class ProfileScreen extends ConsumerWidget {
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.sm + 2),
         SettingsGroup(
           title: 'Preferensi',
           children: [
-            const SettingsRow(icon: Icons.language, title: 'Bahasa', value: 'Bahasa Indonesia'),
-            SettingsRow(icon: Icons.schedule, title: 'Zona waktu', value: timezoneLabel(preferences.timezone), onTap: () => context.push(Routes.settings)),
-            SettingsRow(icon: Icons.bloodtype_outlined, title: 'Satuan glukosa', value: preferences.glucoseUnit.label, onTap: () => context.push(Routes.settings)),
+            const SettingsRow(
+              icon: Icons.language,
+              title: 'Bahasa',
+              value: 'Bahasa Indonesia',
+            ),
+            SettingsRow(
+              icon: Icons.schedule,
+              title: 'Zona waktu',
+              value: timezoneLabel(preferences.timezone),
+              onTap: () => context.push(Routes.settings),
+            ),
+            SettingsRow(
+              icon: Icons.bloodtype_outlined,
+              title: 'Satuan glukosa',
+              value: preferences.glucoseUnit.label,
+              onTap: () => context.push(Routes.settings),
+            ),
           ],
         ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.sm + 2),
         SettingsGroup(
           title: 'Keamanan & privasi',
           children: [
-            SettingsRow(icon: Icons.lock_outline, title: 'Keamanan akun', onTap: () => context.push(Routes.accountSecurity)),
-            SettingsRow(icon: Icons.verified_user_outlined, title: 'Persetujuan data', onTap: () => context.push(Routes.consentManagement)),
-            SettingsRow(icon: Icons.tune, title: 'Pengaturan aplikasi', onTap: () => context.push(Routes.settings)),
+            SettingsRow(
+              icon: Icons.lock_outline,
+              title: 'Keamanan akun',
+              onTap: () => context.push(Routes.accountSecurity),
+            ),
+            SettingsRow(
+              icon: Icons.verified_user_outlined,
+              title: 'Persetujuan data',
+              onTap: () => context.push(Routes.consentManagement),
+            ),
+            SettingsRow(
+              icon: Icons.tune,
+              title: 'Pengaturan aplikasi',
+              onTap: () => context.push(Routes.settings),
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
-        const InfoCard(text: 'beOkay bukan alat diagnosis dan tidak memberi saran medis.', tone: InfoTone.neutral),
+        const InfoCard(
+          text: 'beOkay bukan alat diagnosis dan tidak memberi saran medis.',
+          tone: InfoTone.neutral,
+        ),
       ],
     );
   }

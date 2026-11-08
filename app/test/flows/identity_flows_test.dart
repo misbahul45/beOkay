@@ -177,7 +177,7 @@ void main() {
 
     await h.tapText(tester, 'Profil');
     await h.tapText(tester, 'Persetujuan data');
-    expect(find.text('Datamu, Kendalimu.'), findsOneWidget);
+    expect(find.text('Persetujuan Data'), findsOneWidget);
     await h.shot(tester, '16-consent-management');
     await h.tapText(tester, 'Tarik persetujuan');
     expect(find.text('Tarik persetujuan?'), findsOneWidget);
@@ -189,7 +189,7 @@ void main() {
     await h.settle(tester);
     await h.tapText(tester, 'Konteks diabetes');
     expect(find.text('Persetujuan diperlukan'), findsOneWidget);
-    expect(find.text('Ubah Profil Kesehatan'), findsNothing);
+    expect(find.text('Dilaporkan sendiri oleh kamu. beOkay tidak memverifikasi diagnosis dan tidak memberi saran medis. Kamu boleh memilih "Belum yakin".'), findsNothing);
     await tester.tap(find.byTooltip('Kembali'));
     await h.settle(tester);
     await h.tapText(tester, 'Beranda');
@@ -290,7 +290,7 @@ void main() {
     await h.pump(tester);
     await h.tapText(tester, 'Profil');
     await h.tapText(tester, 'Nama dan tahun lahir');
-    expect(find.text('Ubah Informasi Pribadi'), findsOneWidget);
+    expect(find.text('Informasi Pribadi'), findsOneWidget);
     await h.shot(tester, '13-edit-profile');
 
     await h.fill(tester, 'Nama panggilan', 'Rina P');
@@ -298,7 +298,7 @@ void main() {
     await h.settle(tester);
     expect(find.text('Buang perubahan?'), findsOneWidget);
     await h.tapText(tester, 'Tetap di sini');
-    expect(find.text('Ubah Informasi Pribadi'), findsOneWidget);
+    expect(find.text('Informasi Pribadi'), findsOneWidget);
 
     await h.fill(tester, 'Tahun lahir (opsional)', '1800');
     await h.tapText(tester, 'Simpan');
@@ -320,7 +320,7 @@ void main() {
     await h.pump(tester);
     await h.tapText(tester, 'Profil');
     await h.tapText(tester, 'Keamanan akun');
-    expect(find.text('Terverifikasi'), findsOneWidget);
+    expect(find.text('Email terverifikasi'), findsOneWidget);
     expect(find.text('Perangkat ini'), findsOneWidget);
     expect(find.text('Perangkat lain'), findsOneWidget);
     await h.shot(tester, '17-account-security');
@@ -340,7 +340,7 @@ void main() {
     await h.pump(tester);
     await h.tapText(tester, 'Profil');
     await h.tapText(tester, 'Konteks diabetes');
-    expect(find.text('Ubah Profil Kesehatan'), findsOneWidget);
+    expect(find.text('Profil Kesehatan'), findsOneWidget);
     expect(find.text('Dilaporkan sendiri oleh kamu. beOkay tidak memverifikasi diagnosis dan tidak memberi saran medis. Kamu boleh memilih "Belum yakin".'), findsOneWidget);
     await h.shot(tester, '14-edit-health');
   });

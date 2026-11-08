@@ -28,7 +28,9 @@ class PersonalProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(profileControllerProvider);
     final loaded = profile.value;
-    if (loaded != null) return _ProfileForm(profile: loaded, onboarding: onboarding);
+    if (loaded != null) {
+      return _ProfileForm(profile: loaded, onboarding: onboarding);
+    }
     return PageScaffold(
       title: onboarding ? null : 'Informasi Pribadi',
       showBack: !onboarding,
@@ -55,14 +57,21 @@ class _ProfileForm extends ConsumerStatefulWidget {
 
 class _ProfileFormState extends ConsumerState<_ProfileForm> {
   final _form = GlobalKey<FormState>();
-  late final TextEditingController _name = TextEditingController(text: widget.profile.displayName);
-  late final TextEditingController _birthYear = TextEditingController(text: widget.profile.birthYear?.toString() ?? '');
+  late final TextEditingController _name = TextEditingController(
+    text: widget.profile.displayName,
+  );
+  late final TextEditingController _birthYear = TextEditingController(
+    text: widget.profile.birthYear?.toString() ?? '',
+  );
   bool _loading = false;
   bool _saved = false;
   String? _error;
 
   bool get _dirty =>
-      !_saved && (_name.text.trim() != widget.profile.displayName || _birthYear.text.trim() != (widget.profile.birthYear?.toString() ?? ''));
+      !_saved &&
+      (_name.text.trim() != widget.profile.displayName ||
+          _birthYear.text.trim() !=
+              (widget.profile.birthYear?.toString() ?? ''));
 
   @override
   void dispose() {
@@ -79,7 +88,9 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
     });
     final year = int.tryParse(_birthYear.text.trim());
     try {
-      await ref.read(profileControllerProvider.notifier).save(
+      await ref
+          .read(profileControllerProvider.notifier)
+          .save(
             displayName: _name.text.trim(),
             birthYear: year,
             clearBirthYear: year == null && widget.profile.birthYear != null,
@@ -89,7 +100,9 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
       if (!widget.onboarding) {
         await WidgetsBinding.instance.endOfFrame;
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Perubahan tersimpan.')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Perubahan tersimpan.')));
         context.pop();
       } else {
         final status = ref.read(onboardingControllerProvider).value;
@@ -110,12 +123,27 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
       child: PageScaffold(
         title: widget.onboarding ? null : 'Informasi Pribadi',
         showBack: !widget.onboarding,
-        bottom: PillButton(label: widget.onboarding ? 'Lanjut' : 'Simpan', loading: _loading, onPressed: _save),
+        bottom: PillButton(
+          label: widget.onboarding ? 'Lanjut' : 'Simpan',
+          loading: _loading,
+          onPressed: _save,
+        ),
         children: [
-          if (widget.onboarding) ...[const StepHeader(current: 2, total: 4), const SizedBox(height: AppSpacing.lg)],
-          Semantics(header: true, child: Text(widget.onboarding ? 'Mari Berkenalan' : 'Ubah Informasi Pribadi', style: AppTypography.headline)),
-          const SizedBox(height: AppSpacing.xs),
-          Text('Beberapa informasi dasar membantu menyesuaikan pengalaman aplikasi.', style: AppTypography.secondary),
+          if (widget.onboarding) ...[
+            const StepHeader(current: 2, total: 4),
+            const SizedBox(height: AppSpacing.lg),
+          ],
+          if (widget.onboarding) ...[
+            Semantics(
+              header: true,
+              child: Text('Mari Berkenalan', style: AppTypography.headline),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+          ],
+          Text(
+            'Beberapa informasi dasar membantu menyesuaikan pengalaman aplikasi.',
+            style: AppTypography.secondary,
+          ),
           const SizedBox(height: AppSpacing.lg),
           Form(
             key: _form,
@@ -133,19 +161,28 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
                 AppTextField(
                   label: 'Tahun lahir (opsional)',
                   controller: _birthYear,
-                  helper: 'Boleh dikosongkan. Dipakai untuk menyesuaikan pengalaman.',
+                  helper:
+                      'Boleh dikosongkan. Dipakai untuk menyesuaikan pengalaman.',
                   keyboardType: TextInputType.number,
                   textInputAction: TextInputAction.done,
                   maxLength: 4,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   onChanged: (_) => setState(() {}),
                   onSubmitted: (_) => _save(),
-                  validator: (value) => validateOptionalYear(value, minYear: currentYear - 120, maxYear: currentYear, label: 'Tahun lahir'),
+                  validator: (value) => validateOptionalYear(
+                    value,
+                    minYear: currentYear - 120,
+                    maxYear: currentYear,
+                    label: 'Tahun lahir',
+                  ),
                 ),
               ],
             ),
           ),
-          if (_error != null) ...[const SizedBox(height: AppSpacing.md), ErrorBanner(_error!)],
+          if (_error != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            ErrorBanner(_error!),
+          ],
         ],
       ),
     );

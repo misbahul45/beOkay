@@ -157,12 +157,11 @@ class _ActivityFormState extends ConsumerState<ActivityFormScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Gerakmu, tercatat.', style: AppTypography.headline),
-                const SizedBox(height: 16),
-                const Text(
-                  'Catat sesi yang sudah selesai. Sumber manual, dilaporkan sendiri.',
+                Text(
+                  'Sesi yang sudah selesai · dilaporkan sendiri.',
+                  style: AppTypography.secondary,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
                 Text('Jenis aktivitas', style: AppTypography.title),
                 const SizedBox(height: 8),
                 Wrap(
@@ -185,13 +184,13 @@ class _ActivityFormState extends ConsumerState<ActivityFormScreen> {
                 const SizedBox(height: 16),
                 PillButton(
                   label:
-                      'Waktu mulai: ${DateFormat('d MMM y, HH:mm', 'id_ID').format(start)}',
+                      'Mulai: ${DateFormat('d MMM y, HH:mm', 'id_ID').format(start)}',
                   kind: PillButtonKind.secondary,
                   onPressed: locked ? null : pickTime,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Zona perangkat: ${start.timeZoneName}. Riwayat mengikuti zona waktu preferensimu.',
+                  'Zona waktu perangkat: ${start.timeZoneName}.',
                   style: AppTypography.secondary,
                 ),
                 const SizedBox(height: 16),
@@ -293,7 +292,7 @@ class _ActivityFormState extends ConsumerState<ActivityFormScreen> {
                 ],
                 const SizedBox(height: 16),
                 const Text(
-                  'Penyimpanan memerlukan koneksi. Data belum tersimpan sebelum server mengonfirmasi.',
+                  'Perlu koneksi. Data baru tersimpan setelah server mengonfirmasi.',
                 ),
                 if (error != null) ...[
                   const SizedBox(height: 16),

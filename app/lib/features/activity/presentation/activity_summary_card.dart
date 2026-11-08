@@ -17,25 +17,28 @@ class ActivitySummaryCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title, style: AppTypography.title),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         Text(
           summary.durationMinutes == null
-              ? 'Belum ada durasi yang dapat diringkas.'
+              ? 'Belum ada durasi tercatat'
               : '${summary.durationMinutes} menit sesi tercatat',
-          style: AppTypography.heading,
+          style: summary.durationMinutes == null
+              ? AppTypography.body
+              : AppTypography.heading,
         ),
-        Text('${summary.count} sesi · ${summary.reviewCount} perlu ditinjau'),
-        Text('Jarak: ${summary.distanceKm.label('km')}'),
-        Text('Langkah: ${summary.steps.label('langkah')}'),
-        const SizedBox(height: 8),
-        const Text(
-          'Jumlah sesi tercatat tidak menggambarkan seluruh aktivitasmu.',
+        Text(
+          '${summary.count} sesi · ${summary.reviewCount} perlu ditinjau',
+          style: AppTypography.secondary,
+        ),
+        Text(
+          'Jarak: ${summary.distanceKm.label('km')} · Langkah: ${summary.steps.label('langkah')}',
+          style: AppTypography.secondary,
         ),
         ExpansionTile(
           title: const Text('Metode dan cakupan'),
           children: [
             Text(
-              'Sumber: sesi manual, dilaporkan sendiri.\nCakupan: ${summary.eligibleCount} sesi tanpa tanda peninjauan.\nDurasi dijumlahkan per sesi; waktu yang tumpang tindih tidak dihapus. Sesi dihitung pada tanggal mulai, termasuk yang melewati tengah malam.\n${summary.computationVersion}\nDihitung: ${summary.computedAt}',
+              'Jumlah sesi tercatat tidak menggambarkan seluruh aktivitasmu.\nSumber: sesi manual, dilaporkan sendiri.\nCakupan: ${summary.eligibleCount} sesi tanpa tanda peninjauan.\nDurasi dijumlahkan per sesi; waktu yang tumpang tindih tidak dihapus. Sesi dihitung pada tanggal mulai, termasuk yang melewati tengah malam.\n${summary.computationVersion}\nDihitung: ${summary.computedAt}',
             ),
           ],
         ),

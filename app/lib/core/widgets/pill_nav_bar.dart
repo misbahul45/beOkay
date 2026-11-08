@@ -43,10 +43,10 @@ class PillNavBar extends StatelessWidget {
             AppSpacing.md,
           ),
           child: Container(
-            height: 72,
+            height: AppSpacing.navHeight,
             decoration: BoxDecoration(
               color: AppColors.primary,
-              borderRadius: BorderRadius.circular(36),
+              borderRadius: BorderRadius.circular(AppSpacing.navHeight / 2),
               boxShadow: const [
                 BoxShadow(
                   color: Color(0x40171B20),
@@ -78,7 +78,7 @@ class PillNavBar extends StatelessWidget {
                               color: index == currentIndex
                                   ? AppColors.onPrimary
                                   : AppColors.overlay,
-                              size: 24,
+                              size: 22,
                             ),
                             const SizedBox(height: 3),
                             Text(

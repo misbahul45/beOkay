@@ -167,12 +167,11 @@ class _GlucoseFormState extends ConsumerState<_GlucoseForm> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Pengukuranmu, tercatat.', style: AppTypography.headline),
-                const SizedBox(height: 16),
-                const Text(
-                  'Salin hasil glukometer darah kapiler. Sumber: glukometer manual · dilaporkan sendiri.',
+                Text(
+                  'Hasil glukometer darah kapiler · dilaporkan sendiri.',
+                  style: AppTypography.secondary,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
                 AppTextField(
                   label: 'Nilai pengukuran',
                   controller: value,
@@ -202,18 +201,18 @@ class _GlucoseFormState extends ConsumerState<_GlucoseForm> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Pilih satuan yang tertera di alat. Mengganti satuan formulir tidak mengonversi angka masukan.',
+                  'Pilih satuan yang tertera di alat. Angka tidak dikonversi otomatis.',
                 ),
                 const SizedBox(height: 16),
                 PillButton(
                   label:
-                      'Waktu pengukuran: ${DateFormat('d MMM y, HH:mm', 'id_ID').format(time)}',
+                      'Waktu: ${DateFormat('d MMM y, HH:mm', 'id_ID').format(time)}',
                   kind: PillButtonKind.secondary,
                   onPressed: locked ? null : pickTime,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Zona perangkat: ${time.timeZoneName}. Riwayat mengikuti zona waktu preferensimu.',
+                  'Zona waktu perangkat: ${time.timeZoneName}.',
                   style: AppTypography.secondary,
                 ),
                 const SizedBox(height: 24),
@@ -273,7 +272,7 @@ class _GlucoseFormState extends ConsumerState<_GlucoseForm> {
                 ],
                 const SizedBox(height: 16),
                 const Text(
-                  'Penyimpanan memerlukan koneksi. Data belum tersimpan sebelum server mengonfirmasi.',
+                  'Perlu koneksi. Data baru tersimpan setelah server mengonfirmasi.',
                 ),
                 if (error != null) ...[
                   const SizedBox(height: 16),
