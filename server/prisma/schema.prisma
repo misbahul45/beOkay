@@ -28,6 +28,9 @@ model Users {
   onboarding     OnboardingProgress?
   consentRecords ConsentRecord[]
   auditEvents    AuditEvent[]
+  foods          FoodCatalog[]
+  meals          MealLog[]
+  revisions      RecordRevision[]
 
   @@unique([email])
   @@map("users")
@@ -158,4 +161,82 @@ model AuditEvent {
 
   @@index([userId, occurredAt(sort: Desc)])
   @@map("audit_events")
+}
+
+model FoodCatalog {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String?   @map("user_id") @db.Uuid
+  name          String
+  source        String
+  sourceVersion String?   @map("source_version")
+  status        String
+  calories      Decimal?  @db.Decimal(12, 4)
+  carbohydrates Decimal?  @db.Decimal(12, 4)
+  protein       Decimal?  @db.Decimal(12, 4)
+  fat           Decimal?  @db.Decimal(12, 4)
+  fiber         Decimal?  @db.Decimal(12, 4)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user          Users?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items         MealItem[]
+  @@index([userId, name])
+  @@map("food_catalog")
+}
+
+model MealLog {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  category    String
+  consumedAt  DateTime  @map("consumed_at") @db.Timestamptz(6)
+  notes       String?
+  captureMethod String  @default("manual") @map("capture_method")
+  createHash  String    @map("create_hash")
+  version     Int       @default(1)
+  archivedAt  DateTime? @map("archived_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user        Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       MealItem[]
+  revisions   RecordRevision[]
+  @@index([userId, consumedAt(sort: Desc), id(sort: Desc)])
+  @@map("meal_logs")
+}
+
+model MealItem {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  mealId        String   @map("meal_id") @db.Uuid
+  foodId        String?  @map("food_id") @db.Uuid
+  name          String
+  quantity      Decimal  @db.Decimal(12, 4)
+  unit          String
+  grams         Decimal? @db.Decimal(12, 4)
+  gramsBasis    String?  @map("grams_basis")
+  source        String
+  sourceVersion String?  @map("source_version")
+  status        String
+  calories      Decimal? @db.Decimal(12, 4)
+  carbohydrates Decimal? @db.Decimal(12, 4)
+  protein       Decimal? @db.Decimal(12, 4)
+  fat           Decimal? @db.Decimal(12, 4)
+  fiber         Decimal? @db.Decimal(12, 4)
+  meal          MealLog  @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  food          FoodCatalog? @relation(fields: [foodId], references: [id], onDelete: SetNull)
+  @@index([mealId])
+  @@index([foodId])
+  @@map("meal_items")
+}
+
+model RecordRevision {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  mealId      String   @map("meal_id") @db.Uuid
+  version     Int
+  reason      String
+  snapshot    Json     @db.JsonB
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user        Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meal        MealLog  @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  @@unique([mealId, version])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("record_revisions")
 }

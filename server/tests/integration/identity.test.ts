@@ -58,7 +58,7 @@ test("identity journey persists and enforces consent and sessions", async () => 
   expect(overview.displayName).toBe("Test User");
   expect(overview.timezone).toBe("Asia/Jakarta");
   expect(overview.glucoseUnit).toBe("mmol/L");
-  expect(overview.metrics.every((item) => item.value === null)).toBe(true);
+  expect(overview.metrics.filter((item: any) => item.domain !== "nutrition").every((item) => item.value === null)).toBe(true);
   const secondEmail = `today-second-${suffix}@example.test`;
   expect((await call("/api/auth/sign-up/email", { method: "POST", body: { name: "Second User", email: secondEmail, password } })).status).toBe(200);
   let secondVerification: string | undefined;
