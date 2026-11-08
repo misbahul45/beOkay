@@ -14,6 +14,8 @@ abstract final class Routes {
   static const onboardingComplete = '/onboarding/complete';
 
   static const home = '/home';
+  static const meals = '/meals';
+  static const addMeal = '/meals/new';
   static const profile = '/profile';
   static const editProfile = '/profile/edit';
   static const editHealth = '/profile/health';

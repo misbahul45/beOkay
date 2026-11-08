@@ -1,3 +1,5 @@
+import '../../nutrition/data/nutrition_models.dart';
+
 class TodayOverview {
   const TodayOverview({
     required this.date,
@@ -5,6 +7,7 @@ class TodayOverview {
     required this.timezone,
     required this.glucoseUnit,
     required this.generatedAt,
+    this.nutrition,
   });
 
   final String date;
@@ -12,6 +15,7 @@ class TodayOverview {
   final String timezone;
   final String glucoseUnit;
   final DateTime generatedAt;
+  final NutritionDay? nutrition;
 
   factory TodayOverview.fromJson(Map<String, dynamic> json) => TodayOverview(
     date: json['date'] as String,
@@ -19,5 +23,8 @@ class TodayOverview {
     timezone: json['timezone'] as String,
     glucoseUnit: json['glucoseUnit'] as String,
     generatedAt: DateTime.parse(json['generatedAt'] as String),
+    nutrition: json['nutrition'] is Map<String, dynamic>
+        ? NutritionDay.fromJson(json['nutrition'] as Map<String, dynamic>)
+        : null,
   );
 }

@@ -22,6 +22,9 @@ import '../../features/profile/presentation/personal_profile_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/settings/presentation/account_security_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
+import '../../features/nutrition/presentation/meal_history_screen.dart';
+import '../../features/nutrition/presentation/meal_form_screen.dart';
+import '../../features/nutrition/presentation/meal_detail_screen.dart';
 import 'redirect.dart';
 import 'routes.dart';
 
@@ -69,6 +72,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
       GoRoute(path: Routes.editProfile, builder: (_, _) => const PersonalProfileScreen(onboarding: false)),
+      GoRoute(path: Routes.meals, builder: (_, _) => const MealHistoryScreen()),
+      GoRoute(path: Routes.addMeal, builder: (_, _) => const MealFormScreen()),
+      GoRoute(path: '/meals/:id/edit', builder: (_, state) => MealDetailScreen(id: state.pathParameters['id']!,edit:true)),
+      GoRoute(path: '/meals/:id', builder: (_, state) => MealDetailScreen(id: state.pathParameters['id']!)),
       GoRoute(path: Routes.editHealth, builder: (_, _) => const HealthProfileScreen(onboarding: false)),
       GoRoute(path: Routes.settings, builder: (_, _) => const SettingsScreen()),
       GoRoute(path: Routes.consentManagement, builder: (_, _) => const ConsentManagementScreen()),

@@ -1,0 +1,43 @@
+meta {
+  name: Create personal food
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/me/foods
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {
+    "name": "Bruno synthetic reference",
+    "source": "synthetic API test fixture",
+    "status": "user_reported",
+    "per100g": {
+      "calories": 200,
+      "carbohydrates": 30,
+      "protein": 5,
+      "fat": null,
+      "fiber": null
+    }
+  }
+}
+
+tests {
+  test("Create personal food", function () {
+    expect(res.status).to.equal(201);
+    bru.setVar("foodId",res.body.id); expect(res.body.per100g.fat).to.equal(null);
+  });
+}
+
+docs {
+  Synthetic isolated-test data only. Verified session and health_data_processing consent required.
+  Daily summaries also require descriptive_summaries consent. Server derives owner from the session.
+  See docs/api/nutrition.md for schemas, business rules, error codes and examples.
+}

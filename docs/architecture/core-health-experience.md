@@ -1,5 +1,7 @@
 # Core Health Experience
 
+Pembaruan Slice 2: [arsitektur Nutrition](nutrition.md) sudah diterapkan. Today mengonsumsi read model Nutrition nyata, Quick Record food aktif, dan rute meal tersedia. Bagian Slice 1 di bawah dipertahankan sebagai catatan fondasi; daftar fitur belum tersedia harus dibaca bersama laporan Nutrition terbaru.
+
 ## Slice 1 — Today Foundation
 
 `GET /api/me/today` melewati `authenticated` (sesi Better Auth terverifikasi), kemudian `todayService` memeriksa consent current `health_data_processing` dan `descriptive_summaries`. Respons memakai kembali `profileService` dan `preferencesService`, selalu dengan identitas sesi. Identitas dari klien tidak digunakan.

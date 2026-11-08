@@ -1,0 +1,28 @@
+meta {
+  name: Revisions
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/me/meals/{{mealId}}/revisions
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+tests {
+  test("Revisions", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.items[0].version).to.equal(1); expect(res.body.items[0].snapshot.totals.calories.value).to.equal(300);
+  });
+}
+
+docs {
+  Synthetic isolated-test data only. Verified session and health_data_processing consent required.
+  Daily summaries also require descriptive_summaries consent. Server derives owner from the session.
+  See docs/api/nutrition.md for schemas, business rules, error codes and examples.
+}

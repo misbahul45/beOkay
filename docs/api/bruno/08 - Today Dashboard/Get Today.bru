@@ -22,8 +22,13 @@ tests {
     expect(res.body.analyticsState).to.equal("NOT_AVAILABLE");
     expect(res.body.metrics).to.have.lengthOf(4);
     res.body.metrics.forEach(function (metric) {
-      expect(metric.value).to.equal(null);
-      expect(metric.availability).to.equal("NOT_IMPLEMENTED");
+      if (metric.domain === "nutrition") {
+        expect(metric.availability).to.equal("AVAILABLE");
+        expect(metric.value.mealCount).to.be.a("number");
+      } else {
+        expect(metric.value).to.equal(null);
+        expect(metric.availability).to.equal("NOT_IMPLEMENTED");
+      }
     });
   });
 }

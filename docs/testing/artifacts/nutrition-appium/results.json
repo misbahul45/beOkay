@@ -1,0 +1,56 @@
+{
+  "execution": "Observed Appium MCP scenarios, real isolated API/PostgreSQL; not a standalone Appium runner suite",
+  "device": "Pixel_4 / emulator-5554",
+  "driver": "UiAutomator2",
+  "platform": "Android 17 API 37",
+  "results": [
+    {
+      "scenario": "Verified login reaches Today with functional Nutrition",
+      "status": "PASS"
+    },
+    {
+      "scenario": "Quick Record opens meal form and adds unknown-nutrition item",
+      "status": "PASS"
+    },
+    {
+      "scenario": "Meal persists and detail honestly shows unknown nutrition",
+      "status": "PASS"
+    },
+    {
+      "scenario": "Meal correction persists version 2 and updated quantity",
+      "status": "PASS"
+    },
+    {
+      "scenario": "Corrected meal appears in persisted history",
+      "status": "PASS"
+    },
+    {
+      "scenario": "App restart restores session and Today nutrition reflects persisted meals",
+      "status": "PASS"
+    },
+    {
+      "scenario": "Archiving meal creates version 3 without deleting revision history",
+      "status": "PASS"
+    },
+    {
+      "scenario": "Detail navigation returns to Today and archive changes daily count",
+      "status": "PASS"
+    },
+    {
+      "scenario": "Archived history allows restoring the meal as version 4",
+      "status": "PASS"
+    },
+    {
+      "scenario": "Personal catalog food is created from UI with source and partial nutrients",
+      "status": "PASS"
+    },
+    {
+      "scenario": "Catalog selection, gram input and save produce 300 kcal for 150 g with unknown remaining nutrients",
+      "status": "PASS"
+    },
+    {
+      "scenario": "Typing notes alone triggers discard confirmation before leaving unsaved meal",
+      "status": "PASS"
+    }
+  ]
+}

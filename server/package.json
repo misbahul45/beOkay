@@ -25,6 +25,7 @@
     "db:generate": "bun --bun ./node_modules/.bin/prisma generate",
     "db:migrate:dev": "bun --bun ./node_modules/.bin/prisma migrate dev",
     "db:migrate:deploy": "bun --bun ./node_modules/.bin/prisma migrate deploy",
+    "db:migrate:diff": "bun --bun ./node_modules/.bin/prisma migrate diff",
     "db:studio": "bun --bun ./node_modules/.bin/prisma studio",
     "auth:generate": "bun --bun x auth@latest generate --config src/lib/auth.ts --adapter prisma -y"
   }

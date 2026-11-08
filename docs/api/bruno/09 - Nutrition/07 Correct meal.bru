@@ -1,0 +1,44 @@
+meta {
+  name: Correct meal
+  type: http
+  seq: 7
+}
+
+patch {
+  url: {{baseUrl}}/api/me/meals/{{mealId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {
+    "expectedVersion": 1,
+    "reason": "Correct synthetic test quantity",
+    "items": [
+      {
+        "id": "{{knownItemId}}",
+        "foodId": "{{foodId}}",
+        "name": "Bruno synthetic reference",
+        "quantity": 200,
+        "unit": "g"
+      }
+    ]
+  }
+}
+
+tests {
+  test("Correct meal", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.version).to.equal(2); expect(res.body.totals.calories.value).to.equal(400);
+  });
+}
+
+docs {
+  Synthetic isolated-test data only. Verified session and health_data_processing consent required.
+  Daily summaries also require descriptive_summaries consent. Server derives owner from the session.
+  See docs/api/nutrition.md for schemas, business rules, error codes and examples.
+}

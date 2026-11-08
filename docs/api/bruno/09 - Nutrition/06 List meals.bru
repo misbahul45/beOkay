@@ -1,0 +1,28 @@
+meta {
+  name: List meals
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/me/meals?limit=1
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+tests {
+  test("List meals", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.items).to.have.lengthOf(1);
+  });
+}
+
+docs {
+  Synthetic isolated-test data only. Verified session and health_data_processing consent required.
+  Daily summaries also require descriptive_summaries consent. Server derives owner from the session.
+  See docs/api/nutrition.md for schemas, business rules, error codes and examples.
+}

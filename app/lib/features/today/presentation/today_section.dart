@@ -12,6 +12,9 @@ import '../../../core/widgets/async_body.dart';
 import '../../../core/widgets/info_card.dart';
 import '../../../core/widgets/pill_button.dart';
 import '../application/today_controller.dart';
+import '../../nutrition/data/nutrition_models.dart';
+import '../../nutrition/presentation/nutrition_widgets.dart';
+import '../../quick_record/presentation/quick_record_sheet.dart';
 
 class TodaySection extends ConsumerStatefulWidget {
   const TodaySection({super.key});
@@ -97,13 +100,19 @@ class _TodaySectionState extends ConsumerState<TodaySection>
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       Text(
-                        'Mulai dengan hal yang ingin kamu pantau. Fitur pencatatan sedang disiapkan.',
+                        'Catat makanan dan porsi yang kamu makan hari ini. Setiap catatan tetap dalam kendalimu.',
                         style: AppTypography.body.copyWith(
                           color: AppColors.onPrimary,
                         ),
                       ),
                     ],
                   ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                PillButton(
+                  label: 'Quick Record',
+                  icon: Icons.add_rounded,
+                  onPressed: () => showQuickRecord(context),
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 Semantics(
@@ -114,17 +123,52 @@ class _TodaySectionState extends ConsumerState<TodaySection>
                   ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
+                if (today.nutrition != null) ...[
+                  NutritionCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Nutrisi', style: AppTypography.title),
+                        const SizedBox(height: 8),
+                        Text(
+                          today.nutrition!.mealCount == 0
+                              ? 'Belum ada catatan makanan hari ini.'
+                              : '${today.nutrition!.mealCount} catatan makanan hari ini.',
+                          style: AppTypography.body,
+                        ),
+                        Text(
+                          'Energi: ${today.nutrition!.totals['calories']?.label('kkal') ?? 'Belum tersedia'}',
+                          style: AppTypography.secondary,
+                        ),
+                        Wrap(
+                          children: [
+                            TextButton(
+                              onPressed: () => context.push(Routes.addMeal),
+                              child: const Text('Catat makanan'),
+                            ),
+                            TextButton(
+                              onPressed: () => context.push(Routes.meals),
+                              child: const Text('Histori makanan'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 for (final item in [
                   (
                     Icons.water_drop_outlined,
                     'Glukosa',
                     'Preferensi satuan: ${today.glucoseUnit}.',
                   ),
-                  (
-                    Icons.restaurant_outlined,
-                    'Nutrisi',
-                    'Pencatatan makanan sedang disiapkan.',
-                  ),
+                  if (today.nutrition == null)
+                    (
+                      Icons.restaurant_outlined,
+                      'Nutrisi',
+                      'Pencatatan makanan sedang disiapkan.',
+                    ),
                   (
                     Icons.directions_walk_rounded,
                     'Aktivitas',
@@ -170,6 +214,21 @@ class _TodaySectionState extends ConsumerState<TodaySection>
                   const SizedBox(height: AppSpacing.sm),
                 ],
                 const SizedBox(height: AppSpacing.sm),
+                if (today.nutrition != null &&
+                    today.nutrition!.recent.isNotEmpty) ...[
+                  Text('Catatan makanan terbaru', style: AppTypography.heading),
+                  for (final meal in today.nutrition!.recent)
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(
+                        '${mealCategories[meal.category]} · ${meal.localTime}',
+                      ),
+                      subtitle: Text('${meal.itemCount} item makanan'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.push('${Routes.meals}/${meal.id}'),
+                    ),
+                  const SizedBox(height: 16),
+                ],
                 const InfoCard(
                   title: 'Tujuan dan catatan harian',
                   text: 'Pelacakan tujuan dan riwayat terpadu belum tersedia.',

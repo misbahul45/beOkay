@@ -1,5 +1,7 @@
 # Core Health — spesifikasi desain fallback
 
+Pembaruan Slice 2: [Nutrition FigCraft spec](nutrition-figcraft-spec.md) dan halaman native `10 — Nutrition` sudah dibuat, dirender dan diperiksa melalui engine FigCraft headless. Keterbatasan MCP pada catatan Slice 1 di bawah tetap berlaku untuk desktop attach, bukan untuk akses headless native yang sekarang tersedia.
+
 Slice 1: Today Foundation. Dibuat sebelum implementasi UI. FigCraft MCP tidak tersedia; arsip `design/beOkay-ui.figcraft` dipertahankan. Dokumen ini bukan klaim file FigCraft baru atau persetujuan desain pengguna.
 
 Gunakan tema Flutter existing: Inter, Ice Blue #C8D9E8, Off White #F6F8FA, Charcoal #171B20, Slate Gray #788996 (dekoratif), Steel Blue #A8BDCE, putih. Teks pendukung memakai token slateText existing yang lebih gelap; jangan gunakan slate dekoratif untuk teks kecil. Reuse semantic info/warning/error/focus existing.

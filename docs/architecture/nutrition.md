@@ -1,0 +1,17 @@
+# Nutrition architecture
+
+Backend: `features/nutrition/{routes,schema,service,repository,model}.ts`. HTTP memakai wrapper dan authenticated guard existing. Zod memvalidasi input; service memeriksa consent dan mengorkestrasi transaksi Prisma; repository membaca record ownership/date-range; model menghitung Decimal dan coverage. Dependensi Nutrition hanya auth/consent/preferences serta shared infrastructure. Today mengonsumsi Nutrition; tidak ada siklus balik.
+
+Create meal menyimpan parent dan snapshot items dalam satu transaksi. UUID dari klien dan hash input awal membuat retry idempoten; reuse ID dengan payload berbeda ditolak. Tidak ada universal writable health record table. Correct/archive/restore mengunci perubahan melalui updateMany id/userId/version, menyimpan previous view dan audit metadata dalam transaksi yang sama. Dua editor pada versi yang sama menghasilkan satu sukses dan satu konflik.
+
+Food catalogue membedakan shared reference (`user_id NULL`) dan personal reference. API personal tidak bisa menulis shared reference, status clinically verified tidak dapat dipilih oleh pengguna. Nilai sumber dan nutrient per-100g disalin saat item dibuat. Koreksi existing item mempertahankan snapshot jika referensi tidak diganti, sekalipun katalog sudah diubah. Item bebas tanpa nilai gizi tetap valid dan unknown.
+
+Read model Today dan daily Nutrition memakai date-range di timezone preferensi. PostgreSQL menghitung awal/akhir hari dengan AT TIME ZONE, bukan menambahkan 24 jam UTC. Pemilihan ID dan pembacaan detail list/daily berada dalam RepeatableRead supaya koreksi bersamaan tidak mencampur dua keadaan database. Filter arsip dan tanggal dapat dipakai bersama. Timeline menyajikan meal source IDs dan occurrence timestamp; supportedDomains secara eksplisit hanya meal.
+
+Tidak ada cache server atau summary projection persisten pada slice ini. Read berikutnya selalu mengacu sumber current. Ini menghindari invalidasi projection yang belum dibangun; bukan klaim engine daily/weekly summaries lintas domain selesai. UI menginvalidasi Today/detail/history setelah write; account/consent/preferences menjadi dependency provider read.
+
+Flutter: `features/nutrition/{data,application,presentation}`; Riverpod, go_router, ApiClient, token storage, theme dan form controls existing. Repository write menangkap bearer token sebelum request, memeriksa acting-account closure, dan tidak memakai token akun baru. Respons lama tidak diterapkan ke UI akun lain. Provider membaca ulang pada perubahan identitas/consent/preferences. Input belum disimpan dilindungi DiscardGuard. Error validasi tetap dapat diedit; network/server uncertainty mempertahankan payload untuk retry dengan ID yang sama; version conflict meminta reload.
+
+Shared Quick Record launcher ada di `features/quick_record`, food aktif dan tiga domain lain disabled/belum tersedia. Rute form/history/detail berada di luar HomeShell untuk ruang form yang cukup; history punya jalur kembali Today dan detail punya aksi Beranda. Food editor adalah katalog pribadi, meal editor menyimpan kejadian sebenarnya—dua entitas ini tidak disamakan.
+
+Belum ada local health persistence, offline queue, outbox, photo upload, recipes, verified portion conversions, external nutrition dataset, full timeline tab, weekly analytics atau domain tracking lain. Form time picker memakai timezone perangkat dengan label eksplisit; histori dan daily read memakai preference timezone. Tidak ada diagnosis, food/glucose causation, target medis atau rekomendasi pengobatan.

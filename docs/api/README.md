@@ -1,5 +1,7 @@
 # API — beOkay
 
+Pembaruan Slice 2: [Nutrition API](nutrition.md) menambahkan personal food catalog, meal create/read/correct/archive/restore, revisions, meal-only timeline dan daily Nutrition summary. Today sekarang memuat `nutrition` nyata dan metric nutrition AVAILABLE. Contoh Today Foundation di bawah adalah kontrak tahap awal; domain selain Nutrition tetap belum tersedia.
+
 ## Today Foundation
 
 `GET /api/me/today`: sesi Better Auth verified; consent current `health_data_processing` dan `descriptive_summaries` wajib. Identitas selalu dari sesi, tanpa body/parameter userId. Respons `no-store`, request ID dan error wrapper existing.

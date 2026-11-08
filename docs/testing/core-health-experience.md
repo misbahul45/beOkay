@@ -1,5 +1,7 @@
 # Verifikasi Core Health — Slice 1
 
+Pembaruan Slice 2: [verifikasi Nutrition](nutrition.md) mencatat backend 6 tes/106 assertion, Flutter 33 tes, Bruno 19 request dan 12 skenario Appium. Bagian Slice 1 di bawah adalah histori verifikasi fondasi.
+
 Pembaruan 8 November 2026: [pengujian Appium Today](today-appium.md) sudah dijalankan terhadap API/PostgreSQL nyata, dengan 13 skenario terverifikasi dan screenshot perangkat. Batas cakupan dan perbedaannya dari tes widget tercatat pada laporan tersebut.
 
 Backend wajib Docker; Flutter/Dart di host sesuai AGENTS.md. Jangan jalankan suite pada database produksi/dev. `compose.test.yaml` memakai PostgreSQL tmpfs dan Mailpit terpisah, tanpa port publik.

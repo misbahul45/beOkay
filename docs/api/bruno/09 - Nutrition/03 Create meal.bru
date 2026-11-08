@@ -1,0 +1,49 @@
+meta {
+  name: Create meal
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/me/meals
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {
+    "id": "{{newMealId}}",
+    "category": "lunch",
+    "consumedAt": "{{eventTime}}",
+    "items": [
+      {
+        "foodId": "{{foodId}}",
+        "name": "Bruno synthetic reference",
+        "quantity": 150,
+        "unit": "g"
+      },
+      {
+        "name": "Unknown test item",
+        "quantity": 1,
+        "unit": "portion"
+      }
+    ]
+  }
+}
+
+tests {
+  test("Create meal", function () {
+    expect(res.status).to.equal(201);
+    bru.setVar("mealId",res.body.id); bru.setVar("knownItemId",res.body.items.find(i=>i.foodId).id); expect(res.body.totals.calories.value).to.equal(300); expect(res.body.totals.calories.coverage).to.equal("PARTIAL");
+  });
+}
+
+docs {
+  Synthetic isolated-test data only. Verified session and health_data_processing consent required.
+  Daily summaries also require descriptive_summaries consent. Server derives owner from the session.
+  See docs/api/nutrition.md for schemas, business rules, error codes and examples.
+}

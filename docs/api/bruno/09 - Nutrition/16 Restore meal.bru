@@ -1,0 +1,36 @@
+meta {
+  name: Restore meal
+  type: http
+  seq: 16
+}
+
+patch {
+  url: {{baseUrl}}/api/me/meals/{{mealId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {
+    "expectedVersion": 3,
+    "reason": "restore synthetic entry",
+    "archived": false
+  }
+}
+
+tests {
+  test("Restore meal", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.archivedAt).to.equal(null);
+  });
+}
+
+docs {
+  Synthetic isolated-test data only. Verified session and health_data_processing consent required.
+  Daily summaries also require descriptive_summaries consent. Server derives owner from the session.
+  See docs/api/nutrition.md for schemas, business rules, error codes and examples.
+}

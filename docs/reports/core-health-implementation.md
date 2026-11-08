@@ -1,5 +1,7 @@
 # Core Health — laporan implementasi Slice 1
 
+Pembaruan Slice 2: [laporan Nutrition](nutrition-implementation.md) mencatat fitur meal online dan integrasinya. Status belum tersedia pada tabel Slice 1 di bawah merupakan catatan tahap sebelumnya; bukan status Nutrition terbaru. Keseluruhan P0/P1 belum selesai.
+
 Pembaruan verifikasi 8 November 2026: **Appium Today telah dijalankan**, 13 skenario terverifikasi pada emulator Android dengan API/PostgreSQL nyata: login, timezone/date, unit, refresh, restart, network retry, consent, pergantian akun dan sesi dicabut. [Laporan dan screenshot](../testing/today-appium.md). Pernyataan belum ada Appium di bagian verifikasi awal di bawah adalah status sebelum pengujian lanjutan ini. P0/P1 tetap belum lengkap.
 
 Tanggal: 8 November 2026. Milestone: **Today Foundation siap direview**. Pengerjaan berhenti sebelum Nutrition sesuai permintaan pengguna. FEAT-01 penuh dan keseluruhan P0 belum selesai.
