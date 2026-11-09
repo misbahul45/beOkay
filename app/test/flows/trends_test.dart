@@ -23,8 +23,8 @@ Map<String, dynamic> _json(int days, {bool empty = false}) {
           'recorded': !empty && i % 2 == 0,
           'glucose': !empty && i % 2 == 0 ? {'count': 2, 'min': 98, 'max': 142} : null,
           'activityMinutes': act(i),
-          'meals': {'count': 0, 'carbs': null},
-          'medication': {'taken': 0, 'skipped': 0},
+          'meals': {'count': !empty && i % 3 == 0 ? 2 : 0, 'carbs': !empty && i % 3 == 0 ? {'value': i % 6 == 0 ? 90.0 : null, 'coverage': i % 6 == 0 ? 'PARTIAL' : 'UNKNOWN'} : null},
+          'medication': {'taken': !empty && i % 2 == 0 ? 2 : 0, 'skipped': !empty && i % 4 == 0 ? 1 : 0},
         },
     ],
     'previous': [for (var i = 0; i < days; i++) {'date': d(i), 'activityMinutes': empty ? null : (i == 1 ? 15 : null)}],
@@ -70,7 +70,7 @@ void main() {
     expect(find.textContaining('Hari kosong bukan kegagalan'), findsOneWidget);
     expect(find.textContaining('bukan time-in-range'), findsOneWidget);
     // Tidak ada skor/penilaian.
-    for (final bad in ['skor', 'target glukosa', 'terlalu tinggi', 'kepatuhan']) {
+    for (final bad in ['target glukosa', 'terlalu tinggi', 'terlalu rendah', 'persen kepatuhan']) {
       expect(find.textContaining(bad), findsNothing, reason: bad);
     }
   });
@@ -108,7 +108,7 @@ void main() {
 
   testWidgets('Every chart has a table twin so values never depend on touch', (tester) async {
     await _pump(tester);
-    expect(find.text('Lihat sebagai tabel'), findsNWidgets(3));
+    expect(find.text('Lihat sebagai tabel'), findsNWidgets(5));
     final toggle = find.text('Lihat sebagai tabel').at(1);
     await tester.ensureVisible(toggle);
     await tester.tap(toggle);
@@ -151,5 +151,81 @@ void main() {
     await _pump(tester, empty: true);
     expect(find.textContaining('Belum ada catatan di rentang ini'), findsOneWidget);
     expect(find.byType(ActivityChart), findsNothing);
+  });
+
+  testWidgets('Meal chart: partial coverage is labelled, unknown is not drawn as zero', (tester) async {
+    await _pump(tester);
+    final chart = find.byType(MealChart);
+    await tester.ensureVisible(chart);
+    await tester.pump();
+    await tester.tapAt(_slot(tester, chart, 6, 14, inset: 30)); // i%6==0 → 90 g partial
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('90 g karbohidrat'), findsOneWidget);
+    expect(find.textContaining('sebagian item'), findsWidgets);
+    await tester.tapAt(_slot(tester, chart, 3, 14, inset: 30)); // meals but no carb data
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Karbohidrat tidak diketahui'), findsOneWidget);
+    await tester.tapAt(_slot(tester, chart, 4, 14, inset: 30)); // no meals
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Tidak ada catatan makan'), findsWidgets);
+  });
+
+  testWidgets('Medication chart: counts only, no adherence percentage; skipped is not called failure', (tester) async {
+    await _pump(tester);
+    final chart = find.byType(MedicationChart);
+    await tester.ensureVisible(chart);
+    await tester.pump();
+    await tester.tapAt(_slot(tester, chart, 4, 14));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('2 diminum, 1 dilewati'), findsOneWidget);
+    await tester.tapAt(_slot(tester, chart, 3, 14));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Tidak ada konfirmasi'), findsOneWidget);
+    expect(find.textContaining('%'), findsNothing);
+    for (final bad in ['terlewat', 'tidak patuh', 'lupa']) {
+      expect(find.textContaining(bad), findsNothing, reason: bad);
+    }
+    expect(find.text('Lihat sebagai tabel'), findsNWidgets(5));
+  });
+
+  testWidgets('90 days: narrow cells still render and scrub; no overflow', (tester) async {
+    await _pump(tester);
+    await tester.tap(find.text('90 hari'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1000));
+    expect(find.text('45 dari 90 hari'), findsOneWidget);
+    final chart = find.byType(ConsistencyChart);
+    await tester.ensureVisible(chart);
+    await tester.pump();
+    await tester.tapAt(_slot(tester, chart, 88, 90));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Ada catatan'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Text scale 2.0: no overflow, readout and hero numbers still present', (tester) async {
+    await initializeDateFormatting('id_ID');
+    tester.view.physicalSize = const Size(390, 2400) * 3;
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    final router = GoRouter(routes: [GoRoute(path: '/', builder: (_, _) => const TrendsScreen())]);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [trendsProvider.overrideWith((ref) async => Trends.fromJson(_json(14)))],
+        child: MaterialApp.router(routerConfig: router, builder: (c, child) => MediaQuery(data: MediaQuery.of(c).copyWith(textScaler: const TextScaler.linear(2.0)), child: child!)),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1000));
+    expect(find.text('7 dari 14 hari'), findsOneWidget);
+    final chart = find.byType(ActivityChart);
+    await tester.ensureVisible(chart);
+    await tester.pump();
+    final tl = tester.getTopLeft(chart);
+    final sz = tester.getSize(chart);
+    await tester.tapAt(Offset(tl.dx + 30 + (sz.width - 30) / 14 * 11.5, tl.dy + sz.height - 50));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('35 menit'), findsWidgets);
+    expect(tester.takeException(), isNull);
   });
 }

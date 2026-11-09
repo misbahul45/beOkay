@@ -146,6 +146,38 @@ class _Sections extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(height: AppSpacing.sm),
+        ChartCard(
+          icon: DomainStyle.meal.icon,
+          tint: DomainStyle.meal.tint,
+          ink: DomainStyle.meal.ink,
+          title: 'Makan',
+          caption: 'Karbohidrat dari item yang punya data gizi. Batang berongga = hanya sebagian item punya data (nilai sebenarnya lebih besar); “?” = tidak ada data; “–” = tidak ada catatan makan.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              HeroFigure(value: '${t.mealDays} dari ${t.days} hari', label: 'Hari dengan catatan makan'),
+              MealChart(trends: t, dimmed: dimmed),
+              ChartTableToggle(headers: const ['Hari', 'Makan', 'Karbo (g)', 'Cakupan'], rows: mealRows(t)),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        ChartCard(
+          icon: DomainStyle.medication.icon,
+          tint: DomainStyle.medication.tint,
+          ink: DomainStyle.medication.ink,
+          title: 'Obat',
+          caption: 'Batang pekat = diminum, berongga = dilewati. Hari tanpa konfirmasi tampil “–” saja, tanpa penilaian. Ini bukan skor kepatuhan.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              HeroFigure(value: '${t.medConfirmed} konfirmasi', label: 'Dalam ${t.days} hari', sub: '${t.medTakenTotal} diminum · ${t.medSkippedTotal} dilewati'),
+              MedicationChart(trends: t, dimmed: dimmed),
+              ChartTableToggle(headers: const ['Hari', 'Diminum', 'Dilewati'], rows: medicationRows(t)),
+            ],
+          ),
+        ),
       ],
     );
   }

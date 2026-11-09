@@ -157,7 +157,7 @@ class _DayChartState extends State<DayChart> with SingleTickerProviderStateMixin
             duration: reduced ? Duration.zero : const Duration(milliseconds: 150),
             child: SizedBox(
               key: ValueKey(selected),
-              height: 60 * math.max(1.0, scaler.scale(1)),
+              height: 76 * math.max(1.0, scaler.scale(1)),
               width: double.infinity,
               child: r == null
                   ? Align(alignment: Alignment.centerLeft, child: Text(widget.hint, style: AppTypography.caption))

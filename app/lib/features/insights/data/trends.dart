@@ -79,4 +79,9 @@ class Trends {
   final List<int?> previousActivity;
   final int? activityTotal, activityPreviousTotal, bestActivityMinutes;
   final List<TrendNote> notes;
+
+  int get mealDays => series.where((d) => d.mealCount > 0).length;
+  int get medTakenTotal => series.fold(0, (s, d) => s + d.medTaken);
+  int get medSkippedTotal => series.fold(0, (s, d) => s + d.medSkipped);
+  int get medConfirmed => medTakenTotal + medSkippedTotal;
 }
