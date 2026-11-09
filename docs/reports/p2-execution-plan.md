@@ -14,6 +14,18 @@ Pola kerja: **satu tahap besar → berhenti → pengguna commit** (agen tidak me
 
 LangGraph (Python) dari prompt induk **tidak dipakai**. Sebagai gantinya: graf status eksplisit di TypeScript (node, transisi tervalidasi, checkpoint di Postgres lewat Prisma, interupsi untuk konfirmasi). Alasannya: tidak ada runtime Python; checkpoint di tabel sendiri memudahkan hapus-akun/tarik-consent; tanpa dependensi besar baru.
 
+## Keputusan teknis tambahan (pengguna, 9 Nov 2026)
+
+| Komponen | Keputusan |
+|---|---|
+| LLM agen | **Seluruhnya Mistral** lewat HTTP (`MISTRAL_API_KEY`, `MISTRAL_BASE_URL`). Model tersedia di akun (diperiksa `GET /v1/models`): `mistral-large-latest` (function calling), `mistral-medium-latest`, `mistral-small-latest`, `magistral-*` (reasoning). `LLM_*` dari `ceria_fooundation` **tidak dipakai** untuk agen. Pembagian tugas: klasifikasi intent/ekstraksi terstruktur → `mistral-small-latest`; penjelasan akhir dan pemilihan alat → `mistral-large-latest`. |
+| Embedding | `mistral-embed` (terverifikasi HTTP 200 sebelumnya). |
+| Vector DB | **pgvector** di Postgres yang ada (`pgvector/pgvector:pg17`, ekstensi dibuat lewat migrasi). Tanpa vector DB terpisah. |
+| ML | Dilatih **penuh di Kaggle** (kernel GPU), dievaluasi dengan split bersih, lalu artefak dideploy ke **Modal** (token terverifikasi 9 Nov; `modal` 1.6.3). |
+
+**Model pertama: pengenal hidangan Indonesia dari foto** (hanya nama kandidat, tanpa kalori/porsi). Dataset: `rizkyyk/dataset-food-classification` — 13 kelas (Ayam Goreng, Burger, French Fries, Gado-Gado, Ikan Goreng, Mie Goreng, Nasi Goreng, Nasi Padang, Pizza, Rawon, Rendang, Sate, Soto), seimbang 400 gambar latih/kelas, sudah terbagi train 5.200 / valid 650 / test 650 (dihitung dari daftar berkas Kaggle). Dataset alternatif ditolak: `theresalusiana/indonesian-food` timpang (bakso/gado ±1.700 vs gudeg 47), `faldoae/padangfood` hanya 993 gambar tanpa split, `robertusbagaskara/indonesian-food-image` ±15–40 gambar per kelas. Backbone pralatih dari Kaggle Models (`timm/tf-mobilenet-v3` atau `timm/tf-efficientnet`) agar kernel tidak butuh internet.
+Batas yang harus dilaporkan apa adanya: hanya 13 hidangan (termasuk pizza/burger yang tidak relevan bagi pengguna); **lisensi dataset tidak tercantum di metadata Kaggle** (→ model berstatus `RESEARCH_ONLY`, tidak untuk pengguna sampai lisensi dan evaluasi ditinjau); gambar hasil scraping berisiko duplikat antar split → cek hash perseptual sebelum evaluasi; akurasi pada foto pengguna nyata tidak diketahui.
+
 ## Koreksi temuan sebelumnya (TKPI)
 
 Audit P1 menyatakan PDF "tidak terbaca andal". Setelah uji OCR Mistral pada halaman sampel, tabel terbaca rapi dan angkanya konsisten secara internal (contoh: Dodol Banjarmasin 2,6×4 + 8,6×9 + 70×4 = 367,8 ≈ 368 kkal tercatat). Kesimpulan lama terlalu pesimis untuk halaman itu. Aturan tetap: **baris hanya masuk sebagai `reference_verified`-otomatis bila lolos validator** (energi ≈ Atwater ±10%, air+protein+lemak+KH+abu ≈ 100 g ±5%, nilai dalam rentang masuk akal). Baris gagal → `needs_review`, **tidak** dipakai kalkulator maupun agen. Tingkat lolos dilaporkan per bab.
