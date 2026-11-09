@@ -1,0 +1,110 @@
+import { z } from "zod";
+import { env } from "../../config/env.ts";
+import { logEvent } from "../../shared/http/logger.ts";
+import { AppError } from "../../shared/errors/app-error.ts";
+import { consentService } from "../consent/consent.service.ts";
+import { buildCandidate, ProviderError, type FoodCandidate } from "../food-discovery/food-candidate.ts";
+import { nutritionService } from "../nutrition/nutrition.service.ts";
+import { type ImageMime, toDataUrl } from "./image.ts";
+import { parseLabel } from "./label-parser.ts";
+import { createMistralClient } from "./mistral.client.ts";
+
+type Mistral = ReturnType<typeof createMistralClient>;
+type Food = { id: string; name: string; [k: string]: unknown };
+type Search = (userId: string, q: string) => Promise<{ items: Food[] }>;
+
+const WINDOW_MS = 10 * 60_000;
+const MAX_CALLS = 10;
+
+/** Keluaran model hanya dipercaya setelah lolos skema ini; teks bebas lain dibuang. */
+export const photoOutput = z.object({
+  isFood: z.boolean(),
+  items: z
+    .array(z.object({ name: z.string().trim().min(2).max(60), confidence: z.enum(["high", "medium", "low"]) }))
+    .max(6)
+    .default([]),
+});
+
+const sanitize = (s: string) => s.replace(/[\u0000-\u001f\u007f<>]/g, " ").replace(/\s+/g, " ").trim();
+
+export function createFoodVision(deps: { mistral: Mistral; search?: Search; now?: () => number }) {
+  const calls = new Map<string, number[]>();
+  const now = deps.now ?? Date.now;
+  const search: Search = deps.search ?? ((u, q) => nutritionService.searchFoods(u, q));
+
+  function allow(userId: string) {
+    const t = now();
+    const recent = (calls.get(userId) ?? []).filter((x) => t - x < WINDOW_MS);
+    if (recent.length >= MAX_CALLS) {
+      calls.set(userId, recent);
+      throw new AppError(429, "IMAGE_SCAN_RATE_LIMITED", "Terlalu sering memindai gambar. Coba lagi beberapa menit lagi.");
+    }
+    calls.set(userId, [...recent, t]);
+  }
+
+  async function guarded<T, F>(userId: string, run: () => Promise<T>, fallback: (code: string) => F): Promise<T | F> {
+    await consentService.requireConsent(userId, "health_data_processing");
+    if (!deps.mistral.configured) return fallback("PROVIDER_NOT_CONFIGURED");
+    allow(userId);
+    try {
+      return await run();
+    } catch (e) {
+      if (e instanceof ProviderError) return fallback(e.code);
+      throw e;
+    }
+  }
+
+  return {
+    /** Foto label kemasan → teks (OCR) → angka lewat parser deterministik. Pengguna wajib memeriksa hasilnya. */
+    scanLabel(userId: string, image: { bytes: Uint8Array; mime: ImageMime }) {
+      return guarded(
+        userId,
+        async () => {
+          const markdown = await deps.mistral.ocr(toDataUrl(image.bytes, image.mime));
+          const parsed = parseLabel(markdown);
+          const known = Object.values(parsed.printed).filter((v) => v !== null).length;
+          // Hanya metadata (tanpa isi gambar atau teks) untuk menelusuri kegagalan baca.
+          logEvent("info", "food_scan_label", { imageBytes: image.bytes.length, mime: image.mime, ocrChars: markdown.length, valuesRead: known, basis: parsed.basis, flags: parsed.flags.join(",") });
+          if (known === 0) return { status: "NO_NUTRITION" as const, candidate: null, label: parsed, rawText: markdown.slice(0, 4000) };
+          const candidate: FoodCandidate = buildCandidate(
+            { externalId: "label", name: "Produk dari label", brand: null, source: "Label kemasan (OCR)", sourceVersion: "ocr" },
+            parsed.per100g,
+          );
+          return { status: "READ" as const, candidate, label: parsed, rawText: markdown.slice(0, 4000) };
+        },
+        (code) => ({ status: "UNAVAILABLE" as const, code, candidate: null, label: null, rawText: "" }),
+      );
+    },
+
+    /** Foto makanan → hanya nama kandidat + padanan di katalog. Kalori dan porsi tidak diestimasi model. */
+    identifyPhoto(userId: string, image: { bytes: Uint8Array; mime: ImageMime }) {
+      return guarded(
+        userId,
+        async () => {
+          const raw = await deps.mistral.identify(toDataUrl(image.bytes, image.mime));
+          const parsed = photoOutput.safeParse(raw);
+          if (!parsed.success) throw new ProviderError("PROVIDER_BAD_RESPONSE", "Balasan model tidak sesuai.");
+          if (!parsed.data.isFood || parsed.data.items.length === 0) return { status: "NOT_FOOD" as const, items: [] };
+          const items = [];
+          for (const it of parsed.data.items) {
+            const name = sanitize(it.name);
+            if (name.length < 2) continue;
+            const tokens = [name, ...name.split(" ").filter((t) => t.length >= 3).sort((a, b) => b.length - a.length)];
+            let matches: Food[] = [];
+            for (const t of tokens) {
+              matches = (await search(userId, t)).items.slice(0, 3);
+              if (matches.length) break;
+            }
+            items.push({ name, confidence: it.confidence, matches });
+          }
+          return { status: items.length ? ("IDENTIFIED" as const) : ("NOT_FOOD" as const), items };
+        },
+        (code) => ({ status: "UNAVAILABLE" as const, code, items: [] }),
+      );
+    },
+  };
+}
+
+export const foodVisionService = createFoodVision({
+  mistral: createMistralClient({ apiKey: env.MISTRAL_API_KEY, ocrModel: env.MISTRAL_OCR_MODEL, visionModel: env.MISTRAL_VISION_MODEL }),
+});

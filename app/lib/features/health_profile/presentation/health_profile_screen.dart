@@ -254,6 +254,7 @@ class _HealthFormState extends ConsumerState<_HealthForm> {
               key: _form,
               child: AppTextField(
                 label: 'Tahun diagnosis (opsional)',
+                hint: 'mis. 2020',
                 controller: _year,
                 helper: 'Boleh dikosongkan bila kamu tidak ingat.',
                 keyboardType: TextInputType.number,

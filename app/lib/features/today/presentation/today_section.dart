@@ -12,6 +12,8 @@ import '../../../core/widgets/info_card.dart';
 import '../../../core/widgets/metric_card.dart';
 import '../../../core/widgets/pill_button.dart';
 import '../../../core/widgets/timeline_tile.dart';
+import '../../goals/application/goals_controller.dart';
+import '../../medication/application/medication_controller.dart';
 import '../application/today_controller.dart';
 
 /// Domain cards and recent events. Header and Quick Record live in HomeScreen.
@@ -83,6 +85,8 @@ class _TodaySectionState extends ConsumerState<TodaySection>
                 const SizedBox(height: AppSpacing.xs + 2),
                 MetricCard(
                   icon: DomainStyle.glucose.icon,
+                  tint: DomainStyle.glucose.tint,
+                  ink: DomainStyle.glucose.ink,
                   title: 'Glukosa',
                   badge:
                       latest != null && latest.qualityStatus == 'needs_review'
@@ -105,6 +109,8 @@ class _TodaySectionState extends ConsumerState<TodaySection>
                   const SizedBox(height: 10),
                   MetricCard(
                     icon: DomainStyle.meal.icon,
+                    tint: DomainStyle.meal.tint,
+                    ink: DomainStyle.meal.ink,
                     title: 'Nutrisi',
                     value: nutrition.mealCount == 0
                         ? null
@@ -124,6 +130,8 @@ class _TodaySectionState extends ConsumerState<TodaySection>
                   const SizedBox(height: 10),
                   MetricCard(
                     icon: DomainStyle.activity.icon,
+                    tint: DomainStyle.activity.tint,
+                    ink: DomainStyle.activity.ink,
                     title: 'Aktivitas',
                     badge: activity.reviewCount > 0
                         ? StatusBadge(
@@ -144,14 +152,10 @@ class _TodaySectionState extends ConsumerState<TodaySection>
                     onSecondary: () => context.push(Routes.activities),
                   ),
                 ],
-                const SizedBox(height: AppSpacing.sm),
-                const InfoCard(
-                  tone: InfoTone.neutral,
-                  icon: Icons.schedule_rounded,
-                  title: 'Sedang disiapkan',
-                  text:
-                      'Obat dan tujuan personal belum tersedia.',
-                ),
+                const SizedBox(height: 10),
+                _MedicationCard(),
+                const SizedBox(height: 10),
+                _GoalsCard(),
                 const SizedBox(height: AppSpacing.lg),
                 Semantics(
                   header: true,
@@ -191,5 +195,47 @@ class _TodaySectionState extends ConsumerState<TodaySection>
             );
           },
         );
+  }
+}
+
+
+class _MedicationCard extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final today = ref.watch(medicationTodayProvider).value;
+    final empty = today == null || today.scheduled == 0;
+    return MetricCard(
+      icon: DomainStyle.medication.icon,
+      tint: DomainStyle.medication.tint,
+      ink: DomainStyle.medication.ink,
+      title: 'Obat',
+      value: empty ? null : '${today.taken + today.skipped} dari ${today.scheduled} dikonfirmasi',
+      valueCaption: empty || today.unknown == 0 ? null : '${today.unknown} belum dikonfirmasi',
+      emptyMessage: 'Belum ada jadwal hari ini.',
+      primaryLabel: 'Tambah obat',
+      onPrimary: () => context.push(Routes.addMedication),
+      secondaryLabel: 'Buka obat',
+      onSecondary: () => context.push(Routes.medications),
+    );
+  }
+}
+
+class _GoalsCard extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final goals = ref.watch(goalsListProvider).value?.where((g) => g.status == 'active').toList() ?? const [];
+    return MetricCard(
+      icon: DomainStyle.goal.icon,
+      tint: DomainStyle.goal.tint,
+      ink: DomainStyle.goal.ink,
+      title: 'Tujuan personal',
+      value: goals.isEmpty ? null : '${goals.length} tujuan aktif',
+      valueCaption: goals.isEmpty ? null : goals.take(2).map((g) => g.title).join(' · '),
+      emptyMessage: 'Belum ada tujuan.',
+      primaryLabel: 'Buat tujuan',
+      onPrimary: () => context.push(Routes.addGoal),
+      secondaryLabel: 'Buka tujuan',
+      onSecondary: () => context.push(Routes.goals),
+    );
   }
 }

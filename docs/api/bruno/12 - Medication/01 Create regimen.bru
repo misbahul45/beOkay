@@ -1,0 +1,36 @@
+meta {
+  name: Create regimen
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/me/medications
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {
+    "id": "{{newRegimenId}}",
+    "name": "Obat uji sintetis",
+    "strength": "500 mg",
+    "dosageForm": "tablet",
+    "dosingInstructions": "Sesuai laporan pengguna"
+  }
+}
+
+tests {
+  test("Create regimen", function () {
+    expect(res.status).to.equal(201); bru.setVar("regimenId",res.body.id); expect(res.body.instructionSource).to.equal("user_reported");
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken, otherSessionToken and the new*Id values are supplied by the runner.
+  Self-reported regimen. Idempotent by id; same id with different content returns 409.
+}

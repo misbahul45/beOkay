@@ -1,0 +1,41 @@
+meta {
+  name: Calculate meal
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/me/nutrition/calculate
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {
+    "items": [
+      {
+        "foodId": "{{foodId}}",
+        "quantity": 1.5,
+        "measureId": "{{measureId}}"
+      },
+      {
+        "foodId": "{{foodId}}"
+      }
+    ]
+  }
+}
+
+tests {
+  test("Calculate meal", function () {
+    expect(res.status).to.equal(200); expect(res.body.items[1].reason).to.equal("PORTION_WEIGHT_UNKNOWN"); expect(res.body.totals.calories.coverage).to.equal("PARTIAL");
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken, otherSessionToken and foodId are supplied by the runner.
+  Deterministic Decimal arithmetic. Unknown weight or nutrient stays null with coverage; nothing is saved.
+}

@@ -1,0 +1,40 @@
+meta {
+  name: Sync without consent
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/me/sync/operations
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{restrictedSessionToken}}
+}
+
+body:json {
+  {
+    "operations": [
+      {
+        "operationId": "{{newOperationId}}",
+        "domain": "glucose",
+        "recordId": "{{newGlucoseId}}",
+        "operationType": "create",
+        "payload": {}
+      }
+    ]
+  }
+}
+
+tests {
+  test("Sync without consent", function () {
+    expect(res.status).to.equal(403);
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken, otherSessionToken and the new*Id values are supplied by the runner.
+  
+}

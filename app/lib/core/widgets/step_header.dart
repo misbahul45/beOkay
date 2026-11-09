@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
+import 'beokay_avatar.dart';
 
 class StepHeader extends StatelessWidget {
   const StepHeader({super.key, required this.current, required this.total});
@@ -18,7 +19,13 @@ class StepHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Langkah $current dari $total', style: AppTypography.secondaryStrong.copyWith(color: AppColors.textSecondary)),
+          Row(
+            children: [
+              const BeOkayAvatar(size: 30, animate: false),
+              const SizedBox(width: AppSpacing.xs),
+              Text('Langkah $current dari $total', style: AppTypography.secondaryStrong.copyWith(color: AppColors.textSecondary)),
+            ],
+          ),
           const SizedBox(height: AppSpacing.xs),
           Row(
             children: [

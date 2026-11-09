@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/format/formatters.dart';
 import '../../../core/network/error_messages.dart';
+import '../../../core/offline/sync_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
@@ -62,9 +63,15 @@ class _ConsentManagementScreenState
     if (confirmed != true) return;
     await _run(
       purpose.purpose,
-      () => ref.read(consentControllerProvider.notifier).withdraw([
-        purpose.purpose,
-      ]),
+      () async {
+        await ref.read(consentControllerProvider.notifier).withdraw([
+          purpose.purpose,
+        ]);
+        // Catatan yang belum terkirim tidak boleh diproses setelah persetujuan ditarik.
+        if (purpose.purpose == 'health_data_processing') {
+          await ref.read(syncControllerProvider.notifier).clearForConsentWithdrawal();
+        }
+      },
     );
   }
 

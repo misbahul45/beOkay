@@ -1,0 +1,26 @@
+meta {
+  name: Cross user read rejected
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/api/me/medications/{{regimenId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{otherSessionToken}}
+}
+
+tests {
+  test("Cross user read rejected", function () {
+    expect(res.status).to.equal(404);
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken, otherSessionToken and the new*Id values are supplied by the runner.
+  No disclosure across users.
+}

@@ -4,7 +4,7 @@ import { timelineService } from "./timeline.service.ts";
 export const timelineQuery = z
   .object({
     date: z.iso.date().optional(),
-    domain: z.enum(["all", "meal", "glucose", "activity"]).default("all"),
+    domain: z.enum(["all", "meal", "glucose", "activity", "medication", "goal"]).default("all"),
     cursor: z.string().max(300).optional(),
     limit: z.coerce.number().int().min(1).max(30).default(20),
     archived: z.enum(["true", "false"]).default("false"),

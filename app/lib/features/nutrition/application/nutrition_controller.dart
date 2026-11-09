@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/offline/sync_controller.dart';
 import '../../../core/providers.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../consent/application/consent_controller.dart';
@@ -11,6 +12,7 @@ final nutritionRepositoryProvider = Provider<NutritionRepository>((ref) {
   final id = auth is AuthAuthenticated ? auth.user.id : null;
   return NutritionRepository(
     ref.watch(apiClientProvider),
+    enqueueOffline: ref.read(syncControllerProvider.notifier).enqueue,
     isCurrentAccount: () {
       if (!ref.mounted) return false;
       final current = ref.read(authControllerProvider);

@@ -1,0 +1,26 @@
+meta {
+  name: Sync status
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/me/sync/status
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+tests {
+  test("Sync status", function () {
+    expect(res.status).to.equal(200); expect(res.body.items[0]).to.not.have.property("payload");
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken, otherSessionToken and the new*Id values are supplied by the runner.
+  Receipt summaries only; no health payload.
+}

@@ -151,6 +151,7 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
               children: [
                 AppTextField(
                   label: 'Nama panggilan',
+                  hint: 'mis. Rina',
                   controller: _name,
                   textInputAction: TextInputAction.next,
                   autofillHints: const [AutofillHints.nickname],
@@ -160,6 +161,7 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
                 const SizedBox(height: AppSpacing.md),
                 AppTextField(
                   label: 'Tahun lahir (opsional)',
+                  hint: 'mis. 1985',
                   controller: _birthYear,
                   helper:
                       'Boleh dikosongkan. Dipakai untuk menyesuaikan pengalaman.',

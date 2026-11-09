@@ -1,0 +1,26 @@
+meta {
+  name: Discover with external
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/me/foods/discover?q=nasi&external=true
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+tests {
+  test("Discover with external", function () {
+    expect(res.status).to.equal(200); expect(["OK","PARTIAL","UNAVAILABLE"]).to.include(res.body.external.status);
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken, otherSessionToken and foodId are supplied by the runner.
+  Query text is sent to Open Food Facts / USDA (USDA only when a key is configured). Provider failure never fails the response; limited to 20 external lookups per 10 minutes per user. Needs outbound network, so not part of the isolated suite.
+}

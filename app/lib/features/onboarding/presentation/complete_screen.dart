@@ -5,6 +5,7 @@ import '../../../core/network/error_messages.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/widgets/beokay_avatar.dart';
 import '../../../core/widgets/info_card.dart';
 import '../../../core/widgets/page_scaffold.dart';
 import '../../../core/widgets/pill_button.dart';
@@ -42,16 +43,11 @@ class _OnboardingCompleteScreenState extends ConsumerState<OnboardingCompleteScr
       bottom: PillButton(label: 'Masuk ke Beranda', loading: _loading, onPressed: _finish),
       children: [
         const SizedBox(height: AppSpacing.giant),
-        Container(
-          height: 88,
-          width: 88,
-          decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
-          child: const ExcludeSemantics(child: Icon(Icons.check_rounded, size: 44, color: AppColors.primary)),
-        ),
+        const Center(child: BeOkayAvatar(size: 112)),
         const SizedBox(height: AppSpacing.xl),
-        Semantics(header: true, child: Text('Semua Siap.', style: AppTypography.display)),
+        Semantics(header: true, child: Text('Semua siap!', textAlign: TextAlign.center, style: AppTypography.headline)),
         const SizedBox(height: AppSpacing.sm),
-        Text('Profil dan preferensimu berhasil disimpan. Kamu bisa mulai menggunakan aplikasi.', style: AppTypography.body.copyWith(color: AppColors.textSecondary)),
+        Text('Yuk mulai mencatat.', textAlign: TextAlign.center, style: AppTypography.body.copyWith(color: AppColors.textSecondary)),
         if (_error != null) ...[const SizedBox(height: AppSpacing.md), ErrorBanner(_error!)],
       ],
     );

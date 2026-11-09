@@ -17,10 +17,13 @@ class TimelineItem {
       qualityStatus = json['qualityStatus'] as String?,
       mealContext = json['mealContext'] as String?,
       activityType = json['activityType'] as String?,
-      durationMinutes = json['durationMinutes'] as int?;
+      durationMinutes = json['durationMinutes'] as int?,
+      status = json['status'] as String?,
+      medicationName = json['medicationName'] as String?,
+      goalTitle = json['goalTitle'] as String?;
 
   final String domain, recordId, localDate, localTime;
-  final String? category, displayUnit, qualityStatus, mealContext, activityType;
+  final String? category, displayUnit, qualityStatus, mealContext, activityType, status, medicationName, goalTitle;
   final int? itemCount, durationMinutes;
   final num? displayValue;
 
@@ -29,6 +32,8 @@ class TimelineItem {
   String get title => switch (domain) {
     'meal' => mealCategories[category] ?? 'Makanan',
     'activity' => activityTypes[activityType] ?? 'Aktivitas',
+    'medication' => medicationName ?? 'Obat',
+    'goal' => goalTitle ?? 'Tujuan',
     _ => '$displayValue $displayUnit',
   };
 
@@ -40,6 +45,8 @@ class TimelineItem {
       switch (domain) {
         'meal' => '$itemCount item',
         'activity' => '$durationMinutes menit · dilaporkan sendiri',
+        'medication' => switch (status) { 'taken' => 'sudah diminum', 'skipped' => 'dilewati', _ => 'belum dikonfirmasi' },
+        'goal' => switch (status) { 'completed' => 'check-in selesai', 'skipped' => 'check-in dilewati', _ => 'belum dikonfirmasi' },
         _ => 'glukometer manual${glucoseContexts[mealContext] == null ? '' : ' · ${glucoseContexts[mealContext]}'}',
       },
       if (needsReview) 'perlu ditinjau',

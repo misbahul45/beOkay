@@ -16,17 +16,132 @@ class NavItem {
   final IconData selectedIcon;
 }
 
+/// Tombol aksi di tengah bar (mis. "Catat"). Bukan tujuan navigasi: ia membuka lembar aksi.
+class NavCenterAction {
+  const NavCenterAction({
+    required this.label,
+    required this.onPressed,
+    this.icon = Icons.add_rounded,
+  });
+  final String label;
+  final IconData icon;
+  final VoidCallback onPressed;
+}
+
 class PillNavBar extends StatelessWidget {
   const PillNavBar({
     super.key,
     required this.items,
     required this.currentIndex,
     required this.onTap,
+    this.centerAction,
   });
 
   final List<NavItem> items;
   final int currentIndex;
   final ValueChanged<int> onTap;
+
+  /// Bila ada, ditempatkan di tengah: item pertama separuh di kiri, sisanya di kanan.
+  final NavCenterAction? centerAction;
+
+  Widget _item(int index) => Expanded(
+    child: Semantics(
+      button: true,
+      selected: index == currentIndex,
+      label: items[index].label,
+      excludeSemantics: true,
+      onTap: () => onTap(index),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: () => onTap(index),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              index == currentIndex
+                  ? items[index].selectedIcon
+                  : items[index].icon,
+              color: index == currentIndex
+                  ? AppColors.onPrimary
+                  : AppColors.overlay,
+              size: 22,
+            ),
+            const SizedBox(height: 3),
+            Text(
+              items[index].label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.caption.copyWith(
+                color: index == currentIndex
+                    ? AppColors.onPrimary
+                    : AppColors.overlay,
+                fontWeight: index == currentIndex
+                    ? FontWeight.w700
+                    : FontWeight.w400,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Container(
+              height: 4,
+              width: 4,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: index == currentIndex
+                    ? AppColors.onPrimary
+                    : Colors.transparent,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  Widget _center(NavCenterAction a) => SizedBox(
+    width: 76,
+    child: Semantics(
+      button: true,
+      label: a.label,
+      excludeSemantics: true,
+      onTap: a.onPressed,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          Positioned(
+            top: -16,
+            child: Material(
+              color: AppColors.emerald,
+              shape: const CircleBorder(
+                side: BorderSide(color: AppColors.background, width: 5),
+              ),
+              elevation: 6,
+              shadowColor: const Color(0x660B4F5E),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: a.onPressed,
+                child: SizedBox(
+                  height: 56,
+                  width: 56,
+                  child: Icon(a.icon, color: AppColors.onPrimary, size: 30),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 5,
+            child: Text(
+              a.label,
+              style: AppTypography.caption.copyWith(
+                color: AppColors.onPrimary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -57,59 +172,11 @@ class PillNavBar extends StatelessWidget {
             ),
             child: Row(
               children: [
-                for (var index = 0; index < items.length; index++)
-                  Expanded(
-                    child: Semantics(
-                      button: true,
-                      selected: index == currentIndex,
-                      label: items[index].label,
-                      excludeSemantics: true,
-                      onTap: () => onTap(index),
-                      child: InkWell(
-                        customBorder: const StadiumBorder(),
-                        onTap: () => onTap(index),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              index == currentIndex
-                                  ? items[index].selectedIcon
-                                  : items[index].icon,
-                              color: index == currentIndex
-                                  ? AppColors.onPrimary
-                                  : AppColors.overlay,
-                              size: 22,
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              items[index].label,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppTypography.caption.copyWith(
-                                color: index == currentIndex
-                                    ? AppColors.onPrimary
-                                    : AppColors.overlay,
-                                fontWeight: index == currentIndex
-                                    ? FontWeight.w700
-                                    : FontWeight.w400,
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            Container(
-                              height: 4,
-                              width: 4,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: index == currentIndex
-                                    ? AppColors.onPrimary
-                                    : Colors.transparent,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+                for (var index = 0; index < items.length; index++) ...[
+                  if (centerAction != null && index == items.length ~/ 2)
+                    _center(centerAction!),
+                  _item(index),
+                ],
               ],
             ),
           ),

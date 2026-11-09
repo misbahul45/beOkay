@@ -34,6 +34,15 @@ import '../../features/activity/presentation/activity_form_screen.dart';
 import '../../features/activity/presentation/activity_history_screen.dart';
 import '../../features/activity/presentation/activity_detail_screen.dart';
 import '../../features/activity/presentation/activity_week_screen.dart';
+import '../../features/medication/presentation/medication_screen.dart';
+import '../../features/medication/presentation/medication_form_screen.dart';
+import '../../features/goals/presentation/goals_screen.dart';
+import '../../features/goals/data/goals_repository.dart';
+import '../../features/medication/data/medication_repository.dart';
+import '../../features/medication/presentation/medication_history_screen.dart';
+import '../../features/sync/presentation/sync_screen.dart';
+import '../../features/insights/presentation/trends_screen.dart';
+import '../../features/goals/presentation/goal_form_screen.dart';
 import 'redirect.dart';
 import 'routes.dart';
 
@@ -118,6 +127,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.editProfile,
         builder: (_, _) => const PersonalProfileScreen(onboarding: false),
       ),
+      GoRoute(path: Routes.medications, builder: (_, _) => const MedicationScreen()),
+      GoRoute(path: Routes.addMedication, builder: (_, _) => const MedicationFormScreen()),
+      GoRoute(path: '/medications/:id/edit', builder: (_, s) => MedicationFormScreen(initial: s.extra as Regimen?)),
+      GoRoute(path: '/medications/:id/history', builder: (_, s) => MedicationHistoryScreen(regimen: s.extra as Regimen)),
+      GoRoute(path: Routes.sync, builder: (_, _) => const SyncScreen()),
+      GoRoute(path: Routes.trends, builder: (_, _) => const TrendsScreen()),
+      GoRoute(path: Routes.goals, builder: (_, _) => const GoalsScreen()),
+      GoRoute(path: Routes.addGoal, builder: (_, _) => const GoalFormScreen()),
+      GoRoute(path: '/goals/:id/edit', builder: (_, s) => GoalFormScreen(initial: s.extra as Goal?)),
       GoRoute(path: Routes.meals, builder: (_, _) => const MealHistoryScreen()),
       GoRoute(
         path: Routes.activities,

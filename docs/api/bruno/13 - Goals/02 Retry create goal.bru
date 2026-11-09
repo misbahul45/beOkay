@@ -1,0 +1,37 @@
+meta {
+  name: Retry create goal
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/me/goals
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {
+    "id": "{{newGoalId}}",
+    "title": "Jalan kaki 150 menit",
+    "goalType": "activity_minutes",
+    "targetValue": 150,
+    "period": "weekly",
+    "startDate": "{{localDate}}"
+  }
+}
+
+tests {
+  test("Retry create goal", function () {
+    expect(res.status).to.equal(201);
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken, otherSessionToken and the new*Id values are supplied by the runner.
+  
+}

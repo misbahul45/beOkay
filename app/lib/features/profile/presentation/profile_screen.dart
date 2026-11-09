@@ -116,6 +116,27 @@ class ProfileScreen extends ConsumerWidget {
         ),
         const SizedBox(height: AppSpacing.sm + 2),
         SettingsGroup(
+          title: 'Rutinitas',
+          children: [
+            SettingsRow(
+              icon: Icons.medication_outlined,
+              title: 'Obat dan jadwal',
+              onTap: () => context.push(Routes.medications),
+            ),
+            SettingsRow(
+              icon: Icons.flag_outlined,
+              title: 'Tujuan personal',
+              onTap: () => context.push(Routes.goals),
+            ),
+            SettingsRow(
+              icon: Icons.sync_rounded,
+              title: 'Sinkronisasi',
+              onTap: () => context.push(Routes.sync),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm + 2),
+        SettingsGroup(
           title: 'Keamanan & privasi',
           children: [
             SettingsRow(

@@ -25,7 +25,7 @@ import '../data/timeline_models.dart';
 class LogScreen extends ConsumerWidget {
   const LogScreen({super.key});
 
-  static const _domains = [('all', 'Semua'), ('meal', 'Makanan'), ('glucose', 'Glukosa'), ('activity', 'Aktivitas')];
+  static const _domains = [('all', 'Semua'), ('meal', 'Makanan'), ('glucose', 'Glukosa'), ('activity', 'Aktivitas'), ('medication', 'Obat'), ('goal', 'Tujuan')];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -41,17 +41,7 @@ class LogScreen extends ConsumerWidget {
         await ref.read(logFeedProvider.future).catchError((_) => const LogFeed());
       },
       children: [
-        // Wrap, not Row: at large text sizes the button drops below the title instead of squeezing it mid-word.
-        Wrap(
-          alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          runSpacing: AppSpacing.xs,
-          spacing: AppSpacing.sm,
-          children: [
-            Semantics(header: true, child: Text('Catatan', style: AppTypography.headline)),
-            PillButton(label: 'Catat', icon: Icons.add_rounded, expand: false, onPressed: () => showQuickRecord(context)),
-          ],
-        ),
+        Semantics(header: true, child: Text('Catatan', style: AppTypography.headline)),
         const SizedBox(height: AppSpacing.xs),
         Text('Diurutkan menurut waktu kejadian, bukan waktu kamu menginputnya.', style: AppTypography.secondary),
         const SizedBox(height: AppSpacing.md),

@@ -6,6 +6,11 @@ import 'package:intl/intl.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/charts.dart';
+import '../../activity/application/activity_controller.dart';
+import '../../activity/data/activity_models.dart';
+import '../../glucose/application/glucose_controller.dart';
+import '../../glucose/data/glucose_models.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/async_body.dart';
@@ -17,6 +22,7 @@ import '../../../core/widgets/pill_button.dart';
 import '../../nutrition/data/nutrition_models.dart';
 import '../application/insights_controller.dart';
 import '../data/daily_insights.dart';
+import 'weekly_card.dart';
 
 /// "Wawasan" tab: descriptive daily summary with explicit coverage and freshness.
 class InsightsScreen extends ConsumerWidget {
@@ -42,6 +48,8 @@ class InsightsScreen extends ConsumerWidget {
           style: AppTypography.secondary,
         ),
         const SizedBox(height: AppSpacing.md),
+        const _TrendsEntry(),
+        const SizedBox(height: AppSpacing.sm),
         _DayNavigator(shown: insights.value?.date),
         const SizedBox(height: AppSpacing.md),
         insights.when(
@@ -72,6 +80,45 @@ class InsightsScreen extends ConsumerWidget {
       ],
     );
   }
+}
+
+/// Pintu ke grafik tren (konsistensi, aktivitas, glukosa) dengan rentang 7–90 hari.
+class _TrendsEntry extends StatelessWidget {
+  const _TrendsEntry();
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: 'Tren harianmu. Lihat perubahan dari hari ke hari.',
+    excludeSemantics: true,
+    onTap: () => context.push(Routes.trends),
+    child: Material(
+      color: AppColors.brand,
+      borderRadius: AppRadius.cardRadius,
+      child: InkWell(
+        borderRadius: AppRadius.cardRadius,
+        onTap: () => context.push(Routes.trends),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            children: [
+              const Icon(Icons.show_chart_rounded, color: AppColors.onPrimary),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Tren harianmu', style: AppTypography.bodyStrong.copyWith(color: AppColors.onPrimary)),
+                    Text('Lihat perubahanmu dari hari ke hari', style: AppTypography.secondary.copyWith(color: AppColors.overlay)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.onPrimary),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class _DayNavigator extends ConsumerWidget {
@@ -199,6 +246,8 @@ class _Summary extends StatelessWidget {
         ],
         MetricCard(
           icon: DomainStyle.glucose.icon,
+          tint: DomainStyle.glucose.tint,
+          ink: DomainStyle.glucose.ink,
           title: 'Glukosa',
           badge: glucose.count == 0
               ? null
@@ -232,6 +281,8 @@ class _Summary extends StatelessWidget {
         const SizedBox(height: 10),
         MetricCard(
           icon: DomainStyle.meal.icon,
+          tint: DomainStyle.meal.tint,
+          ink: DomainStyle.meal.ink,
           title: 'Nutrisi',
           prominentValue: true,
           value: nutrition.mealCount == 0
@@ -257,6 +308,8 @@ class _Summary extends StatelessWidget {
         const SizedBox(height: 10),
         MetricCard(
           icon: DomainStyle.activity.icon,
+          tint: DomainStyle.activity.tint,
+          ink: DomainStyle.activity.ink,
           title: 'Aktivitas',
           badge: activity.reviewCount > 0
               ? StatusBadge(
@@ -283,20 +336,11 @@ class _Summary extends StatelessWidget {
           onSecondary: () => context.push(Routes.activityWeek),
         ),
         const SizedBox(height: AppSpacing.md),
-        const InfoCard(
-          tone: InfoTone.neutral,
-          title: 'Cara membaca ringkasan',
-          text:
-              'Semua angka berasal dari catatan yang kamu input sendiri. "Belum diketahui" berarti tidak ada datanya, bukan nol. Ringkasan tidak memberi diagnosis, target klinis, atau saran pengobatan.',
-        ),
+        _Charts(date: data.date),
+        const SizedBox(height: AppSpacing.md),
+        const WeeklyCard(),
         const SizedBox(height: AppSpacing.sm),
-        const InfoCard(
-          tone: InfoTone.neutral,
-          icon: Icons.schedule_rounded,
-          title: 'Sedang disiapkan',
-          text:
-              'Ringkasan obat, tujuan personal, dan tinjauan mingguan lintas domain.',
-        ),
+        Text('Angka berasal dari catatanmu sendiri. "–" berarti tidak ada catatan, bukan nol. Bukan diagnosis atau saran medis.', style: AppTypography.caption),
       ],
     );
   }
@@ -309,5 +353,54 @@ class _Summary extends StatelessWidget {
         ? 'terkini'
         : 'mungkin sudah berubah, tarik untuk memuat ulang';
     return 'Dihitung dari catatanmu · $label${time == null ? '' : ' · ${DateFormat('HH:mm').format(time)}'}';
+  }
+}
+
+
+/// Charts for the shown day: weekly activity bars and sparse glucose dots.
+class _Charts extends ConsumerWidget {
+  const _Charts({required this.date});
+  final String date;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final week = ref.watch(activityWeekProvider(date)).value;
+    final glucose = ref.watch(glucosePageProvider((cursor: null, date: date, archived: false))).value;
+    final unit = glucose?.displayUnit ?? 'mg/dL';
+    final points = [
+      for (final r in glucose?.items ?? const <GlucoseRecord>[])
+        DotPoint(minuteOfDay: int.parse(r.localTime.substring(0, 2)) * 60 + int.parse(r.localTime.substring(3, 5)), value: r.displayValue, needsReview: r.qualityStatus == 'needs_review'),
+    ];
+    final days = week?.days ?? const <ActivityDay>[];
+    final slots = [
+      for (final d in days) BarSlot(label: DateFormat('E', 'id_ID').format(DateTime.parse(d.date)), value: d.eligibleCount == 0 ? null : d.durationMinutes),
+    ];
+    final recorded = slots.where((s) => s.value != null).length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Semantics(header: true, child: Text('Grafik', style: AppTypography.heading)),
+        const SizedBox(height: AppSpacing.xs + 2),
+        ChartCard(
+          icon: DomainStyle.activity.icon,
+          tint: DomainStyle.activity.tint,
+          ink: DomainStyle.activity.ink,
+          title: 'Aktivitas 7 hari (menit)',
+          empty: slots.isEmpty || recorded == 0 ? 'Belum ada sesi aktivitas pada minggu ini.' : null,
+          caption: 'Batang dimulai dari nol. Hari tanpa catatan tampil sebagai "–".',
+          child: BarChart(slots: slots, unit: 'menit', color: AppColors.activityInk, tint: AppColors.activityTint, semanticLabel: 'Grafik batang aktivitas 7 hari. $recorded dari ${slots.length} hari memiliki catatan.'),
+        ),
+        const SizedBox(height: 10),
+        ChartCard(
+          icon: DomainStyle.glucose.icon,
+          tint: DomainStyle.glucose.tint,
+          ink: DomainStyle.glucose.ink,
+          title: 'Glukosa hari ini ($unit)',
+          empty: points.isEmpty ? 'Belum ada pengukuran pada hari ini.' : null,
+          caption: 'Setiap titik satu pengukuran manual; tidak dihubungkan karena nilai di antaranya tidak diketahui. Lingkaran kosong: perlu ditinjau.',
+          child: DotPlot(points: points, unit: unit, color: AppColors.glucoseInk, semanticLabel: 'Grafik titik glukosa. ${points.length} pengukuran pada hari ini.'),
+        ),
+      ],
+    );
   }
 }

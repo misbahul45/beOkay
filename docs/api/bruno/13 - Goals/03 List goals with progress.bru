@@ -1,0 +1,26 @@
+meta {
+  name: List goals with progress
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/me/goals
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+tests {
+  test("List goals with progress", function () {
+    expect(res.status).to.equal(200); expect(res.body.items[0].progress.computationVersion).to.equal("goal-progress-v1");
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken, otherSessionToken and the new*Id values are supplied by the runner.
+  
+}

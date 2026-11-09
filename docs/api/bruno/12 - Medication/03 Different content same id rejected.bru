@@ -1,0 +1,33 @@
+meta {
+  name: Different content same id rejected
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/me/medications
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {
+    "id": "{{newRegimenId}}",
+    "name": "Berbeda"
+  }
+}
+
+tests {
+  test("Different content same id rejected", function () {
+    expect(res.status).to.equal(409);
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken, otherSessionToken and the new*Id values are supplied by the runner.
+  IDEMPOTENCY_CONFLICT.
+}

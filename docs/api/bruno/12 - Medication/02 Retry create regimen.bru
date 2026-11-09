@@ -1,0 +1,36 @@
+meta {
+  name: Retry create regimen
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/me/medications
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {
+    "id": "{{newRegimenId}}",
+    "name": "Obat uji sintetis",
+    "strength": "500 mg",
+    "dosageForm": "tablet",
+    "dosingInstructions": "Sesuai laporan pengguna"
+  }
+}
+
+tests {
+  test("Retry create regimen", function () {
+    expect(res.status).to.equal(201);
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken, otherSessionToken and the new*Id values are supplied by the runner.
+  Idempotent retry returns the stored record.
+}

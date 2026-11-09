@@ -1,0 +1,34 @@
+meta {
+  name: Stale correction rejected
+  type: http
+  seq: 9
+}
+
+patch {
+  url: {{baseUrl}}/api/me/medications/{{regimenId}}/intakes/{{intakeId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {
+    "status": "taken",
+    "expectedVersion": 1,
+    "reason": "Basi"
+  }
+}
+
+tests {
+  test("Stale correction rejected", function () {
+    expect(res.status).to.equal(409);
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken, otherSessionToken and the new*Id values are supplied by the runner.
+  
+}

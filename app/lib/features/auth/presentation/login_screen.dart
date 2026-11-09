@@ -88,6 +88,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               children: [
                 AppTextField(
                   label: 'Email',
+                  hint: 'nama@email.com',
                   controller: _email,
                   textInputAction: TextInputAction.next,
                   autofillHints: const [AutofillHints.email],
@@ -97,6 +98,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: AppSpacing.md),
                 AppTextField(
                   label: 'Kata sandi',
+                  hint: 'Kata sandi akunmu',
                   controller: _password,
                   obscure: true,
                   textInputAction: TextInputAction.done,

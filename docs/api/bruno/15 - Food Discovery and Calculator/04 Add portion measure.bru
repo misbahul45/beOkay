@@ -1,0 +1,34 @@
+meta {
+  name: Add portion measure
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/me/foods/{{foodId}}/measures
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {
+    "label": "centong",
+    "grams": 100,
+    "basis": "user_estimate"
+  }
+}
+
+tests {
+  test("Add portion measure", function () {
+    expect(res.status).to.equal(201); bru.setVar("measureId",res.body.id);
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken, otherSessionToken and foodId are supplied by the runner.
+  Grams per household measure exist only per food and per user; there is no generic conversion table.
+}

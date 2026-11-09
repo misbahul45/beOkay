@@ -1,0 +1,44 @@
+meta {
+  name: Reused operationId different payload
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/me/sync/operations
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {
+    "operations": [
+      {
+        "operationId": "{{newOperationId}}",
+        "domain": "glucose",
+        "recordId": "{{newGlucoseId}}",
+        "operationType": "create",
+        "payload": {
+          "originalValue": 200,
+          "originalUnit": "mg/dL",
+          "measuredAt": "{{eventTime}}"
+        }
+      }
+    ]
+  }
+}
+
+tests {
+  test("Reused operationId different payload", function () {
+    expect(res.body.items[0].status).to.equal("CONFLICT"); expect(res.body.items[0].error.code).to.equal("OPERATION_ID_REUSED");
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken, otherSessionToken and the new*Id values are supplied by the runner.
+  
+}

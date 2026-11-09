@@ -156,6 +156,7 @@ class _AccountSecurityScreenState extends ConsumerState<AccountSecurityScreen> {
               children: [
                 AppTextField(
                   label: 'Kata sandi saat ini',
+                  hint: 'Kata sandimu yang sekarang',
                   controller: _current,
                   obscure: true,
                   autofillHints: const [AutofillHints.password],
@@ -165,6 +166,7 @@ class _AccountSecurityScreenState extends ConsumerState<AccountSecurityScreen> {
                 const SizedBox(height: AppSpacing.md),
                 AppTextField(
                   label: 'Kata sandi baru',
+                  hint: 'Minimal 10 karakter',
                   controller: _next,
                   obscure: true,
                   helper: 'Minimal 10 karakter.',
@@ -174,6 +176,7 @@ class _AccountSecurityScreenState extends ConsumerState<AccountSecurityScreen> {
                 const SizedBox(height: AppSpacing.md),
                 AppTextField(
                   label: 'Ulangi kata sandi baru',
+                  hint: 'Ketik ulang kata sandi baru',
                   controller: _confirm,
                   obscure: true,
                   autofillHints: const [AutofillHints.newPassword],

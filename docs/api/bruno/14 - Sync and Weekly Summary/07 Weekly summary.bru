@@ -1,0 +1,26 @@
+meta {
+  name: Weekly summary
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/me/summaries/weekly
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+tests {
+  test("Weekly summary", function () {
+    expect(res.status).to.equal(200); expect(res.body.days.length).to.equal(7); expect(res.body.computationVersion).to.equal("weekly-cross-domain-v1");
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken, otherSessionToken and the new*Id values are supplied by the runner.
+  Descriptive cross-domain summary; no correlation, clinical judgement or adherence score.
+}

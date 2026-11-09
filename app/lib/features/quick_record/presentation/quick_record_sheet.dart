@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/router/routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
@@ -53,10 +54,12 @@ Future<void> showQuickRecord(BuildContext context) =>
               outer: context,
             ),
             const SizedBox(height: AppSpacing.xs),
-            const _Disabled(
-              icon: Icons.medication_outlined,
-              title: 'Konsumsi obat',
-              subtitle: 'Belum tersedia di versi ini',
+            _Option(
+              style: DomainStyle.medication,
+              subtitle: 'Konfirmasi obat dan jadwalnya',
+              sheet: sheet,
+              outer: context,
+              route: Routes.medications,
             ),
           ],
         ),
@@ -69,12 +72,14 @@ class _Option extends StatelessWidget {
     required this.subtitle,
     required this.sheet,
     required this.outer,
+    this.route,
   });
 
   final DomainStyle style;
   final String subtitle;
   final BuildContext sheet;
   final BuildContext outer;
+  final String? route;
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -100,11 +105,8 @@ class _Option extends StatelessWidget {
                 Container(
                   height: 40,
                   width: 40,
-                  decoration: const BoxDecoration(
-                    color: AppColors.accent,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(style.icon, color: AppColors.primary),
+                  decoration: BoxDecoration(color: style.tint, shape: BoxShape.circle),
+                  child: Icon(style.icon, color: style.ink),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
@@ -130,63 +132,6 @@ class _Option extends StatelessWidget {
 
   void _go() {
     Navigator.pop(sheet);
-    outer.push(style.addRoute);
+    outer.push(route ?? style.addRoute);
   }
-}
-
-class _Disabled extends StatelessWidget {
-  const _Disabled({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    label: '$title. $subtitle',
-    excludeSemantics: true,
-    child: Container(
-      constraints: const BoxConstraints(minHeight: 64),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceMuted,
-        borderRadius: AppRadius.cardRadius,
-      ),
-      child: Row(
-        children: [
-          Container(
-            height: 40,
-            width: 40,
-            decoration: const BoxDecoration(
-              color: AppColors.surface,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: AppColors.decorative),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppTypography.bodyStrong.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                Text(subtitle, style: AppTypography.secondary),
-              ],
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
 }

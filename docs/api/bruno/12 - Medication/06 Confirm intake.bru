@@ -1,0 +1,36 @@
+meta {
+  name: Confirm intake
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/me/medications/{{regimenId}}/intakes
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {
+    "id": "{{newIntakeId}}",
+    "scheduleId": "{{scheduleId}}",
+    "scheduledAt": "{{scheduledAt}}",
+    "status": "taken",
+    "takenAt": "{{eventTime}}"
+  }
+}
+
+tests {
+  test("Confirm intake", function () {
+    expect(res.status).to.equal(201); bru.setVar("intakeId",res.body.id); expect(res.body.medicationSnapshot.name).to.equal("Obat uji sintetis");
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken, otherSessionToken and the new*Id values are supplied by the runner.
+  One confirmation per schedule occurrence; snapshot of regimen stored at confirm time.
+}

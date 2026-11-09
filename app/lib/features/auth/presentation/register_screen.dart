@@ -80,6 +80,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               children: [
                 AppTextField(
                   label: 'Nama',
+                  hint: 'mis. Rina Putri',
                   controller: _name,
                   textInputAction: TextInputAction.next,
                   autofillHints: const [AutofillHints.name],
@@ -89,6 +90,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 const SizedBox(height: AppSpacing.md),
                 AppTextField(
                   label: 'Email',
+                  hint: 'nama@email.com',
                   controller: _email,
                   textInputAction: TextInputAction.next,
                   autofillHints: const [AutofillHints.email],
@@ -98,6 +100,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 const SizedBox(height: AppSpacing.md),
                 AppTextField(
                   label: 'Kata sandi',
+                  hint: 'Minimal 10 karakter',
                   controller: _password,
                   obscure: true,
                   helper: 'Minimal 10 karakter.',
@@ -108,6 +111,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 const SizedBox(height: AppSpacing.md),
                 AppTextField(
                   label: 'Ulangi kata sandi',
+                  hint: 'Ketik ulang kata sandi',
                   controller: _confirm,
                   obscure: true,
                   textInputAction: TextInputAction.done,

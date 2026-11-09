@@ -1,6 +1,10 @@
+import 'account_scoped_repository.dart';
 import 'api_exception.dart';
 
+const queuedOfflineMessage = 'Tersimpan di perangkat. Akan dikirim saat tersambung.';
+
 String messageFor(Object error) {
+  if (error is QueuedOffline) return queuedOfflineMessage;
   if (error is! ApiException) return 'Terjadi kendala. Coba lagi.';
   if (error.isNetwork) return error.message;
   if (error.isRateLimited) return 'Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.';

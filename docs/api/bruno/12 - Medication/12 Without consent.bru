@@ -1,0 +1,26 @@
+meta {
+  name: Without consent
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/api/me/medications
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{restrictedSessionToken}}
+}
+
+tests {
+  test("Without consent", function () {
+    expect(res.status).to.equal(403);
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken, otherSessionToken and the new*Id values are supplied by the runner.
+  
+}

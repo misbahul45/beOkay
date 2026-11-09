@@ -1,0 +1,37 @@
+meta {
+  name: Cross user food rejected
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/me/nutrition/calculate
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{otherSessionToken}}
+}
+
+body:json {
+  {
+    "items": [
+      {
+        "foodId": "{{foodId}}",
+        "grams": 10
+      }
+    ]
+  }
+}
+
+tests {
+  test("Cross user food rejected", function () {
+    expect(res.status).to.equal(404);
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken, otherSessionToken and foodId are supplied by the runner.
+  
+}

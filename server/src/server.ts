@@ -10,6 +10,11 @@ import { nutritionRoutes } from "./features/nutrition/nutrition.routes.ts";
 import { glucoseRoutes } from "./features/glucose/glucose.routes.ts";
 import { timelineRoutes } from "./features/timeline/timeline.routes.ts";
 import { activityRoutes } from "./features/activity/activity.routes.ts";
+import { medicationRoutes } from "./features/medication/medication.routes.ts";
+import { goalsRoutes } from "./features/goals/goals.routes.ts";
+import { foodDiscoveryRoutes } from "./features/food-discovery/food-discovery.routes.ts";
+import { foodVisionRoutes } from "./features/food-vision/food-vision.routes.ts";
+import { syncRoutes } from "./features/sync/sync.routes.ts";
 import { insightsRoutes } from "./features/insights/insights.routes.ts";
 import { checkDatabase, prisma } from "./infrastructure/database/prisma.ts";
 import { route } from "./shared/http/handler.ts";
@@ -25,10 +30,15 @@ const server = Bun.serve({
     ...healthProfileRoutes,
     ...preferencesRoutes,
     ...todayRoutes,
+    ...foodDiscoveryRoutes,
+    ...foodVisionRoutes,
     ...nutritionRoutes,
     ...glucoseRoutes,
     ...activityRoutes,
+    ...medicationRoutes,
+    ...goalsRoutes,
     ...timelineRoutes,
+    ...syncRoutes,
     ...insightsRoutes,
     "/health": route(async () => {
       const db = await checkDatabase();

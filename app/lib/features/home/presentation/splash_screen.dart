@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/error_messages.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/widgets/beokay_avatar.dart';
 import '../../../core/widgets/pill_button.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../onboarding/application/onboarding_controller.dart';
@@ -32,11 +32,13 @@ class SplashScreen extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('beOkay', style: AppTypography.headline),
-              const SizedBox(height: AppSpacing.lg),
-              if (problem == null)
-                Semantics(label: 'Memuat', child: const SizedBox(height: 28, width: 28, child: CircularProgressIndicator(strokeWidth: 2.6, color: AppColors.primary)))
-              else ...[
+              if (problem == null) ...[
+                const AvatarLoader(),
+                const SizedBox(height: AppSpacing.lg),
+                Image.asset('assets/images/logo_full.png', width: 150, semanticLabel: 'beOkay'),
+              ] else ...[
+                const BeOkayAvatar(size: 72, animate: false),
+                const SizedBox(height: AppSpacing.md),
                 Text(problem, textAlign: TextAlign.center, style: AppTypography.secondary),
                 const SizedBox(height: AppSpacing.md),
                 PillButton(label: 'Coba lagi', expand: false, onPressed: retry),

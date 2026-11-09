@@ -1,0 +1,28 @@
+meta {
+  name: Sync without session
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/me/sync/operations
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "operations": []
+  }
+}
+
+tests {
+  test("Sync without session", function () {
+    expect(res.status).to.equal(401);
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken, otherSessionToken and the new*Id values are supplied by the runner.
+  
+}

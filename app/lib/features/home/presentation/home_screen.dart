@@ -4,7 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/router/routes.dart';
+import '../../../core/format/greeting.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/beokay_avatar.dart';
+import '../../medication/application/medication_controller.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/info_card.dart';
 import '../../../core/widgets/page_scaffold.dart';
@@ -46,19 +49,26 @@ class HomeScreen extends ConsumerWidget {
         ),
       ],
       children: [
-        Semantics(
-          header: true,
-          child: Text(
-            name.isEmpty ? 'Halo.' : 'Halo, $name.',
-            style: AppTypography.headline,
-          ),
+        Builder(
+          builder: (context) {
+            final unconfirmed = ref.watch(medicationTodayProvider).value?.unknown ?? 0;
+            final message = greetingFor(
+              now: DateTime.now(),
+              name: name,
+              unconfirmedMedications: unconfirmed,
+              noMealToday: today?.nutrition != null && today!.nutrition!.mealCount == 0,
+            );
+            return Semantics(
+              header: true,
+              child: AvatarGreeting(message: (title: message.title, detail: message.detail)),
+            );
+          },
         ),
         if (today != null) ...[
           const SizedBox(height: AppSpacing.xs),
-          Text(today.greeting, style: AppTypography.title),
           Text(
             '${DateFormat('EEEE, d MMMM y', 'id_ID').format(DateTime.parse(today.date))} · ${today.timezone}',
-            style: AppTypography.secondary,
+            style: AppTypography.caption,
           ),
         ],
         const SizedBox(height: AppSpacing.md),

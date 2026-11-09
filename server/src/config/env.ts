@@ -26,6 +26,24 @@ const schema = z.object({
     .transform((value) => value === "true"),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
+  // Opsional: tanpa kunci, penyedia USDA nonaktif.
+  USDA_API_KEY: z
+    .string()
+    .optional()
+    .transform((value) => (value && value.trim() ? value.trim() : undefined)),
+  // Opsional: tanpa kunci, pemindaian label (OCR) dan foto makanan nonaktif. Host dipaku di kode.
+  MISTRAL_API_KEY: z
+    .string()
+    .optional()
+    .transform((value) => (value && value.trim() ? value.trim() : undefined)),
+  MISTRAL_VISION_MODEL: z
+    .string()
+    .optional()
+    .transform((value) => (value && value.trim() ? value.trim() : "mistral-small-latest")),
+  MISTRAL_OCR_MODEL: z
+    .string()
+    .optional()
+    .transform((value) => (value && value.trim() ? value.trim() : "mistral-ocr-latest")),
 });
 
 const parsed = schema.safeParse(process.env);

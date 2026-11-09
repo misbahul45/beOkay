@@ -1,0 +1,26 @@
+meta {
+  name: Today schedule
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/me/medications/today
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+tests {
+  test("Today schedule", function () {
+    expect(res.status).to.equal(200); expect(res.body.items[0].status).to.equal("unknown"); expect(res.body.coverageStatus).to.equal("UNKNOWN"); bru.setVar("scheduledAt",res.body.items[0].scheduledAt);
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken, otherSessionToken and the new*Id values are supplied by the runner.
+  Unconfirmed doses stay unknown; no missed/adherence inference.
+}

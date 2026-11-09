@@ -63,7 +63,7 @@ void main() {
   testWidgets('A. new account: register, verify, consent, profile, health, preferences, complete', (tester) async {
     final h = TestHarness();
     await h.pump(tester);
-    expect(find.textContaining('Kenali Tubuhmu'), findsOneWidget);
+    expect(find.text('Halo, aku beOkay.'), findsOneWidget);
     await h.shot(tester, '01-welcome');
 
     await h.tapText(tester, 'Mulai Sekarang');
@@ -86,7 +86,7 @@ void main() {
 
     h.backend.verifyEmail('rina@example.test');
     await h.tapText(tester, 'Masuk');
-    expect(find.textContaining('Lebih Terarah'), findsOneWidget);
+    expect(find.text('Halo! Yuk kenalan sebentar.'), findsOneWidget);
     await h.shot(tester, '06-onboarding-intro');
 
     await h.tapText(tester, 'Lanjut');
@@ -124,10 +124,10 @@ void main() {
     await h.shot(tester, '10-preferences');
     await h.tapText(tester, 'Simpan dan Lanjut');
 
-    expect(find.text('Semua Siap.'), findsOneWidget);
+    expect(find.text('Semua siap!'), findsOneWidget);
     await h.shot(tester, '11-complete');
     await h.tapText(tester, 'Masuk ke Beranda');
-    expect(find.text('Halo, Rina Putri.'), findsOneWidget);
+    expect(find.textContaining('Halo, Rina!'), findsOneWidget);
     await h.shot(tester, '12-home');
   });
 
@@ -137,7 +137,7 @@ void main() {
     await tokens.write(await seedVerifiedUser(backend, consent: true, profile: true, health: true, prefs: true, complete: true));
     final h = TestHarness(backend: backend, tokens: tokens);
     await h.pump(tester);
-    expect(find.text('Halo, Rina Putri.'), findsOneWidget);
+    expect(find.textContaining('Halo, Rina!'), findsOneWidget);
     expect(find.text('Mulai Sekarang'), findsNothing);
     await h.shot(tester, 'today-foundation');
   });
@@ -157,7 +157,7 @@ void main() {
     await tokens.write(await seedVerifiedUser(backend, consent: true, profile: true, health: true, prefs: true, complete: true));
     final h = TestHarness(backend: backend, tokens: tokens);
     await h.pump(tester);
-    expect(find.text('Halo, Rina Putri.'), findsOneWidget);
+    expect(find.textContaining('Halo, Rina!'), findsOneWidget);
 
     backend.expireAllSessions();
     await h.tapText(tester, 'Profil');
@@ -194,7 +194,7 @@ void main() {
     await h.settle(tester);
     await h.tapText(tester, 'Beranda');
     expect(find.text('Persetujuan perlu ditinjau'), findsOneWidget);
-    expect(find.text('Halo, Rina Putri.'), findsOneWidget, reason: 'basic account stays accessible');
+    expect(find.textContaining('Halo, Rina!'), findsOneWidget, reason: 'basic account stays accessible');
     await h.shot(tester, '12b-home-consent-review');
   });
 

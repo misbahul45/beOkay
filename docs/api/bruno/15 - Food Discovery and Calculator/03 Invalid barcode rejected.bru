@@ -1,0 +1,26 @@
+meta {
+  name: Invalid barcode rejected
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/me/foods/barcode/1234567890123
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+tests {
+  test("Invalid barcode rejected", function () {
+    expect(res.status).to.equal(400); expect(res.body.error.code).to.equal("INVALID_BARCODE");
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken, otherSessionToken and foodId are supplied by the runner.
+  GTIN check digit validated before any provider call.
+}

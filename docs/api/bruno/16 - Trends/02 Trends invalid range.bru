@@ -1,0 +1,26 @@
+meta {
+  name: Trends invalid range
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/me/trends?days=5
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+tests {
+  test("Trends invalid range", function () {
+    expect(res.status).to.equal(400);
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; sessionToken is supplied by the runner.
+  Descriptive trend: no time-in-range, score or adherence. Unknown stays null, never zero.
+}

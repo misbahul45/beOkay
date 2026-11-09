@@ -41,7 +41,19 @@ class ApiClient {
 
   Future<ApiResponse> put(String path, {required Object body}) => send('PUT', path, body: body);
 
-  Future<ApiResponse> send(String method, String path, {Object? body, bool authenticated = true}) async {
+  /// Kirim berkas biner (mis. foto) dengan batas waktu lebih longgar; balasan tetap JSON.
+  Future<ApiResponse> postBytes(String path, List<int> bytes, {required String contentType, Duration timeout = const Duration(seconds: 40)}) =>
+      send('POST', path, bytes: bytes, contentType: contentType, timeout: timeout);
+
+  Future<ApiResponse> send(
+    String method,
+    String path, {
+    Object? body,
+    List<int>? bytes,
+    String? contentType,
+    Duration? timeout,
+    bool authenticated = true,
+  }) async {
     final headers = <String, String>{'Accept': 'application/json'};
     String? token;
     if (authenticated) {
@@ -49,14 +61,16 @@ class ApiClient {
       if (token != null) headers['Authorization'] = 'Bearer $token';
     }
     if (body != null) headers['Content-Type'] = 'application/json';
+    if (bytes != null) headers['Content-Type'] = contentType ?? 'application/octet-stream';
 
     final request = http.Request(method, Uri.parse('$baseUrl$path'));
     request.headers.addAll(headers);
     if (body != null) request.body = jsonEncode(body);
+    if (bytes != null) request.bodyBytes = bytes;
 
     http.Response response;
     try {
-      response = await http.Response.fromStream(await client.send(request).timeout(AppConfig.requestTimeout));
+      response = await http.Response.fromStream(await client.send(request).timeout(timeout ?? AppConfig.requestTimeout));
     } on TimeoutException {
       throw const ApiException(status: 0, code: ApiException.networkCode, message: 'Server tidak merespons. Coba lagi.');
     } on http.ClientException {

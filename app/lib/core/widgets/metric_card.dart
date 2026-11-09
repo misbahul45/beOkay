@@ -27,6 +27,8 @@ class MetricCard extends StatelessWidget {
     this.onSecondary,
     this.footnote,
     this.prominentValue = false,
+    this.tint = AppColors.accent,
+    this.ink = AppColors.primary,
   });
 
   final IconData icon;
@@ -48,6 +50,7 @@ class MetricCard extends StatelessWidget {
 
   /// Larger value (Insights) instead of the compact one (Today).
   final bool prominentValue;
+  final Color tint, ink;
 
   @override
   Widget build(BuildContext context) {

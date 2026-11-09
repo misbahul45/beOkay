@@ -1,0 +1,26 @@
+meta {
+  name: Trends without session
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/me/trends
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("Trends without session", function () {
+    expect(res.status).to.equal(401);
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; sessionToken is supplied by the runner.
+  Descriptive trend: no time-in-range, score or adherence. Unknown stays null, never zero.
+}

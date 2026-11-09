@@ -162,7 +162,7 @@ void main() {
     final data = DailyInsights.fromJson(summary(meals: 1, glucose: 1, sessions: 1));
     await tester.pumpWidget(_app(const InsightsScreen(), overrides: [dailyInsightsProvider.overrideWith((ref) async => data)]));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Cara membaca ringkasan'), 300, scrollable: find.byType(Scrollable).first);
+    await tester.scrollUntilVisible(find.textContaining('bukan nol'), 300, scrollable: find.byType(Scrollable).first);
     expect(find.textContaining('Statistik ringkasan belum ditampilkan'), findsOneWidget);
     expect(find.text('Energi: Belum tersedia'), findsOneWidget);
     expect(find.textContaining('bukan nol'), findsOneWidget);

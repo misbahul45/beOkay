@@ -61,6 +61,12 @@ services:
       SMTP_HOST: mailpit
       SMTP_PORT: "1025"
       SMTP_SECURE: "false"
+      # Opsional; nilai dibaca dari .env (gitignored). Kosong = fitur terkait nonaktif.
+      USDA_API_KEY: ${USDA_API_KEY:-}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      MISTRAL_BASE_URL: ${MISTRAL_BASE_URL:-https://api.mistral.ai/v1}
+      MISTRAL_VISION_MODEL: ${MISTRAL_VISION_MODEL:-}
+      MISTRAL_OCR_MODEL: ${MISTRAL_OCR_MODEL:-}
     ports:
       - "127.0.0.1:${API_HOST_PORT:-3000}:3000"
     volumes:

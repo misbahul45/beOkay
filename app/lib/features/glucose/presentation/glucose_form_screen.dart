@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/ids/record_id.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/network/account_scoped_repository.dart';
 import '../../../core/network/error_messages.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/theme/app_typography.dart';
@@ -136,6 +137,12 @@ class _GlucoseFormState extends ConsumerState<_GlucoseForm> {
         uncertain = false;
       });
       context.go('${Routes.glucose}/${saved.id}');
+    } on QueuedOffline {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(queuedOfflineMessage)));
+        setState(() => dirty = false);
+        context.go(Routes.glucose);
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -174,6 +181,7 @@ class _GlucoseFormState extends ConsumerState<_GlucoseForm> {
                 const SizedBox(height: 16),
                 AppTextField(
                   label: 'Nilai pengukuran',
+                  hint: 'mis. 110',
                   controller: value,
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
@@ -252,6 +260,7 @@ class _GlucoseFormState extends ConsumerState<_GlucoseForm> {
                 ),
                 AppTextField(
                   label: 'Catatan (opsional)',
+                  hint: 'mis. sebelum sarapan',
                   controller: notes,
                   maxLength: 2000,
                   enabled: !locked,
@@ -261,6 +270,7 @@ class _GlucoseFormState extends ConsumerState<_GlucoseForm> {
                   const SizedBox(height: 16),
                   AppTextField(
                     label: 'Alasan koreksi',
+                    hint: 'mis. salah ketik angka',
                     controller: reason,
                     maxLength: 300,
                     enabled: !locked,
@@ -272,7 +282,7 @@ class _GlucoseFormState extends ConsumerState<_GlucoseForm> {
                 ],
                 const SizedBox(height: 16),
                 const Text(
-                  'Perlu koneksi. Data baru tersimpan setelah server mengonfirmasi.',
+                  'Tanpa koneksi, catatan baru disimpan di perangkat dan dikirim nanti. Koreksi perlu koneksi.',
                 ),
                 if (error != null) ...[
                   const SizedBox(height: 16),

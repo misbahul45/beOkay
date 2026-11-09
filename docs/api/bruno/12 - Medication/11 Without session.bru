@@ -1,0 +1,22 @@
+meta {
+  name: Without session
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/api/me/medications
+  body: none
+  auth: none
+}
+
+tests {
+  test("Without session", function () {
+    expect(res.status).to.equal(401);
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken, otherSessionToken and the new*Id values are supplied by the runner.
+  
+}

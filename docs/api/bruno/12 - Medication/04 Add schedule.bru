@@ -1,0 +1,44 @@
+meta {
+  name: Add schedule
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/me/medications/{{regimenId}}/schedules
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {
+    "id": "{{newScheduleId}}",
+    "localTime": "08:00",
+    "timezone": "Asia/Jakarta",
+    "daysOfWeek": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "effectiveFrom": "{{localDate}}"
+  }
+}
+
+tests {
+  test("Add schedule", function () {
+    expect(res.status).to.equal(201); bru.setVar("scheduleId",res.body.id);
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken, otherSessionToken and the new*Id values are supplied by the runner.
+  Schedule is a plan, never evidence of intake.
+}

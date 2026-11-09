@@ -1,0 +1,26 @@
+meta {
+  name: Trends 14 days
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/me/trends?days=14
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+tests {
+  test("Trends 14 days", function () {
+    expect(res.status).to.equal(200); expect(res.body.series.length).to.equal(14); expect(res.body.previous.length).to.equal(14); expect(res.body.computationVersion).to.equal("trends-v1");
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; sessionToken is supplied by the runner.
+  Descriptive trend: no time-in-range, score or adherence. Unknown stays null, never zero.
+}

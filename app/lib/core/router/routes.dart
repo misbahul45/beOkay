@@ -23,6 +23,12 @@ abstract final class Routes {
   static const activities = '/activities';
   static const addActivity = '/activities/new';
   static const activityWeek = '/activities/weekly';
+  static const medications = '/medications';
+  static const addMedication = '/medications/new';
+  static const sync = '/sync';
+  static const trends = '/trends';
+  static const goals = '/goals';
+  static const addGoal = '/goals/new';
   static const profile = '/profile';
   static const editProfile = '/profile/edit';
   static const editHealth = '/profile/health';

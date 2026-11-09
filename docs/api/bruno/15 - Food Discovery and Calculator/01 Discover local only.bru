@@ -1,0 +1,26 @@
+meta {
+  name: Discover local only
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/me/foods/discover?q=nasi
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+tests {
+  test("Discover local only", function () {
+    expect(res.status).to.equal(200); expect(res.body.external.status).to.equal("NOT_REQUESTED");
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken, otherSessionToken and foodId are supplied by the runner.
+  Local-first. No third-party call unless external=true.
+}

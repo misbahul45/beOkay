@@ -1,0 +1,44 @@
+meta {
+  name: Retry same operation
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/me/sync/operations
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {
+    "operations": [
+      {
+        "operationId": "{{newOperationId}}",
+        "domain": "glucose",
+        "recordId": "{{newGlucoseId}}",
+        "operationType": "create",
+        "payload": {
+          "originalValue": 110,
+          "originalUnit": "mg/dL",
+          "measuredAt": "{{eventTime}}"
+        }
+      }
+    ]
+  }
+}
+
+tests {
+  test("Retry same operation", function () {
+    expect(res.body.items[0].status).to.equal("SYNCED");
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken, otherSessionToken and the new*Id values are supplied by the runner.
+  Stored receipt returned; no duplicate record.
+}

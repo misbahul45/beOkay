@@ -38,6 +38,9 @@ model Users {
   medicationIntakes MedicationIntake[]
   goals          BehaviorGoal[]
   goalCheckins   GoalCheckin[]
+  syncOperations SyncOperation[]
+  summaryProjections SummaryProjection[]
+  foodPortionMeasures FoodPortionMeasure[]
 
   @@unique([email])
   @@map("users")
@@ -186,6 +189,7 @@ model FoodCatalog {
   updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   user          Users?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   items         MealItem[]
+  measures      FoodPortionMeasure[]
   @@index([userId, name])
   @@map("food_catalog")
 }
@@ -427,4 +431,53 @@ model GoalCheckin {
   revisions  RecordRevision[]
   @@index([userId, goalId, eventAt(sort: Desc), id(sort: Desc)])
   @@map("goal_checkins")
+}
+
+model SyncOperation {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  operationId   String   @map("operation_id") @db.Uuid
+  payloadHash   String   @map("payload_hash")
+  domain        String
+  recordId      String   @map("record_id") @db.Uuid
+  operationType String   @map("operation_type")
+  status        String
+  result        Json?
+  errorCode     String?  @map("error_code")
+  completedAt   DateTime @default(now()) @map("completed_at") @db.Timestamptz(6)
+  user          Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, operationId])
+  @@index([userId, completedAt(sort: Desc)])
+  @@map("sync_operations")
+}
+
+model SummaryProjection {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String   @map("user_id") @db.Uuid
+  kind               String
+  periodStart        DateTime @map("period_start") @db.Date
+  computationVersion String   @map("computation_version")
+  coverageStatus     String   @map("coverage_status")
+  freshnessStatus    String   @default("CURRENT") @map("freshness_status")
+  analyticsState     String   @map("analytics_state")
+  metrics            Json
+  computedAt         DateTime @map("computed_at") @db.Timestamptz(6)
+  user               Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, kind, periodStart, computationVersion])
+  @@map("summary_projections")
+}
+
+model FoodPortionMeasure {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  foodId    String   @map("food_id") @db.Uuid
+  label     String
+  grams     Decimal  @db.Decimal(12, 4)
+  basis     String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  food      FoodCatalog @relation(fields: [foodId], references: [id], onDelete: Cascade)
+  @@unique([userId, foodId, label])
+  @@index([foodId])
+  @@map("food_portion_measures")
 }

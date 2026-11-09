@@ -1,0 +1,37 @@
+meta {
+  name: Create goal
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/me/goals
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {
+    "id": "{{newGoalId}}",
+    "title": "Jalan kaki 150 menit",
+    "goalType": "activity_minutes",
+    "targetValue": 150,
+    "period": "weekly",
+    "startDate": "{{localDate}}"
+  }
+}
+
+tests {
+  test("Create goal", function () {
+    expect(res.status).to.equal(201); bru.setVar("goalId",res.body.id);
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken, otherSessionToken and the new*Id values are supplied by the runner.
+  Progress derived from authoritative activity records; missing records are not failure.
+}

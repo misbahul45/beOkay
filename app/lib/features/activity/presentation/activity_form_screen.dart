@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/ids/record_id.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/network/account_scoped_repository.dart';
 import '../../../core/network/error_messages.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/theme/app_typography.dart';
@@ -125,6 +126,12 @@ class _ActivityFormState extends ConsumerState<ActivityFormScreen> {
         uncertain = false;
       });
       context.go('${Routes.activities}/${saved.id}');
+    } on QueuedOffline {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(queuedOfflineMessage)));
+        setState(() => dirty = false);
+        context.go(Routes.activities);
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -196,6 +203,7 @@ class _ActivityFormState extends ConsumerState<ActivityFormScreen> {
                 const SizedBox(height: 16),
                 AppTextField(
                   label: 'Durasi (menit)',
+                  hint: 'mis. 30',
                   controller: duration,
                   enabled: !locked,
                   keyboardType: TextInputType.number,
@@ -211,6 +219,7 @@ class _ActivityFormState extends ConsumerState<ActivityFormScreen> {
                 const SizedBox(height: 24),
                 AppTextField(
                   label: 'Jarak (km, opsional)',
+                  hint: 'mis. 2.5',
                   controller: distance,
                   enabled: !locked,
                   keyboardType: const TextInputType.numberWithOptions(
@@ -222,6 +231,7 @@ class _ActivityFormState extends ConsumerState<ActivityFormScreen> {
                 const SizedBox(height: 16),
                 AppTextField(
                   label: 'Langkah (opsional)',
+                  hint: 'mis. 4000',
                   controller: steps,
                   enabled: !locked,
                   keyboardType: TextInputType.number,
@@ -272,6 +282,7 @@ class _ActivityFormState extends ConsumerState<ActivityFormScreen> {
                 ),
                 AppTextField(
                   label: 'Catatan (opsional)',
+                  hint: 'mis. jalan sore di taman',
                   controller: notes,
                   maxLength: 2000,
                   enabled: !locked,
@@ -281,6 +292,7 @@ class _ActivityFormState extends ConsumerState<ActivityFormScreen> {
                   const SizedBox(height: 16),
                   AppTextField(
                     label: 'Alasan koreksi',
+                    hint: 'mis. durasi salah',
                     controller: reason,
                     maxLength: 300,
                     enabled: !locked,
@@ -292,7 +304,7 @@ class _ActivityFormState extends ConsumerState<ActivityFormScreen> {
                 ],
                 const SizedBox(height: 16),
                 const Text(
-                  'Perlu koneksi. Data baru tersimpan setelah server mengonfirmasi.',
+                  'Tanpa koneksi, catatan baru disimpan di perangkat dan dikirim nanti. Koreksi perlu koneksi.',
                 ),
                 if (error != null) ...[
                   const SizedBox(height: 16),

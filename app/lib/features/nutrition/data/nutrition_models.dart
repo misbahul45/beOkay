@@ -84,6 +84,83 @@ class FoodReference {
   );
 }
 
+/// Hasil dari sumber luar (Open Food Facts / USDA). Belum tersimpan; menjadi makanan pribadi
+/// berstatus "estimated" hanya setelah pengguna memilihnya.
+class FoodCandidate {
+  FoodCandidate.fromJson(Map<String, dynamic> j)
+    : externalId = j['externalId'] as String,
+      name = j['name'] as String,
+      brand = j['brand'] as String?,
+      source = j['source'] as String,
+      completeness = j['completeness'] as String,
+      per100g = (j['per100g'] as Map<String, dynamic>).map((k, v) => MapEntry(k, v as num?));
+  final String externalId, name, source, completeness;
+  final String? brand;
+  final Map<String, num?> per100g;
+
+  String get completenessLabel => switch (completeness) {
+    'COMPLETE' => 'Data gizi lengkap',
+    'PARTIAL' => 'Data gizi sebagian',
+    _ => 'Tanpa data gizi',
+  };
+}
+
+class ExternalSearch {
+  ExternalSearch(this.status, this.items);
+  final String status; // OK | PARTIAL | UNAVAILABLE
+  final List<FoodCandidate> items;
+}
+
+/// Hasil pencarian kode batang. `status`: FOUND | NOT_FOUND | UNAVAILABLE.
+class BarcodeLookup {
+  BarcodeLookup(this.status, this.candidate);
+  final String status;
+  final FoodCandidate? candidate;
+}
+
+/// Hasil pembacaan label gizi (OCR). `status`: READ | NO_NUTRITION | UNAVAILABLE.
+class LabelScan {
+  LabelScan.fromJson(Map<String, dynamic> j)
+    : status = j['status'] as String,
+      code = j['code'] as String?,
+      candidate = j['candidate'] is Map<String, dynamic> ? FoodCandidate.fromJson(j['candidate'] as Map<String, dynamic>) : null,
+      rawText = (j['rawText'] as String?) ?? '',
+      basis = (j['label'] as Map<String, dynamic>?)?['basis'] as String?,
+      servingGrams = (j['label'] as Map<String, dynamic>?)?['servingGrams'] as num?,
+      printed = ((j['label'] as Map<String, dynamic>?)?['printed'] as Map<String, dynamic>?)?.map((k, v) => MapEntry(k, v as num?)) ?? const {};
+  final String status;
+  final String? code, basis;
+  final FoodCandidate? candidate;
+  final String rawText;
+  final num? servingGrams;
+  final Map<String, num?> printed;
+}
+
+class PhotoMatch {
+  PhotoMatch(this.name, this.confidence, this.matches);
+  final String name, confidence;
+  final List<FoodReference> matches;
+  String get confidenceLabel => switch (confidence) {
+    'high' => 'Cukup yakin',
+    'medium' => 'Kurang yakin',
+    _ => 'Ragu',
+  };
+}
+
+/// Hasil pengenalan foto makanan. `status`: IDENTIFIED | NOT_FOOD | UNAVAILABLE. Hanya nama, tanpa gizi/berat.
+class PhotoScan {
+  PhotoScan.fromJson(Map<String, dynamic> j)
+    : status = j['status'] as String,
+      code = j['code'] as String?,
+      items = ((j['items'] as List?) ?? const [])
+          .map((v) => v as Map<String, dynamic>)
+          .map((m) => PhotoMatch(m['name'] as String, m['confidence'] as String, ((m['matches'] as List?) ?? const []).map((f) => FoodReference.fromJson(f as Map<String, dynamic>)).toList()))
+          .toList();
+  final String status;
+  final String? code;
+  final List<PhotoMatch> items;
+}
+
 class MealItemDraft {
   const MealItemDraft({
     this.id,

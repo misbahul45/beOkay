@@ -1,0 +1,26 @@
+meta {
+  name: Cross user rejected
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/me/goals/{{goalId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{otherSessionToken}}
+}
+
+tests {
+  test("Cross user rejected", function () {
+    expect(res.status).to.equal(404);
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken, otherSessionToken and the new*Id values are supplied by the runner.
+  
+}

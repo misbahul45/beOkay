@@ -1,0 +1,36 @@
+meta {
+  name: Second confirmation for same occurrence rejected
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/me/medications/{{regimenId}}/intakes
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {
+    "id": "{{otherIntakeId}}",
+    "scheduleId": "{{scheduleId}}",
+    "scheduledAt": "{{scheduledAt}}",
+    "status": "taken",
+    "takenAt": "{{eventTime}}"
+  }
+}
+
+tests {
+  test("Second confirmation for same occurrence rejected", function () {
+    expect(res.status).to.equal(409); expect(res.body.error.code).to.equal("INTAKE_ALREADY_RECORDED");
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken, otherSessionToken and the new*Id values are supplied by the runner.
+  
+}

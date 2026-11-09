@@ -17,7 +17,7 @@ type Query = {
 const cursorShape = z
   .object({
     at: z.iso.datetime(),
-    domain: z.enum(["meal", "glucose", "activity"]),
+    domain: z.enum(["meal", "glucose", "activity", "medication", "goal"]),
     id: z.uuid(),
   })
   .strict();
@@ -49,7 +49,8 @@ export const timelineService = {
     }
     type Event = {
       id: string;
-      domain: "meal" | "glucose" | "activity";
+      domain: "meal" | "glucose" | "activity" | "medication" | "goal";
+      parent_id: string | null;
       event_at: Date;
       category: string | null;
       item_count: bigint;
@@ -63,12 +64,16 @@ export const timelineService = {
     };
     const archived = q.archived === "true";
     const rows = await prisma.$queryRaw<Event[]>`WITH events AS (
-    SELECT m.id,'meal'::text AS domain,m.consumed_at AS event_at,m.category,(SELECT count(*) FROM meal_items i WHERE i.meal_id=m.id) AS item_count,NULL::numeric AS value_mg_dl,NULL::numeric AS original_value,NULL::text AS original_unit,NULL::text AS quality_status,NULL::text AS meal_context,NULL::text AS activity_type,NULL::integer AS duration_minutes
+    SELECT m.id,'meal'::text AS domain,m.consumed_at AS event_at,m.category,(SELECT count(*) FROM meal_items i WHERE i.meal_id=m.id) AS item_count,NULL::numeric AS value_mg_dl,NULL::numeric AS original_value,NULL::text AS original_unit,NULL::text AS quality_status,NULL::text AS meal_context,NULL::text AS activity_type,NULL::integer AS duration_minutes,NULL::uuid AS parent_id
     FROM meal_logs m WHERE m.user_id=${userId}::uuid AND (m.archived_at IS NOT NULL)=${archived}
     UNION ALL
-    SELECT g.id,'glucose'::text,g.measured_at,NULL::text,0::bigint,g.value_mg_dl,g.original_value,g.original_unit,g.quality_status,g.meal_context,NULL::text,NULL::integer FROM glucose_observations g WHERE g.user_id=${userId}::uuid AND (g.archived_at IS NOT NULL)=${archived}
+    SELECT g.id,'glucose'::text,g.measured_at,NULL::text,0::bigint,g.value_mg_dl,g.original_value,g.original_unit,g.quality_status,g.meal_context,NULL::text,NULL::integer,NULL::uuid FROM glucose_observations g WHERE g.user_id=${userId}::uuid AND (g.archived_at IS NOT NULL)=${archived}
     UNION ALL
-    SELECT a.id,'activity'::text,a.started_at,NULL::text,0::bigint,NULL::numeric,NULL::numeric,NULL::text,a.quality_status,NULL::text,a.activity_type,a.duration_minutes FROM activity_sessions a WHERE a.user_id=${userId}::uuid AND (a.archived_at IS NOT NULL)=${archived}
+    SELECT a.id,'activity'::text,a.started_at,NULL::text,0::bigint,NULL::numeric,NULL::numeric,NULL::text,a.quality_status,NULL::text,a.activity_type,a.duration_minutes,NULL::uuid FROM activity_sessions a WHERE a.user_id=${userId}::uuid AND (a.archived_at IS NOT NULL)=${archived}
+    UNION ALL
+    SELECT i.id,'medication'::text,i.event_at,i.status,0::bigint,NULL::numeric,NULL::numeric,NULL::text,NULL::text,NULL::text,i.medication_snapshot->>'name',NULL::integer,i.regimen_id FROM medication_intakes i WHERE i.user_id=${userId}::uuid AND (i.archived_at IS NOT NULL)=${archived}
+    UNION ALL
+    SELECT c.id,'goal'::text,c.event_at,c.status,0::bigint,NULL::numeric,NULL::numeric,NULL::text,NULL::text,NULL::text,g.title,NULL::integer,c.goal_id FROM goal_checkins c JOIN behavior_goals g ON g.id=c.goal_id WHERE c.user_id=${userId}::uuid AND (c.archived_at IS NOT NULL)=${archived}
   ) SELECT * FROM events WHERE (${q.domain}='all' OR domain=${q.domain})
     AND (${q.date ?? null}::date IS NULL OR (event_at>=(${q.date ?? null}::date::timestamp AT TIME ZONE ${settings.timezone}) AND event_at<((${q.date ?? null}::date+1)::timestamp AT TIME ZONE ${settings.timezone})))
     AND (${cursor?.at ?? null}::timestamptz IS NULL OR (event_at,domain,id)<(${cursor?.at ?? null}::timestamptz,${cursor?.domain ?? ""}::text,${cursor?.id ?? "00000000-0000-0000-0000-000000000000"}::uuid))
@@ -76,7 +81,7 @@ export const timelineService = {
     const page = rows.slice(0, q.limit),
       last = page.at(-1);
     return {
-      supportedDomains: ["meal", "glucose", "activity"],
+      supportedDomains: ["meal", "glucose", "activity", "medication", "goal"],
       timezone: settings.timezone,
       nextCursor:
         rows.length > q.limit && last
@@ -95,7 +100,11 @@ export const timelineService = {
         ...localRecordTime(row.event_at, settings.timezone),
         ...(row.domain === "meal"
           ? { category: row.category, itemCount: Number(row.item_count) }
-          : row.domain === "activity"
+          : row.domain === "medication"
+            ? { status: row.category, medicationName: row.activity_type, regimenId: row.parent_id, source: "manual" }
+            : row.domain === "goal"
+              ? { status: row.category, goalTitle: row.activity_type, goalId: row.parent_id, source: "manual" }
+              : row.domain === "activity"
             ? {
                 activityType: row.activity_type,
                 durationMinutes: row.duration_minutes,

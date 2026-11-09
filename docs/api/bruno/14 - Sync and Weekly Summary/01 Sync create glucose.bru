@@ -1,0 +1,44 @@
+meta {
+  name: Sync create glucose
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/me/sync/operations
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {
+    "operations": [
+      {
+        "operationId": "{{newOperationId}}",
+        "domain": "glucose",
+        "recordId": "{{newGlucoseId}}",
+        "operationType": "create",
+        "payload": {
+          "originalValue": 110,
+          "originalUnit": "mg/dL",
+          "measuredAt": "{{eventTime}}"
+        }
+      }
+    ]
+  }
+}
+
+tests {
+  test("Sync create glucose", function () {
+    expect(res.status).to.equal(200); expect(res.body.items[0].status).to.equal("SYNCED");
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken, otherSessionToken and the new*Id values are supplied by the runner.
+  Per-operation processing; each result is SYNCED, CONFLICT, NEEDS_REVIEW or SYNC_FAILED.
+}

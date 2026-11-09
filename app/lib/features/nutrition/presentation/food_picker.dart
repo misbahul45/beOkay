@@ -5,6 +5,7 @@ import '../../../core/widgets/info_card.dart';
 import '../../../core/widgets/pill_button.dart';
 import '../data/nutrition_models.dart';
 import '../data/nutrition_repository.dart';
+import 'scan/scan_hub.dart';
 
 Future<FoodReference?> pickFood(
   BuildContext context,
@@ -27,7 +28,8 @@ class _FoodPickerState extends State<FoodPicker> {
   final query = TextEditingController();
   List<FoodReference> items = [];
   Object? error;
-  bool loading = false, searched = false;
+  bool loading = false, searched = false, loadingExternal = false;
+  ExternalSearch? external;
   int generation = 0;
   @override
   void dispose() {
@@ -61,6 +63,50 @@ class _FoodPickerState extends State<FoodPicker> {
     }
   }
 
+  Future<void> searchExternal() async {
+    final q = query.text.trim();
+    if (q.length < 2) return;
+    setState(() {
+      loadingExternal = true;
+      error = null;
+    });
+    try {
+      final found = await widget.repository.searchExternal(q);
+      if (mounted) setState(() => external = found);
+    } catch (e) {
+      if (mounted) setState(() => error = e);
+    } finally {
+      if (mounted) setState(() => loadingExternal = false);
+    }
+  }
+
+  Future<void> openScan() async {
+    final outcome = await showScanHub(context, widget.repository);
+    if (!mounted || outcome == null) return;
+    if (outcome.food != null) {
+      Navigator.pop(context, outcome.food);
+    } else if (outcome.query != null) {
+      query.text = outcome.query!;
+      await search();
+    }
+  }
+
+  /// Menyimpan kandidat sebagai makanan pribadi berstatus estimasi; nilai yang tidak ada tetap kosong.
+  Future<void> useCandidate(FoodCandidate c) async {
+    try {
+      final food = await widget.repository.saveFood({
+        'name': c.brand == null ? c.name : '${c.name} (${c.brand})',
+        'source': c.source,
+        'sourceVersion': c.externalId,
+        'status': 'estimated',
+        'per100g': c.per100g,
+      });
+      if (mounted) Navigator.pop(context, food);
+    } catch (e) {
+      if (mounted) setState(() => error = e);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Padding(
     padding: EdgeInsets.fromLTRB(
@@ -81,11 +127,19 @@ class _FoodPickerState extends State<FoodPicker> {
           const SizedBox(height: 16),
           AppTextField(
             label: 'Nama makanan di katalog',
+            hint: 'mis. tempe, nasi putih',
             controller: query,
             onSubmitted: (_) => search(),
           ),
           const SizedBox(height: 12),
           PillButton(label: 'Cari', loading: loading, onPressed: search),
+          const SizedBox(height: 8),
+          PillButton(
+            label: 'Pindai atau foto',
+            kind: PillButtonKind.secondary,
+            icon: Icons.qr_code_scanner_rounded,
+            onPressed: openScan,
+          ),
           if (error != null)
             ErrorBanner(
               error is String ? error.toString() : messageFor(error!),
@@ -105,6 +159,31 @@ class _FoodPickerState extends State<FoodPicker> {
               ),
               onTap: () => Navigator.pop(context, food),
             ),
+          if (searched) ...[
+            const SizedBox(height: 12),
+            PillButton(
+              label: 'Cari juga di sumber luar',
+              kind: PillButtonKind.secondary,
+              loading: loadingExternal,
+              onPressed: searchExternal,
+            ),
+            const Padding(
+              padding: EdgeInsets.only(top: 4),
+              child: Text('Kata kunci dikirim ke Open Food Facts dan USDA. Hasilnya berstatus estimasi.'),
+            ),
+          ],
+          if (external != null) ...[
+            if (external!.status != 'OK')
+              ErrorBanner(external!.status == 'UNAVAILABLE' ? 'Sumber luar tidak dapat dihubungi sekarang.' : 'Sebagian sumber luar tidak dapat dihubungi.'),
+            if (external!.items.isEmpty && external!.status == 'OK')
+              const Padding(padding: EdgeInsets.all(16), child: Text('Tidak ada hasil di sumber luar.')),
+            for (final c in external!.items)
+              ListTile(
+                title: Text(c.brand == null ? c.name : '${c.name} · ${c.brand}'),
+                subtitle: Text('${c.source} · ${c.completenessLabel} · per 100 g'),
+                onTap: () => useCandidate(c),
+              ),
+          ],
           const SizedBox(height: 12),
           PillButton(
             label: 'Tambah makanan pribadi',
@@ -192,6 +271,7 @@ class _FoodEditorState extends State<FoodEditor> {
             const SizedBox(height: 16),
             AppTextField(
               label: 'Nama makanan',
+              hint: 'mis. nasi pecel',
               controller: name,
               maxLength: 120,
               validator: (v) =>

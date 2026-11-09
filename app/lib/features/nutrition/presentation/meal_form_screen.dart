@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../core/network/account_scoped_repository.dart';
 import '../../../core/network/error_messages.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/router/routes.dart';
@@ -129,6 +130,12 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
         uncertain = false;
       });
       context.go('${Routes.meals}/${saved.id}');
+    } on QueuedOffline {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(queuedOfflineMessage)));
+        setState(() => dirty = false);
+        context.go(Routes.meals);
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -263,6 +270,7 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
                 const SizedBox(height: 24),
                 AppTextField(
                   label: 'Catatan (opsional)',
+                  hint: 'mis. makan di kantor',
                   controller: notes,
                   maxLength: 2000,
                   enabled: !busy && !uncertain,
@@ -272,6 +280,7 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
                   const SizedBox(height: 16),
                   AppTextField(
                     label: 'Alasan koreksi',
+                    hint: 'mis. porsi salah',
                     controller: reason,
                     maxLength: 300,
                     enabled: !busy && !uncertain,

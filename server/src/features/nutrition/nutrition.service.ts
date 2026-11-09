@@ -378,6 +378,15 @@ export const nutritionService = {
       { isolationLevel: "RepeatableRead" },
     );
   },
+  /** Makan pada rentang waktu (dipakai tren). Tanpa memeriksa consent sendiri: pemanggil wajib sudah memeriksanya. */
+  async mealsBetween(userId: string, from: Date, to: Date, timezone: string) {
+    const rows = await prisma.mealLog.findMany({
+      where: { userId, archivedAt: null, consumedAt: { gte: from, lt: to } },
+      include: mealInclude,
+      orderBy: [{ consumedAt: "asc" }, { id: "asc" }],
+    });
+    return rows.map((row) => mealView(row as MealRow, timezone));
+  },
   async daily(userId: string, date?: string) {
     await health(userId);
     await consentService.requireConsent(userId, "descriptive_summaries");

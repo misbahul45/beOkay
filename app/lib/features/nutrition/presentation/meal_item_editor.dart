@@ -74,6 +74,7 @@ class _MealItemEditorState extends State<MealItemEditor> {
           children: [
             AppTextField(
               label: 'Nama item',
+              hint: 'mis. nasi pecel',
               controller: name,
               enabled: widget.food == null && widget.initial?.foodId == null,
               maxLength: 120,
@@ -106,6 +107,7 @@ class _MealItemEditorState extends State<MealItemEditor> {
             if (unit != 'g')
               AppTextField(
                 label: 'Total gram perkiraan (opsional)',
+                hint: 'mis. 250',
                 controller: grams,
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,

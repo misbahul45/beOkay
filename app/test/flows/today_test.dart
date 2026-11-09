@@ -151,7 +151,8 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Sedang disiapkan'), findsOneWidget);
+      expect(find.text('Belum ada jadwal hari ini.'), findsOneWidget);
+      expect(find.text('Belum ada tujuan.'), findsOneWidget);
       expect(find.text('Belum ada pengukuran.'), findsOneWidget);
       expect(find.text('0'), findsNothing);
       expect(tester.takeException(), isNull);
