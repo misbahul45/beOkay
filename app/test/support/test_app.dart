@@ -86,6 +86,11 @@ class TestHarness {
     await settle(tester);
   }
 
+  Future<void> openProfile(WidgetTester tester) async {
+    await tester.tap(find.byTooltip('Profil').hitTestable().first);
+    await settle(tester);
+  }
+
   Future<void> fill(WidgetTester tester, String label, String value) async {
     final field = find.byWidgetPredicate(
       (widget) => widget is AppTextField && widget.label == label,

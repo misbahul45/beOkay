@@ -122,6 +122,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(path: Routes.home, builder: (_, _) => const HomeScreen()),
           GoRoute(path: Routes.log, builder: (_, _) => const LogScreen()),
+          GoRoute(path: Routes.coach, builder: (_, _) => const CoachScreen()),
           GoRoute(
             path: Routes.insights,
             builder: (_, _) => const InsightsScreen(),
@@ -170,7 +171,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, s) =>
             ChallengeDetailScreen(challenge: s.extra! as Challenge),
       ),
-      GoRoute(path: Routes.coach, builder: (_, _) => const CoachScreen()),
       GoRoute(
         path: Routes.reminders,
         builder: (_, _) => const RemindersScreen(),

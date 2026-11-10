@@ -251,7 +251,7 @@ void main() {
     expect(find.textContaining('Halo, Rina!'), findsOneWidget);
 
     backend.expireAllSessions();
-    await h.tapText(tester, 'Profil');
+    await h.openProfile(tester);
     await h.settle(tester);
     expect(find.text('Selamat Datang Kembali'), findsOneWidget);
     expect(find.textContaining('Sesimu sudah berakhir'), findsOneWidget);
@@ -281,7 +281,7 @@ void main() {
       final h = TestHarness(backend: backend, tokens: tokens);
       await h.pump(tester);
 
-      await h.tapText(tester, 'Profil');
+      await h.openProfile(tester);
       await h.tapText(tester, 'Persetujuan data');
       expect(find.text('Persetujuan Data'), findsOneWidget);
       await h.shot(tester, '16-consent-management');
@@ -403,7 +403,7 @@ void main() {
       );
       final h = TestHarness(backend: backend, tokens: tokens);
       await h.pump(tester);
-      await h.tapText(tester, 'Profil');
+      await h.openProfile(tester);
       await h.shot(tester, '12-profile-overview');
       await h.tapText(tester, 'Pengaturan aplikasi');
       expect(find.text('mg/dL'), findsOneWidget);
@@ -442,7 +442,7 @@ void main() {
     );
     final h = TestHarness(backend: backend, tokens: tokens);
     await h.pump(tester);
-    await h.tapText(tester, 'Profil');
+    await h.openProfile(tester);
     await h.tapText(tester, 'Nama dan tahun lahir');
     expect(find.text('Informasi Pribadi'), findsOneWidget);
     await h.shot(tester, '13-edit-profile');
@@ -483,7 +483,7 @@ void main() {
     await seedVerifiedUserSecondSession(backend);
     final h = TestHarness(backend: backend, tokens: tokens);
     await h.pump(tester);
-    await h.tapText(tester, 'Profil');
+    await h.openProfile(tester);
     await h.tapText(tester, 'Keamanan akun');
     expect(find.text('Email terverifikasi'), findsOneWidget);
     expect(find.text('Perangkat ini'), findsOneWidget);
@@ -514,7 +514,7 @@ void main() {
     );
     final h = TestHarness(backend: backend, tokens: tokens);
     await h.pump(tester);
-    await h.tapText(tester, 'Profil');
+    await h.openProfile(tester);
     await h.tapText(tester, 'Konteks diabetes');
     expect(find.text('Profil Kesehatan'), findsOneWidget);
     // Tidak ada kotak penjelasan panjang; pilihan "Belum yakin" tetap ada di formulir.

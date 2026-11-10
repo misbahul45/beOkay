@@ -104,7 +104,7 @@ class LocalNotificationsScheduler implements ReminderScheduler {
             priority: Priority.defaultPriority,
             visibility: NotificationVisibility.private,
             icon: 'ic_stat_beokay',
-            color: Color(0xFF0B4F5E),
+            color: Color(0xFF16796F),
           ),
           iOS: DarwinNotificationDetails(),
         ),

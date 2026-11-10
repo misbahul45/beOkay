@@ -127,7 +127,7 @@ class ProfileScreen extends ConsumerWidget {
               icon: Icons.auto_awesome_outlined,
               title: 'Asisten beOkay',
               subtitle: 'Alternatif makanan dan rencana aktivitas',
-              onTap: () => context.push(Routes.coach),
+              onTap: () => context.go(Routes.coach),
             ),
             SettingsRow(
               icon: Icons.no_food_outlined,

@@ -90,4 +90,24 @@ abstract final class AppTypography {
     letterSpacing: 0.8,
     color: AppColors.textSecondary,
   );
+
+  static const TextStyle metricLarge = TextStyle(
+    fontFamily: family,
+    fontSize: 30,
+    height: 1.15,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.6,
+    color: AppColors.textPrimary,
+    fontFeatures: [FontFeature.tabularFigures()],
+  );
+
+  static const TextStyle metric = TextStyle(
+    fontFamily: family,
+    fontSize: 18,
+    height: 1.3,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.2,
+    color: AppColors.textPrimary,
+    fontFeatures: [FontFeature.tabularFigures()],
+  );
 }

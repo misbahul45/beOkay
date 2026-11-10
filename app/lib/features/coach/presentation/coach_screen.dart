@@ -10,9 +10,11 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/beokay_spark.dart';
 import '../../../core/widgets/info_card.dart';
 import '../../../core/widgets/page_scaffold.dart';
 import '../../../core/widgets/pill_button.dart';
+import '../../../core/widgets/tab_root_header.dart';
 import '../application/coach_controller.dart';
 import '../data/coach_repository.dart';
 
@@ -176,14 +178,30 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     }
   }
 
+  SparkState get _sparkState {
+    if (busy) {
+      return progress == null ? SparkState.thinking : SparkState.searching;
+    }
+    if (error != null) return SparkState.error;
+    if (consentRequired ||
+        (run?.consentRequired ?? false) ||
+        run?.status == 'BLOCKED') {
+      return SparkState.neutral;
+    }
+    if (run != null && run!.waiting) return SparkState.responding;
+    return SparkState.idle;
+  }
+
   @override
   Widget build(BuildContext context) {
     final planned = ref.watch(plannedMealsProvider);
     return PageScaffold(
-      title: 'Asisten beOkay',
-      onBack: () =>
-          context.canPop() ? context.pop() : context.go(Routes.profile),
+      showBack: false,
       children: [
+        const TabRootHeader(title: 'Asisten'),
+        const SizedBox(height: AppSpacing.sm),
+        _CompanionHeader(state: _sparkState, progress: progress),
+        const SizedBox(height: AppSpacing.md),
         AppTextField(
           label: 'Tanya asisten',
           hint: 'mis. alternatif pengganti nasi goreng, atau olahraga ringan',
@@ -198,14 +216,6 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
           loading: busy,
           onPressed: ask,
         ),
-        if (busy && progress != null)
-          Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.xs),
-            child: Semantics(
-              liveRegion: true,
-              child: Text(progress!, style: AppTypography.caption),
-            ),
-          ),
         if (consentRequired) ...[
           const SizedBox(height: AppSpacing.md),
           InfoCard(
@@ -579,5 +589,76 @@ class _ActivityPlanTile extends ConsumerWidget {
         ).showSnackBar(SnackBar(content: Text(messageFor(e))));
       }
     }
+  }
+}
+
+class _CompanionHeader extends StatelessWidget {
+  const _CompanionHeader({required this.state, this.progress});
+
+  final SparkState state;
+  final String? progress;
+
+  ({String title, String detail}) get _copy => switch (state) {
+    SparkState.thinking => (
+      title: 'Sedang memahami permintaanmu',
+      detail: 'Sebentar, ya.',
+    ),
+    SparkState.searching => (
+      title: progress ?? 'Sedang mencari pilihan',
+      detail: 'Hanya dari sumber yang tercatat.',
+    ),
+    SparkState.responding => (
+      title: 'Ini pilihan untukmu',
+      detail: 'Tidak ada yang tersimpan sampai kamu menyetujuinya.',
+    ),
+    SparkState.neutral => (
+      title: 'Aku tetap di sini',
+      detail: 'Baca keterangannya di bawah.',
+    ),
+    SparkState.error => (
+      title: 'Ada kendala',
+      detail: 'Catatanmu tidak terpengaruh. Coba lagi sebentar lagi.',
+    ),
+    _ => (
+      title: 'Aku siap membantu',
+      detail:
+          'Tanya soal pilihan makan atau rencana aktivitas. Semua saran menunggu persetujuanmu.',
+    ),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final copy = _copy;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.sm,
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.cream,
+        borderRadius: BorderRadius.circular(AppRadius.hero),
+      ),
+      child: Row(
+        children: [
+          BeOkaySpark(size: 64, state: state),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Semantics(
+              liveRegion: true,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(copy.title, style: AppTypography.title),
+                  const SizedBox(height: 2),
+                  Text(copy.detail, style: AppTypography.secondary),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

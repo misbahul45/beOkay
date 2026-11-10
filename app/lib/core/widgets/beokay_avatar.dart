@@ -5,81 +5,36 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
+import 'beokay_spark.dart';
 
-/// beOkay's identity avatar: the logo mark in a soft ring. It bobs gently unless the
-/// user asked for reduced motion (system setting or the app preference).
-class BeOkayAvatar extends StatefulWidget {
-  const BeOkayAvatar({super.key, this.size = 56, this.animate = true});
+export 'beokay_spark.dart' show SparkState;
+
+class BeOkayAvatar extends StatelessWidget {
+  const BeOkayAvatar({
+    super.key,
+    this.size = 56,
+    this.animate = true,
+    this.state = SparkState.idle,
+  });
 
   final double size;
   final bool animate;
-
-  @override
-  State<BeOkayAvatar> createState() => _BeOkayAvatarState();
-}
-
-class _BeOkayAvatarState extends State<BeOkayAvatar>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 2600),
-  );
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final still =
-        !widget.animate || MediaQuery.maybeDisableAnimationsOf(context) == true;
-    if (still) {
-      _controller.stop();
-    } else if (!_controller.isAnimating) {
-      _controller.repeat(reverse: true);
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  final SparkState state;
 
   @override
   Widget build(BuildContext context) {
-    final size = widget.size;
     return ExcludeSemantics(
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) {
-          final t = Curves.easeInOut.transform(_controller.value);
-          return Transform.translate(
-            offset: Offset(0, -size * 0.04 * math.sin(t * math.pi)),
-            child: child,
-          );
-        },
-        child: Container(
-          height: size,
-          width: size,
-          padding: EdgeInsets.all(size * 0.12),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: AppColors.surface,
-            border: Border.all(
-              color: AppColors.aqua.withValues(alpha: 0.55),
-              width: size * 0.03,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.brand.withValues(alpha: 0.14),
-                blurRadius: size * 0.3,
-                offset: Offset(0, size * 0.1),
-              ),
-            ],
-          ),
-          child: Image.asset(
-            'assets/images/logo_mark.png',
-            fit: BoxFit.contain,
-            filterQuality: FilterQuality.medium,
-          ),
+      child: Container(
+        height: size,
+        width: size,
+        alignment: Alignment.center,
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          color: AppColors.cream,
+        ),
+        child: BeOkaySpark(
+          size: size * 0.8,
+          state: animate ? state : SparkState.paused,
         ),
       ),
     );
@@ -133,7 +88,7 @@ class AvatarBubble extends StatelessWidget {
                     detail!,
                     style: AppTypography.secondary.copyWith(
                       color: dark
-                          ? const Color(0xFFD3EAE6)
+                          ? const Color(0xFFDDF4E8)
                           : AppColors.textSecondary,
                     ),
                   ),
@@ -236,7 +191,7 @@ class _AvatarLoaderState extends State<AvatarLoader>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const BeOkayAvatar(size: 88),
+          const BeOkayAvatar(size: 88, state: SparkState.thinking),
           const SizedBox(height: AppSpacing.md),
           AnimatedBuilder(
             animation: _c,

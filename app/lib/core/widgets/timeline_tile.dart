@@ -39,11 +39,11 @@ class TimelineTile extends StatelessWidget {
                   Container(
                     height: 36,
                     width: 36,
-                    decoration: const BoxDecoration(
-                      color: AppColors.accent,
+                    decoration: BoxDecoration(
+                      color: style.tint,
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(style.icon, size: 18, color: AppColors.primary),
+                    child: Icon(style.icon, size: 18, color: style.ink),
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(

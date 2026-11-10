@@ -20,9 +20,13 @@ abstract final class AppSpacing {
 }
 
 abstract final class AppRadius {
-  static const double input = 14;
-  static const double card = 20;
-  static const double sheet = 28;
+  static const double sm = 12;
+  static const double md = 16;
+  static const double lg = 22;
+  static const double hero = 28;
+  static const double input = sm;
+  static const double card = lg;
+  static const double sheet = hero;
   static const double chip = 18;
   static const double pill = 999;
 
@@ -33,6 +37,6 @@ abstract final class AppRadius {
 
 abstract final class AppShadows {
   static const List<BoxShadow> soft = [
-    BoxShadow(color: Color(0x12171B20), blurRadius: 20, offset: Offset(0, 6)),
+    BoxShadow(color: Color(0x1018252A), blurRadius: 20, offset: Offset(0, 6)),
   ];
 }

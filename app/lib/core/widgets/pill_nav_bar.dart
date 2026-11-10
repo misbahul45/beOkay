@@ -16,7 +16,6 @@ class NavItem {
   final IconData selectedIcon;
 }
 
-/// Tombol aksi di tengah bar (mis. "Catat"). Bukan tujuan navigasi: ia membuka lembar aksi.
 class NavCenterAction {
   const NavCenterAction({
     required this.label,
@@ -38,115 +37,107 @@ class PillNavBar extends StatelessWidget {
   });
 
   final List<NavItem> items;
-  final int currentIndex;
+  final int? currentIndex;
   final ValueChanged<int> onTap;
 
-  /// Bila ada, ditempatkan di tengah: item pertama separuh di kiri, sisanya di kanan.
   final NavCenterAction? centerAction;
 
-  Widget _item(int index) => Expanded(
+  static const double _barHeight = 68;
+
+  Widget _label(String text, {required bool on}) => FittedBox(
+    fit: BoxFit.scaleDown,
+    child: Text(
+      text,
+      maxLines: 1,
+      style: AppTypography.caption.copyWith(
+        fontSize: 11,
+        color: on ? AppColors.brand : AppColors.textSecondary,
+        fontWeight: on ? FontWeight.w700 : FontWeight.w500,
+      ),
+    ),
+  );
+
+  Widget _item(int index) {
+    final on = index == currentIndex;
+    return Expanded(
+      child: Semantics(
+        button: true,
+        selected: on,
+        label: items[index].label,
+        excludeSemantics: true,
+        onTap: () => onTap(index),
+        child: InkResponse(
+          onTap: () => onTap(index),
+          highlightShape: BoxShape.rectangle,
+          radius: 32,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                height: 28,
+                width: 52,
+                decoration: BoxDecoration(
+                  color: on ? AppColors.brandTint : Colors.transparent,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  on ? items[index].selectedIcon : items[index].icon,
+                  color: on ? AppColors.brand : AppColors.textSecondary,
+                  size: 21,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: _label(items[index].label, on: on),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _center(NavCenterAction a) => SizedBox(
+    width: 72,
     child: Semantics(
       button: true,
-      selected: index == currentIndex,
-      label: items[index].label,
+      label: a.label,
       excludeSemantics: true,
-      onTap: () => onTap(index),
-      child: InkWell(
-        customBorder: const StadiumBorder(),
-        onTap: () => onTap(index),
+      onTap: a.onPressed,
+      child: InkResponse(
+        onTap: a.onPressed,
+        radius: 36,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              index == currentIndex
-                  ? items[index].selectedIcon
-                  : items[index].icon,
-              color: index == currentIndex
-                  ? AppColors.onPrimary
-                  : AppColors.overlay,
-              size: 22,
-            ),
-            const SizedBox(height: 3),
-            Text(
-              items[index].label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.caption.copyWith(
-                color: index == currentIndex
-                    ? AppColors.onPrimary
-                    : AppColors.overlay,
-                fontWeight: index == currentIndex
-                    ? FontWeight.w700
-                    : FontWeight.w400,
-              ),
-            ),
-            const SizedBox(height: 3),
             Container(
-              height: 4,
-              width: 4,
-              decoration: BoxDecoration(
+              height: 40,
+              width: 40,
+              decoration: const BoxDecoration(
+                color: AppColors.brand,
                 shape: BoxShape.circle,
-                color: index == currentIndex
-                    ? AppColors.onPrimary
-                    : Colors.transparent,
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0x3316796F),
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ],
               ),
+              child: Icon(a.icon, color: AppColors.onPrimary, size: 26),
             ),
+            const SizedBox(height: 3),
+            _label(a.label, on: true),
           ],
         ),
       ),
     ),
   );
 
-  Widget _center(NavCenterAction a) => SizedBox(
-    width: 76,
-    child: Semantics(
-      button: true,
-      label: a.label,
-      excludeSemantics: true,
-      onTap: a.onPressed,
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.center,
-        children: [
-          Positioned(
-            top: -16,
-            child: Material(
-              color: AppColors.emerald,
-              shape: const CircleBorder(
-                side: BorderSide(color: AppColors.background, width: 5),
-              ),
-              elevation: 6,
-              shadowColor: const Color(0x660B4F5E),
-              child: InkWell(
-                customBorder: const CircleBorder(),
-                onTap: a.onPressed,
-                child: SizedBox(
-                  height: 56,
-                  width: 56,
-                  child: Icon(a.icon, color: AppColors.onPrimary, size: 30),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 5,
-            child: Text(
-              a.label,
-              style: AppTypography.caption.copyWith(
-                color: AppColors.onPrimary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-
   @override
   Widget build(BuildContext context) {
-    // Like Material's NavigationBar, labels stop growing at 1.3x so four destinations stay legible;
-    // each item keeps a semantic label, so screen readers are unaffected.
     return MediaQuery.withClampedTextScaling(
       maxScaleFactor: 1.3,
       child: SafeArea(
@@ -155,18 +146,20 @@ class PillNavBar extends StatelessWidget {
             AppSpacing.md,
             0,
             AppSpacing.md,
-            AppSpacing.md,
+            AppSpacing.sm,
           ),
           child: Container(
-            height: AppSpacing.navHeight,
+            height: _barHeight,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
             decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(AppSpacing.navHeight / 2),
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(_barHeight / 2),
+              border: Border.all(color: AppColors.border),
               boxShadow: const [
                 BoxShadow(
-                  color: Color(0x40171B20),
-                  blurRadius: 28,
-                  offset: Offset(0, 10),
+                  color: Color(0x1A18252A),
+                  blurRadius: 24,
+                  offset: Offset(0, 8),
                 ),
               ],
             ),

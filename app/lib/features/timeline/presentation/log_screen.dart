@@ -9,6 +9,7 @@ import '../../../core/router/routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/widgets/tab_root_header.dart';
 import '../../../core/widgets/async_body.dart';
 import '../../../core/widgets/choice_chips.dart';
 import '../../../core/widgets/domain_style.dart';
@@ -50,14 +51,10 @@ class LogScreen extends ConsumerWidget {
             .catchError((_) => const LogFeed());
       },
       children: [
-        Semantics(
-          header: true,
-          child: Text('Catatan', style: AppTypography.headline),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          'Diurutkan menurut waktu kejadian, bukan waktu kamu menginputnya.',
-          style: AppTypography.secondary,
+        const TabRootHeader(
+          title: 'Catatan',
+          subtitle:
+              'Diurutkan menurut waktu kejadian, bukan waktu kamu menginputnya.',
         ),
         const SizedBox(height: AppSpacing.md),
         SingleChildScrollView(

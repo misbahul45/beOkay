@@ -8,7 +8,6 @@ import '../../quick_record/presentation/quick_record_sheet.dart';
 import '../../reminders/application/reminders_controller.dart';
 import '../../sync/presentation/sync_banner.dart';
 
-/// Primary navigation: Beranda · Catatan · Wawasan · Profil.
 class HomeShell extends ConsumerWidget {
   const HomeShell({super.key, required this.child});
 
@@ -26,22 +25,22 @@ class HomeShell extends ConsumerWidget {
       selectedIcon: Icons.edit_note_rounded,
     ),
     NavItem(
+      label: 'Asisten',
+      icon: Icons.auto_awesome_outlined,
+      selectedIcon: Icons.auto_awesome,
+    ),
+    NavItem(
       label: 'Wawasan',
       icon: Icons.insights_outlined,
       selectedIcon: Icons.insights_rounded,
-    ),
-    NavItem(
-      label: 'Profil',
-      icon: Icons.person_outline,
-      selectedIcon: Icons.person_rounded,
     ),
   ];
 
   static const _routes = [
     Routes.home,
     Routes.log,
+    Routes.coach,
     Routes.insights,
-    Routes.profile,
   ];
 
   @override
@@ -60,7 +59,7 @@ class HomeShell extends ConsumerWidget {
       ),
       bottomNavigationBar: PillNavBar(
         items: _items,
-        currentIndex: found < 0 ? 0 : found,
+        currentIndex: found < 0 ? null : found,
         onTap: (value) => context.go(_routes[value]),
         centerAction: NavCenterAction(
           label: 'Catat',

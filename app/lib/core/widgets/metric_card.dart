@@ -65,13 +65,10 @@ class MetricCard extends StatelessWidget {
         children: [
           ExcludeSemantics(
             child: Container(
-              height: 36,
-              width: 36,
-              decoration: const BoxDecoration(
-                color: AppColors.accent,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 18, color: AppColors.primary),
+              height: 40,
+              width: 40,
+              decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
+              child: Icon(icon, size: 20, color: ink),
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
@@ -95,11 +92,8 @@ class MetricCard extends StatelessWidget {
                     Text(
                       value!,
                       style: prominentValue
-                          ? AppTypography.headline.copyWith(
-                              fontSize: 22,
-                              height: 1.25,
-                            )
-                          : AppTypography.bodyStrong,
+                          ? AppTypography.metricLarge.copyWith(fontSize: 24)
+                          : AppTypography.metric,
                     ),
                     if (valueCaption != null)
                       Text(valueCaption!, style: AppTypography.caption),
@@ -140,19 +134,15 @@ class MetricCard extends StatelessWidget {
                   width: AppSpacing.minTouchTarget,
                   child: Center(
                     child: Material(
-                      color: AppColors.primary,
+                      color: tint,
                       shape: const CircleBorder(),
                       child: InkWell(
                         customBorder: const CircleBorder(),
                         onTap: onPrimary,
-                        child: const SizedBox(
+                        child: SizedBox(
                           height: 40,
                           width: 40,
-                          child: Icon(
-                            Icons.add_rounded,
-                            size: 22,
-                            color: AppColors.onPrimary,
-                          ),
+                          child: Icon(Icons.add_rounded, size: 22, color: ink),
                         ),
                       ),
                     ),
@@ -174,7 +164,11 @@ class MetricCard extends StatelessWidget {
 
     final card = Material(
       color: AppColors.surface,
-      borderRadius: AppRadius.cardRadius,
+      shape: RoundedRectangleBorder(
+        borderRadius: AppRadius.cardRadius,
+        side: const BorderSide(color: AppColors.border),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: onSecondary == null
           ? body
           : InkWell(

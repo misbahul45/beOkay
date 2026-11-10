@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/tab_root_header.dart';
 import '../../../core/widgets/charts.dart';
 import '../../activity/application/activity_controller.dart';
 import '../../activity/data/activity_models.dart';
@@ -40,14 +41,10 @@ class InsightsScreen extends ConsumerWidget {
         await ref.read(dailyInsightsProvider.future).catchError((_) => null);
       },
       children: [
-        Semantics(
-          header: true,
-          child: Text('Wawasan', style: AppTypography.headline),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          'Ringkasan dari catatanmu sendiri. Bukan diagnosis dan bukan saran medis.',
-          style: AppTypography.secondary,
+        const TabRootHeader(
+          title: 'Wawasan',
+          subtitle:
+              'Ringkasan dari catatanmu sendiri. Bukan diagnosis dan bukan saran medis.',
         ),
         const SizedBox(height: AppSpacing.md),
         const ContextualCard(),
@@ -119,7 +116,7 @@ class _TrendsEntry extends StatelessWidget {
                     Text(
                       'Lihat perubahanmu dari hari ke hari',
                       style: AppTypography.secondary.copyWith(
-                        color: AppColors.overlay,
+                        color: AppColors.brandTint,
                       ),
                     ),
                   ],

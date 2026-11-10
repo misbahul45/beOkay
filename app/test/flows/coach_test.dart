@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:app/core/network/api_client.dart';
+import 'package:app/core/providers.dart';
 import 'package:app/core/storage/token_storage.dart';
 import 'package:app/features/coach/application/coach_controller.dart';
 import 'package:app/features/coach/data/coach_repository.dart';
@@ -93,7 +94,10 @@ Future<(Widget, List<http.Request>)> _app(
   );
   return (
     ProviderScope(
-      overrides: [coachRepositoryProvider.overrideWithValue(repo)],
+      overrides: [
+        coachRepositoryProvider.overrideWithValue(repo),
+        tokenStorageProvider.overrideWithValue(MemoryTokenStorage()),
+      ],
       child: const MaterialApp(home: CoachScreen()),
     ),
     seen,
