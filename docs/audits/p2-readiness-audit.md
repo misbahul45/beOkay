@@ -1,3 +1,5 @@
+> **Pembaruan 9 Nov 2026 (setelah audit ini ditulis):** (1) arahan pengguna mengganti service Python/FastAPI/LangGraph dengan runtime agen TypeScript di dalam API Bun, model dilatih di Kaggle dan di-deploy ke Modal, LLM dan embedding Mistral, vektor di pgvector — lihat `docs/reports/p2-execution-plan.md`; (2) TKPI **sudah diingest** (baris "Embedding / RAG" di bawah usang); (3) token Modal sudah ada; (4) **sudah ada sekarang:** preferensi/alergi/pembatasan makanan, pengingat (aturan + kejadian mendatang), ekspor data, impor aktivitas perangkat (backend), insight kontekstual. Yang masih MISSING untuk P2: entitas rencana makan (planned meal), tujuan consent P2, seluruh agen/gateway/keselamatan, model ML.
+
 # P2 — audit kesiapan (9 November 2026)
 
 Dokumen ini hanya mencatat apa yang **ada di repositori dan teruji**. Tidak ada klaim kemampuan P2 yang sudah berjalan.

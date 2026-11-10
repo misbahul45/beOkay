@@ -16,12 +16,17 @@ final goalsRepositoryProvider = Provider<GoalsRepository>((ref) {
     isCurrentAccount: () {
       if (!ref.mounted) return false;
       final current = ref.read(authControllerProvider);
-      return id != null && current is AuthAuthenticated && current.user.id == id;
+      return id != null &&
+          current is AuthAuthenticated &&
+          current.user.id == id;
     },
   );
 });
 
 final goalsListProvider = FutureProvider.autoDispose<List<Goal>>((ref) async {
-  await Future.wait([ref.watch(consentControllerProvider.future), ref.watch(preferencesControllerProvider.future)]);
+  await Future.wait([
+    ref.watch(consentControllerProvider.future),
+    ref.watch(preferencesControllerProvider.future),
+  ]);
   return ref.watch(goalsRepositoryProvider).list();
 });

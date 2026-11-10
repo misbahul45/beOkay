@@ -1,5 +1,6 @@
 package com.example.app
 
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 
-class MainActivity : FlutterActivity()
+// Health Connect meminta izin lewat Activity Result API, sehingga butuh FragmentActivity.
+class MainActivity : FlutterFragmentActivity()

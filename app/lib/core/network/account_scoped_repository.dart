@@ -10,11 +10,16 @@ class QueuedOffline implements Exception {
   final String operationId;
 }
 
-/// Menandai penulisan yang boleh diantrekan saat offline (hanya pembuatan catatan baru).
+/// Menandai penulisan yang boleh diantrekan saat offline: pembuatan catatan baru (POST) dan koreksi catatan
+/// yang sudah ada di server (PATCH, memuat `expectedVersion` dan alasan).
 typedef QueueSpec = ({String domain, String recordId, String? parentId});
 
 abstract class AccountScopedRepository {
-  AccountScopedRepository(this.api, {required this.isCurrentAccount, this.enqueueOffline});
+  AccountScopedRepository(
+    this.api, {
+    required this.isCurrentAccount,
+    this.enqueueOffline,
+  });
   final ApiClient api;
   final bool Function() isCurrentAccount;
   final Future<void> Function(QueuedOperation op)? enqueueOffline;
@@ -46,7 +51,10 @@ abstract class AccountScopedRepository {
     try {
       return await client.send(method, path, body: body);
     } on ApiException catch (e) {
-      if (e.isNetwork && queue != null && enqueueOffline != null && isCurrentAccount()) {
+      if (e.isNetwork &&
+          queue != null &&
+          enqueueOffline != null &&
+          isCurrentAccount()) {
         final opId = newRecordId();
         await enqueueOffline!(
           QueuedOperation(
@@ -54,8 +62,8 @@ abstract class AccountScopedRepository {
             domain: queue.domain,
             recordId: queue.recordId,
             parentId: queue.parentId,
-            operationType: 'create',
-            payload: {...body}..remove('id'),
+            operationType: method == 'PATCH' ? 'update' : 'create',
+            payload: method == 'PATCH' ? {...body} : ({...body}..remove('id')),
             createdAt: DateTime.now(),
           ),
         );

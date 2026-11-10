@@ -8,7 +8,12 @@ import '../theme/app_typography.dart';
 import 'pill_button.dart';
 
 class SkeletonBlock extends StatelessWidget {
-  const SkeletonBlock({super.key, this.height = 56, this.width, this.radius = AppRadius.input});
+  const SkeletonBlock({
+    super.key,
+    this.height = 56,
+    this.width,
+    this.radius = AppRadius.input,
+  });
 
   final double height;
   final double? width;
@@ -19,7 +24,10 @@ class SkeletonBlock extends StatelessWidget {
     return Container(
       height: height,
       width: width ?? double.infinity,
-      decoration: BoxDecoration(color: AppColors.surfaceMuted, borderRadius: BorderRadius.circular(radius)),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceMuted,
+        borderRadius: BorderRadius.circular(radius),
+      ),
     );
   }
 }
@@ -57,16 +65,33 @@ class ErrorState extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: AppRadius.cardRadius, boxShadow: AppShadows.soft),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: AppRadius.cardRadius,
+        boxShadow: AppShadows.soft,
+      ),
       child: Column(
         children: [
-          const Icon(Icons.cloud_off_rounded, size: 36, color: AppColors.decorative),
+          const Icon(
+            Icons.cloud_off_rounded,
+            size: 36,
+            color: AppColors.decorative,
+          ),
           const SizedBox(height: AppSpacing.sm),
           Text('Belum bisa memuat', style: AppTypography.title),
           const SizedBox(height: 4),
-          Text(messageFor(error), textAlign: TextAlign.center, style: AppTypography.secondary),
+          Text(
+            messageFor(error),
+            textAlign: TextAlign.center,
+            style: AppTypography.secondary,
+          ),
           const SizedBox(height: AppSpacing.md),
-          PillButton(label: 'Coba lagi', kind: PillButtonKind.secondary, onPressed: onRetry, expand: false),
+          PillButton(
+            label: 'Coba lagi',
+            kind: PillButtonKind.secondary,
+            onPressed: onRetry,
+            expand: false,
+          ),
         ],
       ),
     );
@@ -74,7 +99,13 @@ class ErrorState extends StatelessWidget {
 }
 
 class AsyncBody<T> extends StatelessWidget {
-  const AsyncBody({super.key, required this.value, required this.data, required this.onRetry, this.skeletonRows = 3});
+  const AsyncBody({
+    super.key,
+    required this.value,
+    required this.data,
+    required this.onRetry,
+    this.skeletonRows = 3,
+  });
 
   final AsyncValue<T> value;
   final Widget Function(T value) data;

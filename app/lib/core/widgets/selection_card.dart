@@ -32,9 +32,14 @@ class SelectionCard extends StatelessWidget {
         shape: multi ? BoxShape.rectangle : BoxShape.circle,
         borderRadius: multi ? BorderRadius.circular(8) : null,
         color: selected ? AppColors.primary : AppColors.surface,
-        border: Border.all(color: selected ? AppColors.primary : AppColors.overlay, width: 1.5),
+        border: Border.all(
+          color: selected ? AppColors.primary : AppColors.overlay,
+          width: 1.5,
+        ),
       ),
-      child: selected ? const Icon(Icons.check, size: 16, color: AppColors.onPrimary) : null,
+      child: selected
+          ? const Icon(Icons.check, size: 16, color: AppColors.onPrimary)
+          : null,
     );
     return Semantics(
       container: true,
@@ -50,7 +55,10 @@ class SelectionCard extends StatelessWidget {
         color: AppColors.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.card - 4),
-          side: BorderSide(color: selected ? AppColors.primary : AppColors.border, width: selected ? 2 : 1),
+          side: BorderSide(
+            color: selected ? AppColors.primary : AppColors.border,
+            width: selected ? 2 : 1,
+          ),
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(AppRadius.card - 4),
@@ -60,7 +68,10 @@ class SelectionCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(padding: const EdgeInsets.only(top: 1), child: indicator),
+                Padding(
+                  padding: const EdgeInsets.only(top: 1),
+                  child: indicator,
+                ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Column(

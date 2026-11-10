@@ -6,6 +6,7 @@ import { conflict, notFound, unprocessable } from "../../shared/errors/app-error
 import { localRecordTime } from "../../shared/http/record-schema.ts";
 import { consentService } from "../consent/consent.service.ts";
 import { zonedToUtc } from "../medication/medication.model.ts";
+import { ACTIVITY_COUNTED_QUALITY } from "../activity/activity.model.ts";
 import { preferencesService } from "../preferences/preferences.service.ts";
 import { goalBounds, summarizeGoal, type GoalSource } from "./goals.model.ts";
 import { goalsRepository as repo } from "./goals.repository.ts";
@@ -36,7 +37,7 @@ async function sourcesFor(userId: string, g: Goal, from: Date, to: Date, tz: str
     }
     case "activity_minutes":
     case "walking_sessions": {
-      const rows = await prisma.activitySession.findMany({ where: { userId, archivedAt: null, qualityStatus: "user_reported", startedAt: { gte: from, lt: to }, ...(g.goalType === "walking_sessions" ? { activityType: "walking" } : {}) } });
+      const rows = await prisma.activitySession.findMany({ where: { userId, archivedAt: null, qualityStatus: { in: [...ACTIVITY_COUNTED_QUALITY] }, startedAt: { gte: from, lt: to }, ...(g.goalType === "walking_sessions" ? { activityType: "walking" } : {}) } });
       return rows.map((r) => ({ date: localDay(r.startedAt), value: g.goalType === "activity_minutes" ? r.durationMinutes : 1 }));
     }
     case "record_meals": {

@@ -46,9 +46,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     });
     final email = _email.text.trim();
     try {
-      await ref.read(authRepositoryProvider).signUp(name: _name.text.trim(), email: email, password: _password.text);
+      await ref
+          .read(authRepositoryProvider)
+          .signUp(
+            name: _name.text.trim(),
+            email: email,
+            password: _password.text,
+          );
       if (!mounted) return;
-      context.go('${Routes.verifyEmail}?email=${Uri.encodeQueryComponent(email)}');
+      context.go(
+        '${Routes.verifyEmail}?email=${Uri.encodeQueryComponent(email)}',
+      );
     } catch (error) {
       if (mounted) setState(() => _error = messageFor(error));
     } finally {
@@ -65,13 +73,25 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         children: [
           PillButton(label: 'Buat Akun', loading: _loading, onPressed: _submit),
           const SizedBox(height: AppSpacing.xxs),
-          TextButton(onPressed: () => context.go(Routes.login), child: Text('Sudah punya akun? Masuk', style: AppTypography.bodyStrong)),
+          TextButton(
+            onPressed: () => context.go(Routes.login),
+            child: Text(
+              'Sudah punya akun? Masuk',
+              style: AppTypography.bodyStrong,
+            ),
+          ),
         ],
       ),
       children: [
-        Semantics(header: true, child: Text('Buat Akunmu', style: AppTypography.headline)),
+        Semantics(
+          header: true,
+          child: Text('Buat Akunmu', style: AppTypography.headline),
+        ),
         const SizedBox(height: AppSpacing.xs),
-        Text('Mulai dengan membuat akun untuk menyimpan perjalanan kesehatanmu.', style: AppTypography.secondary),
+        Text(
+          'Mulai dengan membuat akun untuk menyimpan perjalanan kesehatanmu.',
+          style: AppTypography.secondary,
+        ),
         const SizedBox(height: AppSpacing.lg),
         Form(
           key: _form,
@@ -117,13 +137,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   textInputAction: TextInputAction.done,
                   autofillHints: const [AutofillHints.newPassword],
                   onSubmitted: (_) => _submit(),
-                  validator: (value) => value == _password.text ? null : 'Konfirmasi kata sandi belum sama.',
+                  validator: (value) => value == _password.text
+                      ? null
+                      : 'Konfirmasi kata sandi belum sama.',
                 ),
               ],
             ),
           ),
         ),
-        if (_error != null) ...[const SizedBox(height: AppSpacing.md), ErrorBanner(_error!)],
+        if (_error != null) ...[
+          const SizedBox(height: AppSpacing.md),
+          ErrorBanner(_error!),
+        ],
       ],
     );
   }

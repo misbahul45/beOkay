@@ -60,7 +60,7 @@ const method = {
   computationVersion: "activity-reported-v1",
   freshness: "CURRENT",
   coverageStatus: "RECORDED_ONLY",
-  source: "manual",
+  source: "manual_or_device",
   attribution: "START_LOCAL_DATE",
   durationMethod: "SUM_REPORTED_SESSIONS",
 };
@@ -137,6 +137,8 @@ export const activityService = {
           "Aktivitas berubah. Muat ulang sebelum mengoreksi.",
         );
       const { expectedVersion, reason, archived, startedAt, ...fields } = input;
+      // Sesi impor perangkat tidak pernah menjadi "user_reported": menandainya sebagai layak hitung berarti "device_reported".
+      if (old.source !== "manual" && fields.qualityStatus === "user_reported") fields.qualityStatus = "device_reported" as never;
       const start = startedAt ? new Date(startedAt) : old.startedAt;
       const duration = input.durationMinutes ?? old.durationMinutes;
       const changed = await tx.activitySession.updateMany({

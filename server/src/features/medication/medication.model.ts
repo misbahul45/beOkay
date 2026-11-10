@@ -7,14 +7,15 @@ function offsetMs(instant: number, timezone: string) {
   const p = (t: string) => Number(parts.find((x) => x.type === t)!.value);
   return Date.UTC(p("year"), p("month") - 1, p("day"), p("hour"), p("minute"), p("second")) - Math.floor(instant / 1000) * 1000;
 }
-/** Local wall time in an IANA zone -> UTC instant. Nonexistent (DST gap) times move forward. */
+/** Local wall time in an IANA zone -> UTC instant. Nonexistent (DST gap) times move forward; ambiguous times take the first occurrence. */
 export function zonedToUtc(date: string, localTime: string, timezone: string) {
   const [y, m, d] = date.split("-").map(Number);
   const [h, mi] = localTime.split(":").map(Number);
   const wall = Date.UTC(y!, m! - 1, d, h, mi);
-  let guess = wall - offsetMs(wall, timezone);
-  guess = wall - offsetMs(guess, timezone);
-  return new Date(guess);
+  const first = wall - offsetMs(wall, timezone);
+  const second = wall - offsetMs(first, timezone);
+  // Bila hasil kedua tidak kembali ke jam dinding yang diminta, jam itu jatuh di celah DST: pakai tebakan pertama (maju).
+  return new Date(second + offsetMs(second, timezone) === wall ? second : first);
 }
 export function validTimezone(timezone: string) {
   try {

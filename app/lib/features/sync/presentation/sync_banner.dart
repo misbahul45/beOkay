@@ -33,10 +33,21 @@ class SyncBanner extends ConsumerWidget {
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 48),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page, vertical: AppSpacing.xs),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.page,
+                vertical: AppSpacing.xs,
+              ),
               child: Row(
                 children: [
-                  Icon(attention ? Icons.rule_rounded : Icons.cloud_upload_outlined, size: 20, color: attention ? AppColors.warningForeground : AppColors.infoForeground),
+                  Icon(
+                    attention
+                        ? Icons.rule_rounded
+                        : Icons.cloud_upload_outlined,
+                    size: 20,
+                    color: attention
+                        ? AppColors.warningForeground
+                        : AppColors.infoForeground,
+                  ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(child: Text(text, style: AppTypography.secondary)),
                   const Icon(Icons.chevron_right_rounded, size: 20),

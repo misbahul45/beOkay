@@ -15,17 +15,35 @@ class ProvenanceChip extends StatelessWidget {
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: positive ? AppColors.infoBackground : AppColors.warningBackground,
+        color: positive
+            ? AppColors.infoBackground
+            : AppColors.warningBackground,
         borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
-      child: Text(text, style: AppTypography.caption.copyWith(color: positive ? AppColors.infoForeground : AppColors.warningForeground, fontWeight: FontWeight.w600)),
+      child: Text(
+        text,
+        style: AppTypography.caption.copyWith(
+          color: positive
+              ? AppColors.infoForeground
+              : AppColors.warningForeground,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     ),
   );
 }
 
 /// Kartu pilihan metode pencatatan (satu ikon + judul + penjelasan).
 class MethodCard extends StatelessWidget {
-  const MethodCard({super.key, required this.icon, required this.tint, required this.ink, required this.title, required this.subtitle, required this.onTap});
+  const MethodCard({
+    super.key,
+    required this.icon,
+    required this.tint,
+    required this.ink,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
   final IconData icon;
   final Color tint, ink;
   final String title, subtitle;
@@ -38,7 +56,10 @@ class MethodCard extends StatelessWidget {
     onTap: onTap,
     child: Material(
       color: AppColors.surface,
-      shape: RoundedRectangleBorder(borderRadius: AppRadius.cardRadius, side: const BorderSide(color: AppColors.border)),
+      shape: RoundedRectangleBorder(
+        borderRadius: AppRadius.cardRadius,
+        side: const BorderSide(color: AppColors.border),
+      ),
       child: InkWell(
         borderRadius: AppRadius.cardRadius,
         onTap: onTap,
@@ -46,12 +67,21 @@ class MethodCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              Container(height: 48, width: 48, decoration: BoxDecoration(color: tint, shape: BoxShape.circle), child: Icon(icon, color: ink)),
+              Container(
+                height: 48,
+                width: 48,
+                decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
+                child: Icon(icon, color: ink),
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [Text(title, style: AppTypography.bodyStrong), const SizedBox(height: 2), Text(subtitle, style: AppTypography.secondary)],
+                  children: [
+                    Text(title, style: AppTypography.bodyStrong),
+                    const SizedBox(height: 2),
+                    Text(subtitle, style: AppTypography.secondary),
+                  ],
                 ),
               ),
             ],
@@ -63,25 +93,38 @@ class MethodCard extends StatelessWidget {
 }
 
 /// Dialog persetujuan sebelum foto dikirim keluar perangkat. Selalu ditanyakan; tidak diingat.
-Future<bool> confirmImageUpload(BuildContext context, {required String subject}) async =>
+Future<bool> confirmImageUpload(
+  BuildContext context, {
+  required String subject,
+}) async =>
     await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Kirim foto untuk dibaca?'),
         content: Text(
-          'Foto $subject dikirim lewat server beOkay ke layanan pembaca gambar pihak ketiga (Mistral) hanya untuk dibaca, lalu dibuang. '
-          'Hindari wajah atau dokumen pribadi pada foto.',
+          'Foto $subject dikirim ke layanan pembaca gambar (Mistral) hanya untuk dibaca, lalu dihapus. '
+          'Hindari wajah atau dokumen pribadi.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Kirim foto')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Kirim foto'),
+          ),
         ],
       ),
     ) ??
     false;
 
 /// Menjalankan pekerjaan jaringan dengan dialog progres yang tidak bisa ditutup sembarangan.
-Future<T> runWithProgress<T>(BuildContext context, String label, Future<T> Function() job) async {
+Future<T> runWithProgress<T>(
+  BuildContext context,
+  String label,
+  Future<T> Function() job,
+) async {
   final nav = Navigator.of(context, rootNavigator: true);
   showDialog<void>(
     context: context,
@@ -89,7 +132,17 @@ Future<T> runWithProgress<T>(BuildContext context, String label, Future<T> Funct
     builder: (_) => PopScope(
       canPop: false,
       child: AlertDialog(
-        content: Row(children: [const SizedBox(height: 28, width: 28, child: CircularProgressIndicator(strokeWidth: 3)), const SizedBox(width: 16), Expanded(child: Text(label))]),
+        content: Row(
+          children: [
+            const SizedBox(
+              height: 28,
+              width: 28,
+              child: CircularProgressIndicator(strokeWidth: 3),
+            ),
+            const SizedBox(width: 16),
+            Expanded(child: Text(label)),
+          ],
+        ),
       ),
     ),
   );

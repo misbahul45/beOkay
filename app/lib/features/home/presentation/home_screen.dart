@@ -7,6 +7,7 @@ import '../../../core/router/routes.dart';
 import '../../../core/format/greeting.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/beokay_avatar.dart';
+import '../../interventions/presentation/intervention_card.dart';
 import '../../medication/application/medication_controller.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/info_card.dart';
@@ -51,16 +52,20 @@ class HomeScreen extends ConsumerWidget {
       children: [
         Builder(
           builder: (context) {
-            final unconfirmed = ref.watch(medicationTodayProvider).value?.unknown ?? 0;
+            final unconfirmed =
+                ref.watch(medicationTodayProvider).value?.unknown ?? 0;
             final message = greetingFor(
               now: DateTime.now(),
               name: name,
               unconfirmedMedications: unconfirmed,
-              noMealToday: today?.nutrition != null && today!.nutrition!.mealCount == 0,
+              noMealToday:
+                  today?.nutrition != null && today!.nutrition!.mealCount == 0,
             );
             return Semantics(
               header: true,
-              child: AvatarGreeting(message: (title: message.title, detail: message.detail)),
+              child: AvatarGreeting(
+                message: (title: message.title, detail: message.detail),
+              ),
             );
           },
         ),
@@ -95,11 +100,11 @@ class HomeScreen extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.md),
         ],
+        if (!consentBlocked) const InterventionCard(),
         if (profile != null && !profile.isComplete) ...[
           InfoCard(
             title: 'Lengkapi profilmu',
-            text:
-                'Tahun lahir belum diisi. Ini opsional, tetapi membantu menyesuaikan pengalaman.',
+            text: 'Tahun lahir belum diisi (opsional).',
             action: PillButton(
               label: 'Lengkapi',
               kind: PillButtonKind.secondary,

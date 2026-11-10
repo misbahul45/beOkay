@@ -23,7 +23,12 @@ class StepHeader extends StatelessWidget {
             children: [
               const BeOkayAvatar(size: 30, animate: false),
               const SizedBox(width: AppSpacing.xs),
-              Text('Langkah $current dari $total', style: AppTypography.secondaryStrong.copyWith(color: AppColors.textSecondary)),
+              Text(
+                'Langkah $current dari $total',
+                style: AppTypography.secondaryStrong.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -35,7 +40,9 @@ class StepHeader extends StatelessWidget {
                     duration: const Duration(milliseconds: 250),
                     height: 5,
                     decoration: BoxDecoration(
-                      color: index <= current ? AppColors.primary : AppColors.border,
+                      color: index <= current
+                          ? AppColors.primary
+                          : AppColors.border,
                       borderRadius: BorderRadius.circular(3),
                     ),
                   ),

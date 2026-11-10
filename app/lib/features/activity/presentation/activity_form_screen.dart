@@ -128,7 +128,9 @@ class _ActivityFormState extends ConsumerState<ActivityFormScreen> {
       context.go('${Routes.activities}/${saved.id}');
     } on QueuedOffline {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(queuedOfflineMessage)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text(queuedOfflineMessage)));
         setState(() => dirty = false);
         context.go(Routes.activities);
       }

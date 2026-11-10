@@ -6,9 +6,14 @@ import '../../onboarding/application/onboarding_controller.dart';
 import '../data/health_models.dart';
 import '../data/health_repository.dart';
 
-final healthRepositoryProvider = Provider<HealthRepository>((ref) => HealthRepository(ref.watch(apiClientProvider)));
+final healthRepositoryProvider = Provider<HealthRepository>(
+  (ref) => HealthRepository(ref.watch(apiClientProvider)),
+);
 
-final healthControllerProvider = AsyncNotifierProvider<HealthController, HealthProfile?>(HealthController.new);
+final healthControllerProvider =
+    AsyncNotifierProvider<HealthController, HealthProfile?>(
+      HealthController.new,
+    );
 
 class HealthController extends AsyncNotifier<HealthProfile?> {
   @override
@@ -23,7 +28,9 @@ class HealthController extends AsyncNotifier<HealthProfile?> {
     required int? year,
     required List<Treatment> treatments,
   }) async {
-    final profile = await ref.read(healthRepositoryProvider).save(status: status, type: type, year: year, treatments: treatments);
+    final profile = await ref
+        .read(healthRepositoryProvider)
+        .save(status: status, type: type, year: year, treatments: treatments);
     state = AsyncData(profile);
     await ref.read(onboardingControllerProvider.notifier).refresh();
   }

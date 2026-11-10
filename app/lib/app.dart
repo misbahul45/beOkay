@@ -27,11 +27,13 @@ class BeOkayApp extends ConsumerWidget {
       routerConfig: router,
       builder: (context, child) {
         final media = MediaQuery.of(context);
-        final scale = (media.textScaler.scale(1) * preferences.textSize.scale).clamp(1.0, 2.0);
+        final scale = (media.textScaler.scale(1) * preferences.textSize.scale)
+            .clamp(1.0, 2.0);
         return MediaQuery(
           data: media.copyWith(
             textScaler: TextScaler.linear(scale),
-            disableAnimations: media.disableAnimations || preferences.reduceMotion,
+            disableAnimations:
+                media.disableAnimations || preferences.reduceMotion,
           ),
           child: child ?? const SizedBox.shrink(),
         );

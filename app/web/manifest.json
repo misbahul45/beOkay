@@ -1,11 +1,11 @@
 {
-    "name": "app",
-    "short_name": "app",
+    "name": "beOkay",
+    "short_name": "beOkay",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#F1F8F6",
+    "theme_color": "#0B4F5E",
+    "description": "beOkay: catatan kebiasaan harian untuk hidup lebih seimbang.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

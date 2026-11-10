@@ -81,6 +81,7 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
       builder: (_) => MealItemEditor(
         initial: index == null ? null : items[index],
         food: food,
+        repository: repo,
       ),
     );
     if (item != null && mounted) {
@@ -132,7 +133,9 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
       context.go('${Routes.meals}/${saved.id}');
     } on QueuedOffline {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(queuedOfflineMessage)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text(queuedOfflineMessage)));
         setState(() => dirty = false);
         context.go(Routes.meals);
       }
@@ -252,7 +255,7 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
                   ),
                 if (items.length < 30) ...[
                   PillButton(
-                    label: 'Cari di katalog',
+                    label: 'Cari makanan',
                     kind: PillButtonKind.secondary,
                     onPressed: busy || uncertain
                         ? null

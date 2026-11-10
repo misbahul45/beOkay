@@ -1,0 +1,30 @@
+meta {
+  name: Disable reminder
+  type: http
+  seq: 7
+}
+
+patch {
+  url: {{baseUrl}}/api/me/reminders/{{reminderId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {"expectedVersion":1,"enabled":false}
+}
+
+tests {
+  test("Disable reminder", function () {
+    expect(res.status).to.equal(200); expect(res.body.nextAt).to.equal(null);
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken and otherSessionToken are supplied by the runner.
+  Disabled reminders produce no occurrences.
+}

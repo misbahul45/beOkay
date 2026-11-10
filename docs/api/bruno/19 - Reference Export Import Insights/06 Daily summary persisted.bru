@@ -1,0 +1,26 @@
+meta {
+  name: Daily summary persisted
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/me/summaries/daily
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+tests {
+  test("Daily summary persisted", function () {
+    expect(res.status).to.equal(200);
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken and otherSessionToken are supplied by the runner.
+  Also stored as a derived projection (kind=daily); always recomputed on read.
+}

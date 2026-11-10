@@ -6,7 +6,8 @@ class HealthRepository {
 
   final ApiClient _api;
 
-  Future<HealthProfile> get() async => HealthProfile.fromJson((await _api.get('/api/me/health-profile')).object);
+  Future<HealthProfile> get() async =>
+      HealthProfile.fromJson((await _api.get('/api/me/health-profile')).object);
 
   Future<HealthProfile> save({
     required DiagnosisStatus status,
@@ -20,6 +21,8 @@ class HealthRepository {
       'diagnosedYear': status == DiagnosisStatus.diagnosed ? year : null,
       'treatmentContext': treatments.map((item) => item.wire).toList(),
     };
-    return HealthProfile.fromJson((await _api.put('/api/me/health-profile', body: body)).object);
+    return HealthProfile.fromJson(
+      (await _api.put('/api/me/health-profile', body: body)).object,
+    );
   }
 }

@@ -39,3 +39,14 @@ test("input validation gives actionable rejections", () => {
   expect(intakeCreateSchema.safeParse({ id, status: "taken", scheduleId: id }).success).toBe(false);
   expect(intakeCreateSchema.safeParse({ id, status: "unknown" }).success).toBe(true);
 });
+
+test("zonedToUtc: jam yang tidak ada di celah DST dimajukan, jam ganda memakai kejadian pertama, jam biasa tidak berubah", () => {
+  // 2026-03-08 02:30 tidak ada di New York (02:00 -> 03:00): dimajukan ke 03:30 EDT = 07:30Z.
+  expect(zonedToUtc("2026-03-08", "02:30", "America/New_York").toISOString()).toBe("2026-03-08T07:30:00.000Z");
+  // Tepat setelah celah tidak berubah: 04:00 EDT = 08:00Z.
+  expect(zonedToUtc("2026-03-08", "04:00", "America/New_York").toISOString()).toBe("2026-03-08T08:00:00.000Z");
+  // 2026-11-01 01:30 terjadi dua kali; kejadian pertama (EDT) = 05:30Z.
+  expect(zonedToUtc("2026-11-01", "01:30", "America/New_York").toISOString()).toBe("2026-11-01T05:30:00.000Z");
+  // Setelah musim berganti: 05:00 EST = 10:00Z.
+  expect(zonedToUtc("2026-11-01", "05:00", "America/New_York").toISOString()).toBe("2026-11-01T10:00:00.000Z");
+});

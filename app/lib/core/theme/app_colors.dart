@@ -5,8 +5,12 @@ import 'package:flutter/painting.dart';
 /// hue per health domain. Domain colour never carries meaning alone: every domain also has an icon and label.
 abstract final class AppColors {
   // Brand
-  static const Color brand = Color(0xFF0B4F5E); // deep teal — buttons, nav (white text 9.9:1)
-  static const Color emerald = Color(0xFF0BA66B); // "Okay" green — positive accents
+  static const Color brand = Color(
+    0xFF0B4F5E,
+  ); // deep teal — buttons, nav (white text 9.9:1)
+  static const Color emerald = Color(
+    0xFF0BA66B,
+  ); // "Okay" green — positive accents
   static const Color leaf = Color(0xFF6CBF2A);
   static const Color aqua = Color(0xFF5ED3E6);
 
@@ -16,7 +20,9 @@ abstract final class AppColors {
   static const Color surfaceMuted = Color(0xFFE6F1EE);
   static const Color accent = Color(0xFFD8F0E7); // default icon tint (mint)
   static const Color border = Color(0xFFD9E7E3);
-  static const Color overlay = Color(0xFF9FC4BE); // inactive nav icons/labels on brand
+  static const Color overlay = Color(
+    0xFF9FC4BE,
+  ); // inactive nav icons/labels on brand
 
   // Text and actions
   static const Color primary = brand;

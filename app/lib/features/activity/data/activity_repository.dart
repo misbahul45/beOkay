@@ -2,7 +2,11 @@ import '../../../core/network/account_scoped_repository.dart';
 import 'activity_models.dart';
 
 class ActivityRepository extends AccountScopedRepository {
-  ActivityRepository(super.api, {required super.isCurrentAccount, super.enqueueOffline});
+  ActivityRepository(
+    super.api, {
+    required super.isCurrentAccount,
+    super.enqueueOffline,
+  });
   Future<ActivityRecord> get(String id) async =>
       ActivityRecord.fromJson((await api.get('/api/me/activities/$id')).object);
   Future<ActivityRecord> save(Map<String, dynamic> body, {String? id}) async =>
@@ -11,7 +15,11 @@ class ActivityRepository extends AccountScopedRepository {
           id == null ? 'POST' : 'PATCH',
           id == null ? '/api/me/activities' : '/api/me/activities/$id',
           body,
-          queue: id == null ? (domain: 'activity', recordId: body['id'] as String, parentId: null) : null,
+          queue: (
+            domain: 'activity',
+            recordId: id ?? body['id'] as String,
+            parentId: null,
+          ),
         )).object,
       );
   Future<ActivityPage> list({

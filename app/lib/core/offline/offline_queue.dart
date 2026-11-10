@@ -10,12 +10,14 @@ abstract interface class KeyValueStore {
 }
 
 class SecureKeyValueStore implements KeyValueStore {
-  SecureKeyValueStore([FlutterSecureStorage? storage]) : _s = storage ?? const FlutterSecureStorage();
+  SecureKeyValueStore([FlutterSecureStorage? storage])
+    : _s = storage ?? const FlutterSecureStorage();
   final FlutterSecureStorage _s;
   @override
   Future<String?> read(String key) => _s.read(key: key);
   @override
-  Future<void> write(String key, String value) => _s.write(key: key, value: value);
+  Future<void> write(String key, String value) =>
+      _s.write(key: key, value: value);
   @override
   Future<void> delete(String key) => _s.delete(key: key);
 }
@@ -50,7 +52,7 @@ class QueuedOperation {
   final String operationId;
   final String domain; // meal|glucose|activity|medication_intake|goal_checkin
   final String recordId;
-  final String operationType; // create
+  final String operationType; // create | update
   final String? parentId;
   final Map<String, dynamic> payload;
   final DateTime createdAt;
@@ -58,7 +60,11 @@ class QueuedOperation {
   final String? errorCode;
   final String? errorMessage;
 
-  QueuedOperation copyWith({QueueState? state, String? errorCode, String? errorMessage}) => QueuedOperation(
+  QueuedOperation copyWith({
+    QueueState? state,
+    String? errorCode,
+    String? errorMessage,
+  }) => QueuedOperation(
     operationId: operationId,
     domain: domain,
     recordId: recordId,
@@ -111,6 +117,8 @@ class QueuedOperation {
     'goal_checkin' => 'Check-in tujuan',
     _ => domain,
   };
+
+  bool get isCorrection => operationType == 'update';
 }
 
 /// Antrean per akun. Kunci memuat id akun sehingga akun lain tidak pernah membaca antrean ini,
@@ -126,24 +134,73 @@ class OfflineQueue {
     try {
       final raw = await _store.read(_key);
       if (raw == null) return const [];
-      return (jsonDecode(raw) as List).map((e) => QueuedOperation.fromJson((e as Map).cast<String, dynamic>())).toList();
+      return (jsonDecode(raw) as List)
+          .map(
+            (e) => QueuedOperation.fromJson((e as Map).cast<String, dynamic>()),
+          )
+          .toList();
     } catch (_) {
       return const [];
     }
   }
 
-  Future<void> _save(List<QueuedOperation> ops) =>
-      ops.isEmpty ? _store.delete(_key) : _store.write(_key, jsonEncode([for (final o in ops) o.toJson()]));
+  Future<void> _save(List<QueuedOperation> ops) => ops.isEmpty
+      ? _store.delete(_key)
+      : _store.write(_key, jsonEncode([for (final o in ops) o.toJson()]));
 
+  /// Pembuatan baru: satu per catatan. Koreksi: koreksi tertunda untuk catatan yang sama digabung
+  /// (nilai terbaru menang, `expectedVersion` pertama dipertahankan agar konflik tetap terdeteksi).
   Future<void> add(QueuedOperation op) async {
     final ops = await load();
-    if (ops.any((o) => o.operationId == op.operationId || (o.recordId == op.recordId && o.domain == op.domain))) return;
+    if (ops.any((o) => o.operationId == op.operationId)) return;
+    if (op.operationType == 'update') {
+      final i = ops.indexWhere(
+        (o) =>
+            o.operationType == 'update' &&
+            o.recordId == op.recordId &&
+            o.domain == op.domain &&
+            (o.state == QueueState.savedLocal ||
+                o.state == QueueState.syncFailed),
+      );
+      if (i >= 0) {
+        final old = ops[i];
+        final merged = {...old.payload, ...op.payload};
+        if (old.payload.containsKey('expectedVersion')) {
+          merged['expectedVersion'] = old.payload['expectedVersion'];
+        }
+        await _save([
+          for (var k = 0; k < ops.length; k++)
+            k == i
+                ? QueuedOperation(
+                    operationId: old.operationId,
+                    domain: old.domain,
+                    recordId: old.recordId,
+                    operationType: 'update',
+                    parentId: old.parentId,
+                    payload: merged,
+                    createdAt: old.createdAt,
+                  )
+                : ops[k],
+        ]);
+        return;
+      }
+    } else if (ops.any(
+      (o) =>
+          o.operationType == 'create' &&
+          o.recordId == op.recordId &&
+          o.domain == op.domain,
+    )) {
+      return;
+    }
     await _save([...ops, op]);
   }
 
   Future<void> replaceAll(List<QueuedOperation> ops) => _save(ops);
 
-  Future<void> remove(String operationId) async => _save([for (final o in await load()) if (o.operationId != operationId) o]);
+  Future<void> remove(String operationId) async => _save([
+    for (final o in await load())
+      if (o.operationId != operationId) o,
+  ]);
 
   Future<void> clear() => _store.delete(_key);
 }

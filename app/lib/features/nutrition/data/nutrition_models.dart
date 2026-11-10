@@ -84,6 +84,37 @@ class FoodReference {
   );
 }
 
+/// Ukuran rumah tangga milik pengguna untuk satu makanan (mis. "1 centong" = 100 g). Tidak ada tabel konversi umum.
+class PortionMeasure {
+  PortionMeasure.fromJson(Map<String, dynamic> j)
+    : id = j['id'] as String,
+      label = j['label'] as String,
+      grams = j['grams'] as num,
+      basis = j['basis'] as String;
+  final String id, label, basis;
+  final num grams;
+  String get basisLabel => basis == 'weighed' ? 'ditimbang' : 'perkiraanmu';
+}
+
+/// Baris Tabel Komposisi Pangan Indonesia (OCR + pemeriksaan konsistensi otomatis, bukan diperiksa manusia).
+class ReferenceFood {
+  ReferenceFood.fromJson(Map<String, dynamic> j)
+    : code = j['code'] as String,
+      name = j['name'] as String,
+      provenance = j['provenance'] as String,
+      source = j['source'] as String,
+      completeness = j['completeness'] as String,
+      per100g = (j['per100g'] as Map<String, dynamic>).map(
+        (k, v) => MapEntry(k, v as num?),
+      );
+  final String code, name, provenance, source, completeness;
+  final Map<String, num?> per100g;
+  String get summary {
+    final kcal = per100g['calories'];
+    return '${kcal == null ? 'Energi belum tersedia' : '${kcal.round()} kkal'} per 100 gram';
+  }
+}
+
 /// Hasil dari sumber luar (Open Food Facts / USDA). Belum tersimpan; menjadi makanan pribadi
 /// berstatus "estimated" hanya setelah pengguna memilihnya.
 class FoodCandidate {
@@ -93,7 +124,9 @@ class FoodCandidate {
       brand = j['brand'] as String?,
       source = j['source'] as String,
       completeness = j['completeness'] as String,
-      per100g = (j['per100g'] as Map<String, dynamic>).map((k, v) => MapEntry(k, v as num?));
+      per100g = (j['per100g'] as Map<String, dynamic>).map(
+        (k, v) => MapEntry(k, v as num?),
+      );
   final String externalId, name, source, completeness;
   final String? brand;
   final Map<String, num?> per100g;
@@ -123,11 +156,18 @@ class LabelScan {
   LabelScan.fromJson(Map<String, dynamic> j)
     : status = j['status'] as String,
       code = j['code'] as String?,
-      candidate = j['candidate'] is Map<String, dynamic> ? FoodCandidate.fromJson(j['candidate'] as Map<String, dynamic>) : null,
+      candidate = j['candidate'] is Map<String, dynamic>
+          ? FoodCandidate.fromJson(j['candidate'] as Map<String, dynamic>)
+          : null,
       rawText = (j['rawText'] as String?) ?? '',
       basis = (j['label'] as Map<String, dynamic>?)?['basis'] as String?,
-      servingGrams = (j['label'] as Map<String, dynamic>?)?['servingGrams'] as num?,
-      printed = ((j['label'] as Map<String, dynamic>?)?['printed'] as Map<String, dynamic>?)?.map((k, v) => MapEntry(k, v as num?)) ?? const {};
+      servingGrams =
+          (j['label'] as Map<String, dynamic>?)?['servingGrams'] as num?,
+      printed =
+          ((j['label'] as Map<String, dynamic>?)?['printed']
+                  as Map<String, dynamic>?)
+              ?.map((k, v) => MapEntry(k, v as num?)) ??
+          const {};
   final String status;
   final String? code, basis;
   final FoodCandidate? candidate;
@@ -137,9 +177,17 @@ class LabelScan {
 }
 
 class PhotoMatch {
-  PhotoMatch(this.name, this.confidence, this.matches);
+  PhotoMatch(
+    this.name,
+    this.confidence,
+    this.matches, [
+    this.reference = const [],
+  ]);
   final String name, confidence;
   final List<FoodReference> matches;
+
+  /// Padanan gizi dari Tabel Komposisi Pangan Indonesia (pencarian kata + makna). Kosong bila tidak ada yang cocok.
+  final List<ReferenceFood> reference;
   String get confidenceLabel => switch (confidence) {
     'high' => 'Cukup yakin',
     'medium' => 'Kurang yakin',
@@ -154,11 +202,38 @@ class PhotoScan {
       code = j['code'] as String?,
       items = ((j['items'] as List?) ?? const [])
           .map((v) => v as Map<String, dynamic>)
-          .map((m) => PhotoMatch(m['name'] as String, m['confidence'] as String, ((m['matches'] as List?) ?? const []).map((f) => FoodReference.fromJson(f as Map<String, dynamic>)).toList()))
-          .toList();
+          .map(
+            (m) => PhotoMatch(
+              m['name'] as String,
+              m['confidence'] as String,
+              ((m['matches'] as List?) ?? const [])
+                  .map((f) => FoodReference.fromJson(f as Map<String, dynamic>))
+                  .toList(),
+              ((m['reference'] as List?) ?? const [])
+                  .map((f) => ReferenceFood.fromJson(f as Map<String, dynamic>))
+                  .toList(),
+            ),
+          )
+          .toList(),
+      modelHint = j['modelHint'] is Map<String, dynamic>
+          ? ModelHint.fromJson(j['modelHint'] as Map<String, dynamic>)
+          : null;
   final String status;
   final String? code;
   final List<PhotoMatch> items;
+
+  /// Perkiraan model yang masih diuji; terpisah dari item dan tidak pernah dicatat otomatis. Null bila tidak ada/tidak yakin.
+  final ModelHint? modelHint;
+}
+
+class ModelHint {
+  ModelHint.fromJson(Map<String, dynamic> j)
+    : label = j['label'] as String,
+      probability = (j['probability'] as num).toDouble(),
+      note = (j['note'] as String?) ?? '';
+  final String label, note;
+  final double probability;
+  int get percent => (probability * 100).round();
 }
 
 class MealItemDraft {

@@ -56,7 +56,10 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
     try {
       await ref.read(authRepositoryProvider).resendVerification(widget.email);
       if (!mounted) return;
-      setState(() => _message = 'Jika email ini terdaftar dan belum terverifikasi, tautan baru sudah dikirim.');
+      setState(
+        () => _message =
+            'Jika email ini terdaftar dan belum terverifikasi, tautan baru sudah dikirim.',
+      );
       _startCooldown();
     } catch (error) {
       if (mounted) setState(() => _error = messageFor(error));
@@ -71,41 +74,78 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
       onBack: () => context.go(Routes.login),
       bottom: PillButton(
         label: 'Saya sudah membuka tautannya, masuk',
-        onPressed: () => context.go('${Routes.login}?email=${Uri.encodeQueryComponent(widget.email)}'),
+        onPressed: () => context.go(
+          '${Routes.login}?email=${Uri.encodeQueryComponent(widget.email)}',
+        ),
       ),
       children: [
         const SizedBox(height: AppSpacing.lg),
         Container(
           height: 72,
           width: 72,
-          decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
-          child: const ExcludeSemantics(child: Icon(Icons.mail_outline_rounded, size: 34, color: AppColors.primary)),
+          decoration: const BoxDecoration(
+            color: AppColors.accent,
+            shape: BoxShape.circle,
+          ),
+          child: const ExcludeSemantics(
+            child: Icon(
+              Icons.mail_outline_rounded,
+              size: 34,
+              color: AppColors.primary,
+            ),
+          ),
         ),
         const SizedBox(height: AppSpacing.lg),
-        Semantics(header: true, child: Text('Periksa Emailmu', style: AppTypography.headline)),
+        Semantics(
+          header: true,
+          child: Text('Periksa Emailmu', style: AppTypography.headline),
+        ),
         const SizedBox(height: AppSpacing.xs),
-        Text('Kami telah mengirimkan tautan verifikasi untuk memastikan akunmu tetap aman.', style: AppTypography.secondary),
+        Text(
+          'Kami telah mengirimkan tautan verifikasi untuk memastikan akunmu tetap aman.',
+          style: AppTypography.secondary,
+        ),
         const SizedBox(height: AppSpacing.md),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppRadius.input), border: Border.all(color: AppColors.border)),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppRadius.input),
+            border: Border.all(color: AppColors.border),
+          ),
           child: Text(widget.email, style: AppTypography.bodyStrong),
         ),
         const SizedBox(height: AppSpacing.md),
         const InfoCard(
-          text: 'Akunmu baru dianggap terverifikasi setelah kamu membuka tautan di email. Tautan berlaku 1 jam.',
+          text:
+              'Akunmu baru dianggap terverifikasi setelah kamu membuka tautan di email. Tautan berlaku 1 jam.',
           tone: InfoTone.neutral,
         ),
         const SizedBox(height: AppSpacing.lg),
         PillButton(
-          label: _remaining > 0 ? 'Kirim ulang tautan ($_remaining dtk)' : 'Kirim ulang tautan',
+          label: _remaining > 0
+              ? 'Kirim ulang tautan ($_remaining dtk)'
+              : 'Kirim ulang tautan',
           kind: PillButtonKind.secondary,
           loading: _sending,
           onPressed: _remaining > 0 ? null : _resend,
         ),
-        if (_message != null) ...[const SizedBox(height: AppSpacing.sm), Semantics(liveRegion: true, child: InfoCard(text: _message!, tone: InfoTone.info, icon: Icons.check_circle_outline))],
-        if (_error != null) ...[const SizedBox(height: AppSpacing.sm), ErrorBanner(_error!)],
+        if (_message != null) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Semantics(
+            liveRegion: true,
+            child: InfoCard(
+              text: _message!,
+              tone: InfoTone.info,
+              icon: Icons.check_circle_outline,
+            ),
+          ),
+        ],
+        if (_error != null) ...[
+          const SizedBox(height: AppSpacing.sm),
+          ErrorBanner(_error!),
+        ],
       ],
     );
   }

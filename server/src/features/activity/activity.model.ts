@@ -1,3 +1,5 @@
+/** Status kualitas yang dihitung pada total/tujuan/tren. needs_review (termasuk impor yang bertabrakan waktu) tidak dihitung. */
+export const ACTIVITY_COUNTED_QUALITY = ["user_reported", "device_reported"] as const;
 import { Prisma } from "../../generated/prisma/client.ts";
 
 export function activityEnd(startedAt: string | Date, durationMinutes: number) {
@@ -21,7 +23,7 @@ type Report = {
   qualityStatus: string;
 };
 export function summarizeActivities(rows: Report[]) {
-  const eligible = rows.filter((r) => r.qualityStatus === "user_reported");
+  const eligible = rows.filter((r) => (ACTIVITY_COUNTED_QUALITY as readonly string[]).includes(r.qualityStatus));
   function metric(key: "distanceKm" | "steps") {
     const values = eligible.map((r) => r[key]).filter((v) => v !== null);
     return {

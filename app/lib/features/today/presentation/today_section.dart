@@ -198,7 +198,6 @@ class _TodaySectionState extends ConsumerState<TodaySection>
   }
 }
 
-
 class _MedicationCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -209,8 +208,12 @@ class _MedicationCard extends ConsumerWidget {
       tint: DomainStyle.medication.tint,
       ink: DomainStyle.medication.ink,
       title: 'Obat',
-      value: empty ? null : '${today.taken + today.skipped} dari ${today.scheduled} dikonfirmasi',
-      valueCaption: empty || today.unknown == 0 ? null : '${today.unknown} belum dikonfirmasi',
+      value: empty
+          ? null
+          : '${today.taken + today.skipped} dari ${today.scheduled} dikonfirmasi',
+      valueCaption: empty || today.unknown == 0
+          ? null
+          : '${today.unknown} belum dikonfirmasi',
       emptyMessage: 'Belum ada jadwal hari ini.',
       primaryLabel: 'Tambah obat',
       onPrimary: () => context.push(Routes.addMedication),
@@ -223,14 +226,22 @@ class _MedicationCard extends ConsumerWidget {
 class _GoalsCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final goals = ref.watch(goalsListProvider).value?.where((g) => g.status == 'active').toList() ?? const [];
+    final goals =
+        ref
+            .watch(goalsListProvider)
+            .value
+            ?.where((g) => g.status == 'active')
+            .toList() ??
+        const [];
     return MetricCard(
       icon: DomainStyle.goal.icon,
       tint: DomainStyle.goal.tint,
       ink: DomainStyle.goal.ink,
       title: 'Tujuan personal',
       value: goals.isEmpty ? null : '${goals.length} tujuan aktif',
-      valueCaption: goals.isEmpty ? null : goals.take(2).map((g) => g.title).join(' · '),
+      valueCaption: goals.isEmpty
+          ? null
+          : goals.take(2).map((g) => g.title).join(' · '),
       emptyMessage: 'Belum ada tujuan.',
       primaryLabel: 'Buat tujuan',
       onPrimary: () => context.push(Routes.addGoal),

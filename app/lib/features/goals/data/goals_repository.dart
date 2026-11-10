@@ -12,7 +12,8 @@ const goalTypeHints = {
   'activity_minutes': 'Dihitung otomatis dari sesi aktivitas yang kamu catat.',
   'walking_sessions': 'Dihitung otomatis dari sesi jalan kaki.',
   'record_meals': 'Jumlah hari kamu mencatat makanan.',
-  'record_glucose': 'Jumlah hari kamu mencatat glukosa. Bukan target nilai glukosa.',
+  'record_glucose':
+      'Jumlah hari kamu mencatat glukosa. Bukan target nilai glukosa.',
 };
 
 class GoalProgress {
@@ -39,7 +40,9 @@ class Goal {
       period = j['period'] as String,
       status = j['status'] as String,
       version = j['version'] as int,
-      progress = j['progress'] is Map<String, dynamic> ? GoalProgress.fromJson(j['progress'] as Map<String, dynamic>) : null;
+      progress = j['progress'] is Map<String, dynamic>
+          ? GoalProgress.fromJson(j['progress'] as Map<String, dynamic>)
+          : null;
   final String id, title, type, period, status;
   final num target;
   final int version;
@@ -49,9 +52,27 @@ class Goal {
 }
 
 class GoalsRepository extends AccountScopedRepository {
-  GoalsRepository(super.api, {required super.isCurrentAccount, super.enqueueOffline});
-  Future<List<Goal>> list() async => ((await api.get('/api/me/goals?limit=50')).object['items'] as List).map((v) => Goal.fromJson(v as Map<String, dynamic>)).toList();
-  Future<void> create(Map<String, dynamic> body) async => write('POST', '/api/me/goals', body);
-  Future<void> update(String id, Map<String, dynamic> body) async => write('PATCH', '/api/me/goals/$id', body);
-  Future<void> checkin(String goalId, Map<String, dynamic> body) async => write('POST', '/api/me/goals/$goalId/checkins', body, queue: (domain: 'goal_checkin', recordId: body['id'] as String, parentId: goalId));
+  GoalsRepository(
+    super.api, {
+    required super.isCurrentAccount,
+    super.enqueueOffline,
+  });
+  Future<List<Goal>> list() async =>
+      ((await api.get('/api/me/goals?limit=50')).object['items'] as List)
+          .map((v) => Goal.fromJson(v as Map<String, dynamic>))
+          .toList();
+  Future<void> create(Map<String, dynamic> body) async =>
+      write('POST', '/api/me/goals', body);
+  Future<void> update(String id, Map<String, dynamic> body) async =>
+      write('PATCH', '/api/me/goals/$id', body);
+  Future<void> checkin(String goalId, Map<String, dynamic> body) async => write(
+    'POST',
+    '/api/me/goals/$goalId/checkins',
+    body,
+    queue: (
+      domain: 'goal_checkin',
+      recordId: body['id'] as String,
+      parentId: goalId,
+    ),
+  );
 }

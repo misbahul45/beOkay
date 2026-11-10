@@ -28,13 +28,17 @@ class SettingsScreen extends ConsumerWidget {
   }) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await ref.read(preferencesControllerProvider.notifier).save(
+      await ref
+          .read(preferencesControllerProvider.notifier)
+          .save(
             timezone: timezone,
             glucoseUnit: glucoseUnit,
             textSize: textSize,
             reduceMotion: reduceMotion,
           );
-      messenger.showSnackBar(const SnackBar(content: Text('Pengaturan tersimpan.')));
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Pengaturan tersimpan.')),
+      );
     } catch (error) {
       messenger.showSnackBar(SnackBar(content: Text(messageFor(error))));
     }
@@ -47,12 +51,20 @@ class SettingsScreen extends ConsumerWidget {
         title: const Text('Keluar dari akun?'),
         content: const Text('Kamu perlu masuk lagi untuk membuka aplikasi.'),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Batal')),
-          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Keluar')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Keluar'),
+          ),
         ],
       ),
     );
-    if (confirmed == true) await ref.read(authControllerProvider.notifier).signOut();
+    if (confirmed == true) {
+      await ref.read(authControllerProvider.notifier).signOut();
+    }
   }
 
   @override
@@ -64,14 +76,25 @@ class SettingsScreen extends ConsumerWidget {
         SettingsGroup(
           title: 'Preferensi',
           children: [
-            const SettingsRow(icon: Icons.language, title: 'Bahasa', value: 'Bahasa Indonesia'),
+            const SettingsRow(
+              icon: Icons.language,
+              title: 'Bahasa',
+              value: 'Bahasa Indonesia',
+            ),
             SettingsRow(
               icon: Icons.schedule,
               title: 'Zona waktu',
               value: timezoneLabel(preferences.timezone),
               onTap: () async {
-                final picked = await showTimezonePicker(context, current: preferences.timezone);
-                if (picked != null && picked != preferences.timezone && context.mounted) await _save(context, ref, timezone: picked);
+                final picked = await showTimezonePicker(
+                  context,
+                  current: preferences.timezone,
+                );
+                if (picked != null &&
+                    picked != preferences.timezone &&
+                    context.mounted) {
+                  await _save(context, ref, timezone: picked);
+                }
               },
             ),
             SettingsRow(
@@ -84,9 +107,16 @@ class SettingsScreen extends ConsumerWidget {
                   context,
                   title: 'Satuan Glukosa',
                   current: preferences.glucoseUnit,
-                  options: [for (final unit in GlucoseUnit.values) (unit, unit.label, null)],
+                  options: [
+                    for (final unit in GlucoseUnit.values)
+                      (unit, unit.label, null),
+                  ],
                 );
-                if (picked != null && picked != preferences.glucoseUnit && context.mounted) await _save(context, ref, glucoseUnit: picked);
+                if (picked != null &&
+                    picked != preferences.glucoseUnit &&
+                    context.mounted) {
+                  await _save(context, ref, glucoseUnit: picked);
+                }
               },
             ),
           ],
@@ -104,9 +134,16 @@ class SettingsScreen extends ConsumerWidget {
                   context,
                   title: 'Ukuran Teks',
                   current: preferences.textSize,
-                  options: [for (final size in TextSizePreference.values) (size, size.label, null)],
+                  options: [
+                    for (final size in TextSizePreference.values)
+                      (size, size.label, null),
+                  ],
                 );
-                if (picked != null && picked != preferences.textSize && context.mounted) await _save(context, ref, textSize: picked);
+                if (picked != null &&
+                    picked != preferences.textSize &&
+                    context.mounted) {
+                  await _save(context, ref, textSize: picked);
+                }
               },
             ),
             SettingsRow(
@@ -124,14 +161,38 @@ class SettingsScreen extends ConsumerWidget {
         SettingsGroup(
           title: 'Privasi & keamanan',
           children: [
-            SettingsRow(icon: Icons.verified_user_outlined, title: 'Persetujuan data', onTap: () => context.push(Routes.consentManagement)),
-            SettingsRow(icon: Icons.lock_outline, title: 'Keamanan akun', onTap: () => context.push(Routes.accountSecurity)),
+            SettingsRow(
+              icon: Icons.verified_user_outlined,
+              title: 'Persetujuan data',
+              onTap: () => context.push(Routes.consentManagement),
+            ),
+            SettingsRow(
+              icon: Icons.lock_outline,
+              title: 'Keamanan akun',
+              onTap: () => context.push(Routes.accountSecurity),
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.md),
-        SettingsGroup(children: [SettingsRow(icon: Icons.logout, title: 'Keluar', destructive: true, onTap: () => _signOut(context, ref))]),
+        SettingsGroup(
+          children: [
+            SettingsRow(
+              icon: Icons.logout,
+              title: 'Keluar',
+              destructive: true,
+              onTap: () => _signOut(context, ref),
+            ),
+          ],
+        ),
         const SizedBox(height: AppSpacing.lg),
-        Center(child: Text('beOkay · versi 1.0.0', style: AppTypography.caption.copyWith(color: AppColors.textSecondary))),
+        Center(
+          child: Text(
+            'beOkay · versi 1.0.0',
+            style: AppTypography.caption.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ),
       ],
     );
   }

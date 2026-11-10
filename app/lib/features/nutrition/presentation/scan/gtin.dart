@@ -1,6 +1,9 @@
 /// Validasi GTIN-8/12/13/14 dengan digit pemeriksa (sama dengan server); mencegah kode salah ketik dikirim.
 bool validGtin(String code) {
-  if (!RegExp(r'^\d+$').hasMatch(code) || ![8, 12, 13, 14].contains(code.length)) return false;
+  if (!RegExp(r'^\d+$').hasMatch(code) ||
+      ![8, 12, 13, 14].contains(code.length)) {
+    return false;
+  }
   final digits = code.split('').map(int.parse).toList();
   final check = digits.removeLast();
   var sum = 0;

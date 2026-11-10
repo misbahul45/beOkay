@@ -17,7 +17,8 @@ class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
 
   @override
-  ConsumerState<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  ConsumerState<ForgotPasswordScreen> createState() =>
+      _ForgotPasswordScreenState();
 }
 
 class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
@@ -40,7 +41,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       _error = null;
     });
     try {
-      await ref.read(authRepositoryProvider).requestPasswordReset(_email.text.trim());
+      await ref
+          .read(authRepositoryProvider)
+          .requestPasswordReset(_email.text.trim());
       if (mounted) setState(() => _sent = true);
     } catch (error) {
       if (mounted) setState(() => _error = messageFor(error));
@@ -54,24 +57,44 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     return PageScaffold(
       onBack: () => context.go(Routes.login),
       bottom: _sent
-          ? PillButton(label: 'Kembali ke Masuk', onPressed: () => context.go(Routes.login))
+          ? PillButton(
+              label: 'Kembali ke Masuk',
+              onPressed: () => context.go(Routes.login),
+            )
           : Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                PillButton(label: 'Kirim Tautan', loading: _loading, onPressed: _submit),
+                PillButton(
+                  label: 'Kirim Tautan',
+                  loading: _loading,
+                  onPressed: _submit,
+                ),
                 const SizedBox(height: AppSpacing.xxs),
-                TextButton(onPressed: () => context.go(Routes.login), child: Text('Kembali ke Masuk', style: AppTypography.bodyStrong)),
+                TextButton(
+                  onPressed: () => context.go(Routes.login),
+                  child: Text(
+                    'Kembali ke Masuk',
+                    style: AppTypography.bodyStrong,
+                  ),
+                ),
               ],
             ),
       children: [
-        Semantics(header: true, child: Text('Lupa Kata Sandi?', style: AppTypography.headline)),
+        Semantics(
+          header: true,
+          child: Text('Lupa Kata Sandi?', style: AppTypography.headline),
+        ),
         const SizedBox(height: AppSpacing.xs),
-        Text('Masukkan email akunmu. Kami akan mengirim tautan untuk mengatur ulang kata sandi.', style: AppTypography.secondary),
+        Text(
+          'Masukkan email akunmu. Kami akan mengirim tautan untuk mengatur ulang kata sandi.',
+          style: AppTypography.secondary,
+        ),
         const SizedBox(height: AppSpacing.lg),
         if (_sent)
           const InfoCard(
             title: 'Periksa emailmu',
-            text: 'Jika email itu terdaftar, tautan untuk mengatur ulang kata sandi sudah dikirim. Tautan berlaku 1 jam.',
+            text:
+                'Jika email itu terdaftar, tautan untuk mengatur ulang kata sandi sudah dikirim. Tautan berlaku 1 jam.',
             icon: Icons.mark_email_read_outlined,
           )
         else
@@ -88,7 +111,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               validator: validateEmail,
             ),
           ),
-        if (_error != null) ...[const SizedBox(height: AppSpacing.md), ErrorBanner(_error!)],
+        if (_error != null) ...[
+          const SizedBox(height: AppSpacing.md),
+          ErrorBanner(_error!),
+        ],
       ],
     );
   }

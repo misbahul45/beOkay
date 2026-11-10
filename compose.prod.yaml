@@ -71,6 +71,21 @@ services:
       SMTP_SECURE: ${SMTP_SECURE:-false}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
+      # Opsional; kosong = fitur terkait nonaktif (lihat .env.prod.example). Rahasia lewat env/secret, bukan berkas.
+      USDA_API_KEY: ${USDA_API_KEY:-}
+      BRAVE_API_KEY: ${BRAVE_API_KEY:-}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      MISTRAL_EMBEDDING_MODEL: ${MISTRAL_EMBEDDING_MODEL:-}
+      MISTRAL_VISION_MODEL: ${MISTRAL_VISION_MODEL:-}
+      MISTRAL_OCR_MODEL: ${MISTRAL_OCR_MODEL:-}
+      # Push FCM: dikirim dari server (pengingat). Tanpa keduanya, push nonaktif dan pengingat hanya lokal.
+      OUTBOX_WORKER_ENABLED: ${OUTBOX_WORKER_ENABLED:-true}
+      MISTRAL_AGENT_MODEL: ${MISTRAL_AGENT_MODEL:-}
+      MODAL_ML_URL: ${MODAL_ML_URL:-}
+      MODAL_ML_AUTH_TOKEN: ${MODAL_ML_AUTH_TOKEN:-}
+      FCM_PROJECT_ID: ${FCM_PROJECT_ID:-}
+      FCM_SERVICE_ACCOUNT_JSON: ${FCM_SERVICE_ACCOUNT_JSON:-}
+      PUSH_DISPATCH_ENABLED: ${PUSH_DISPATCH_ENABLED:-true}
     ports:
       - "127.0.0.1:${API_HOST_PORT:-3000}:3000"
     networks: [backend, default]

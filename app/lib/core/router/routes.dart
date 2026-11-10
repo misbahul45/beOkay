@@ -27,6 +27,10 @@ abstract final class Routes {
   static const addMedication = '/medications/new';
   static const sync = '/sync';
   static const trends = '/trends';
+  static const foodPreferences = '/profile/food-preferences';
+  static const reminders = '/reminders';
+  static const coach = '/coach';
+  static const community = '/community';
   static const goals = '/goals';
   static const addGoal = '/goals/new';
   static const profile = '/profile';

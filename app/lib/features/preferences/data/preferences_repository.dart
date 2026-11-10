@@ -6,7 +6,8 @@ class PreferencesRepository {
 
   final ApiClient _api;
 
-  Future<Preferences> get() async => Preferences.fromJson((await _api.get('/api/me/preferences')).object);
+  Future<Preferences> get() async =>
+      Preferences.fromJson((await _api.get('/api/me/preferences')).object);
 
   Future<Preferences> update({
     String? timezone,
@@ -20,6 +21,8 @@ class PreferencesRepository {
       'textSize': ?textSize?.wire,
       'reduceMotion': ?reduceMotion,
     };
-    return Preferences.fromJson((await _api.patch('/api/me/preferences', body: body)).object);
+    return Preferences.fromJson(
+      (await _api.patch('/api/me/preferences', body: body)).object,
+    );
   }
 }

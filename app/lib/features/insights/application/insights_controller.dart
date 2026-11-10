@@ -4,15 +4,21 @@ import '../../../core/providers.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../consent/application/consent_controller.dart';
 import '../../preferences/application/preferences_controller.dart';
+import '../data/contextual_insights.dart';
 import '../data/daily_insights.dart';
 import '../data/insights_repository.dart';
 import '../data/trends.dart';
 import '../data/weekly_insights.dart';
 
-final insightsRepositoryProvider = Provider<InsightsRepository>((ref) => InsightsRepository(ref.watch(apiClientProvider)));
+final insightsRepositoryProvider = Provider<InsightsRepository>(
+  (ref) => InsightsRepository(ref.watch(apiClientProvider)),
+);
 
 /// Selected day for the Insights tab; null means "today in the user's timezone" (server default).
-final insightsDateProvider = NotifierProvider.autoDispose<InsightsDateNotifier, String?>(InsightsDateNotifier.new);
+final insightsDateProvider =
+    NotifierProvider.autoDispose<InsightsDateNotifier, String?>(
+      InsightsDateNotifier.new,
+    );
 
 class InsightsDateNotifier extends Notifier<String?> {
   @override
@@ -21,23 +27,35 @@ class InsightsDateNotifier extends Notifier<String?> {
   void set(String? date) => state = date;
 }
 
-final dailyInsightsProvider = FutureProvider.autoDispose<DailyInsights?>((ref) async {
+final dailyInsightsProvider = FutureProvider.autoDispose<DailyInsights?>((
+  ref,
+) async {
   if (ref.watch(authControllerProvider) is! AuthAuthenticated) return null;
   final date = ref.watch(insightsDateProvider);
-  await Future.wait([ref.watch(consentControllerProvider.future), ref.watch(preferencesControllerProvider.future)]);
+  await Future.wait([
+    ref.watch(consentControllerProvider.future),
+    ref.watch(preferencesControllerProvider.future),
+  ]);
   return ref.watch(insightsRepositoryProvider).daily(date: date);
 });
 
 /// Ringkasan mingguan lintas domain untuk hari yang sedang dilihat.
-final weeklyInsightsProvider = FutureProvider.autoDispose<WeeklyInsights?>((ref) async {
+final weeklyInsightsProvider = FutureProvider.autoDispose<WeeklyInsights?>((
+  ref,
+) async {
   if (ref.watch(authControllerProvider) is! AuthAuthenticated) return null;
   final date = ref.watch(insightsDateProvider);
-  await Future.wait([ref.watch(consentControllerProvider.future), ref.watch(preferencesControllerProvider.future)]);
+  await Future.wait([
+    ref.watch(consentControllerProvider.future),
+    ref.watch(preferencesControllerProvider.future),
+  ]);
   return ref.watch(insightsRepositoryProvider).weekly(date: date);
 });
 
 /// Rentang tren (hari): 7, 14, 30, atau 90. Satu pilihan untuk semua grafik.
-final trendRangeProvider = NotifierProvider<TrendRangeNotifier, int>(TrendRangeNotifier.new);
+final trendRangeProvider = NotifierProvider<TrendRangeNotifier, int>(
+  TrendRangeNotifier.new,
+);
 
 class TrendRangeNotifier extends Notifier<int> {
   @override
@@ -48,6 +66,24 @@ class TrendRangeNotifier extends Notifier<int> {
 final trendsProvider = FutureProvider.autoDispose<Trends?>((ref) async {
   if (ref.watch(authControllerProvider) is! AuthAuthenticated) return null;
   final days = ref.watch(trendRangeProvider);
-  await Future.wait([ref.watch(consentControllerProvider.future), ref.watch(preferencesControllerProvider.future)]);
+  await Future.wait([
+    ref.watch(consentControllerProvider.future),
+    ref.watch(preferencesControllerProvider.future),
+  ]);
   return ref.watch(insightsRepositoryProvider).trends(days: days);
 });
+
+/// Opsional: bila gagal atau persetujuan belum ada, kartu disembunyikan (tanpa pesan galat).
+final contextualInsightsProvider =
+    FutureProvider.autoDispose<ContextualInsights?>((ref) async {
+      if (ref.watch(authControllerProvider) is! AuthAuthenticated) return null;
+      await Future.wait([
+        ref.watch(consentControllerProvider.future),
+        ref.watch(preferencesControllerProvider.future),
+      ]);
+      try {
+        return await ref.watch(insightsRepositoryProvider).contextual();
+      } catch (_) {
+        return null;
+      }
+    });

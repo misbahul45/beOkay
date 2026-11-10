@@ -22,7 +22,15 @@ const _labels = {
 /// Layar periksa-sebelum-simpan untuk hasil kode batang dan label. Nilai bisa diubah; yang kosong
 /// tetap kosong (tidak diganti 0). Disimpan sebagai makanan pribadi berstatus "estimasi".
 class FoodReviewScreen extends StatefulWidget {
-  const FoodReviewScreen({super.key, required this.candidate, required this.repository, required this.title, required this.provenance, this.notes = const [], this.requireName = false});
+  const FoodReviewScreen({
+    super.key,
+    required this.candidate,
+    required this.repository,
+    required this.title,
+    required this.provenance,
+    this.notes = const [],
+    this.requireName = false,
+  });
   final FoodCandidate candidate;
   final NutritionRepository repository;
   final String title, provenance;
@@ -34,14 +42,19 @@ class FoodReviewScreen extends StatefulWidget {
 
 class _FoodReviewScreenState extends State<FoodReviewScreen> {
   final form = GlobalKey<FormState>();
-  late final name = TextEditingController(text: widget.requireName ? '' : widget.candidate.name);
+  late final name = TextEditingController(
+    text: widget.requireName ? '' : widget.candidate.name,
+  );
   late final fields = {
-    for (final k in _labels.keys) k: TextEditingController(text: _fmt(widget.candidate.per100g[k])),
+    for (final k in _labels.keys)
+      k: TextEditingController(text: _fmt(widget.candidate.per100g[k])),
   };
   bool saving = false;
   Object? error;
 
-  static String _fmt(num? v) => v == null ? '' : (v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(1));
+  static String _fmt(num? v) => v == null
+      ? ''
+      : (v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(1));
 
   @override
   void dispose() {
@@ -62,11 +75,20 @@ class _FoodReviewScreenState extends State<FoodReviewScreen> {
       final c = widget.candidate;
       final trimmed = name.text.trim();
       final food = await widget.repository.saveFood({
-        'name': c.brand == null || widget.requireName ? trimmed : '$trimmed (${c.brand})',
+        'name': c.brand == null || widget.requireName
+            ? trimmed
+            : '$trimmed (${c.brand})',
         'source': c.source,
         'sourceVersion': c.externalId,
         'status': 'estimated',
-        'per100g': fields.map((k, v) => MapEntry(k, v.text.trim().isEmpty ? null : num.parse(v.text.trim().replaceAll(',', '.')))),
+        'per100g': fields.map(
+          (k, v) => MapEntry(
+            k,
+            v.text.trim().isEmpty
+                ? null
+                : num.parse(v.text.trim().replaceAll(',', '.')),
+          ),
+        ),
       });
       if (mounted) Navigator.pop(context, food);
     } catch (e) {
@@ -82,21 +104,29 @@ class _FoodReviewScreenState extends State<FoodReviewScreen> {
     return PageScaffold(
       title: widget.title,
       onBack: () => Navigator.pop(context),
-      bottom: PillButton(label: 'Simpan sebagai makanan', loading: saving, onPressed: save),
+      bottom: PillButton(
+        label: 'Simpan sebagai makanan',
+        loading: saving,
+        onPressed: save,
+      ),
       children: [
         Form(
           key: form,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Align(alignment: Alignment.centerLeft, child: ProvenanceChip(widget.provenance)),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: ProvenanceChip(widget.provenance),
+              ),
               const SizedBox(height: AppSpacing.sm),
               AppTextField(
                 label: 'Nama produk',
                 hint: 'mis. Sereal gandum',
                 controller: name,
                 maxLength: 120,
-                validator: (v) => (v ?? '').trim().isEmpty ? 'Isi nama produk.' : null,
+                validator: (v) =>
+                    (v ?? '').trim().isEmpty ? 'Isi nama produk.' : null,
               ),
               const SizedBox(height: AppSpacing.md),
               Text('Nilai per 100 g', style: AppTypography.secondaryStrong),
@@ -108,18 +138,32 @@ class _FoodReviewScreenState extends State<FoodReviewScreen> {
                     label: '${e.value.$1} (${e.value.$2})',
                     hint: 'Kosong = belum diketahui',
                     controller: fields[e.key]!,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     onChanged: (_) => setState(() {}),
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) return null;
                       final n = num.tryParse(v.trim().replaceAll(',', '.'));
-                      return n == null || n < 0 || n > 1000 ? 'Isi angka 0–1000 atau kosongkan.' : null;
+                      return n == null || n < 0 || n > 1000
+                          ? 'Isi angka 0–1000 atau kosongkan.'
+                          : null;
                     },
                   ),
                 ),
-              if (unknown > 0) InfoCard(tone: InfoTone.neutral, text: '$unknown nilai dikosongkan karena tidak tersedia atau tidak terbaca. Itu berbeda dari nol.'),
-              for (final n in widget.notes) ...[const SizedBox(height: AppSpacing.sm), InfoCard(tone: InfoTone.info, text: n)],
-              if (error != null) ...[const SizedBox(height: AppSpacing.sm), ErrorBanner(messageFor(error!))],
+              if (unknown > 0)
+                Text(
+                  '$unknown nilai belum ada (bukan nol).',
+                  style: AppTypography.caption,
+                ),
+              for (final n in widget.notes) ...[
+                const SizedBox(height: AppSpacing.sm),
+                InfoCard(tone: InfoTone.info, text: n),
+              ],
+              if (error != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                ErrorBanner(messageFor(error!)),
+              ],
             ],
           ),
         ),

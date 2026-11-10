@@ -203,13 +203,7 @@ class _HealthFormState extends ConsumerState<_HealthForm> {
             style: AppTypography.secondary,
           ),
           const SizedBox(height: AppSpacing.md),
-          const InfoCard(
-            text:
-                'Dilaporkan sendiri oleh kamu. beOkay tidak memverifikasi diagnosis dan tidak memberi saran medis. Kamu boleh memilih "Belum yakin".',
-            icon: Icons.person_outline,
-            tone: InfoTone.neutral,
-          ),
-          const SizedBox(height: AppSpacing.lg),
+
           Semantics(
             header: true,
             child: Text(

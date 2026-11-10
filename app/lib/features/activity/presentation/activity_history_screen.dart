@@ -13,6 +13,7 @@ import '../../../core/widgets/pill_button.dart';
 import '../application/activity_controller.dart';
 import '../data/activity_models.dart';
 import 'activity_summary_card.dart';
+import 'device_import_section.dart';
 
 class ActivityHistoryScreen extends ConsumerStatefulWidget {
   const ActivityHistoryScreen({super.key, this.initialDate});
@@ -46,7 +47,9 @@ class _ActivityHistoryState extends ConsumerState<ActivityHistoryScreen> {
           kind: PillButtonKind.secondary,
           onPressed: () => context.push(Routes.activityWeek),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
+        const DeviceImportSection(),
+        const SizedBox(height: 4),
         Wrap(
           spacing: 8,
           children: [

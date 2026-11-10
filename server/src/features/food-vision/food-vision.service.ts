@@ -5,6 +5,7 @@ import { AppError } from "../../shared/errors/app-error.ts";
 import { consentService } from "../consent/consent.service.ts";
 import { buildCandidate, ProviderError, type FoodCandidate } from "../food-discovery/food-candidate.ts";
 import { nutritionService } from "../nutrition/nutrition.service.ts";
+import { referenceService } from "../food-reference/reference.service.ts";
 import { type ImageMime, toDataUrl } from "./image.ts";
 import { parseLabel } from "./label-parser.ts";
 import { createMistralClient } from "./mistral.client.ts";
@@ -12,6 +13,8 @@ import { createMistralClient } from "./mistral.client.ts";
 type Mistral = ReturnType<typeof createMistralClient>;
 type Food = { id: string; name: string; [k: string]: unknown };
 type Search = (userId: string, q: string) => Promise<{ items: Food[] }>;
+/** Pencarian gizi dari referensi (RAG: kata + makna) tanpa data pengguna. */
+type Reference = (q: string) => Promise<{ items: unknown[] }>;
 
 const WINDOW_MS = 10 * 60_000;
 const MAX_CALLS = 10;
@@ -25,12 +28,41 @@ export const photoOutput = z.object({
     .default([]),
 });
 
+const NAME_STOP = new Set(["dan", "dengan", "atau", "yang", "masakan", "segar"]);
+const words = (s: string) => s.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "").replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length >= 3 && !NAME_STOP.has(w));
+const near = (a: string, b: string) => {
+  if (a === b) return true;
+  if (a.length < 5 || b.length < 5 || a[0] !== b[0] || Math.abs(a.length - b.length) > 1) return false; // huruf pertama harus sama: sambal ≠ jambal
+  // jarak edit ≤ 1 (salah ketik / ejaan: krupuk ↔ kerupuk)
+  let i = 0, j = 0, edits = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) { i++; j++; continue; }
+    if (++edits > 1) return false;
+    if (a.length > b.length) i++;
+    else if (a.length < b.length) j++;
+    else { i++; j++; }
+  }
+  return edits + (a.length - i) + (b.length - j) <= 1;
+};
+/**
+ * Padanan referensi hanya dipakai bila SETIAP kata penting pada nama dari foto ada pada nama referensi.
+ * Pencarian makna (embedding) selalu mengembalikan tetangga terdekat, termasuk yang salah ("nasi goreng" → "gendar goreng");
+ * menampilkan gizi makanan yang keliru lebih buruk daripada mengaku belum ketemu.
+ */
+export function referenceCovers(photoName: string, referenceName: string): boolean {
+  const need = words(photoName);
+  if (need.length === 0) return false;
+  const have = words(referenceName);
+  return need.every((n) => have.some((h) => near(n, h)));
+}
+
 const sanitize = (s: string) => s.replace(/[\u0000-\u001f\u007f<>]/g, " ").replace(/\s+/g, " ").trim();
 
-export function createFoodVision(deps: { mistral: Mistral; search?: Search; now?: () => number }) {
+export function createFoodVision(deps: { mistral: Mistral; search?: Search; reference?: Reference; now?: () => number }) {
   const calls = new Map<string, number[]>();
   const now = deps.now ?? Date.now;
   const search: Search = deps.search ?? ((u, q) => nutritionService.searchFoods(u, q));
+  const reference: Reference = deps.reference ?? ((q) => referenceService.search(q, 2));
 
   function allow(userId: string) {
     const t = now();
@@ -95,7 +127,14 @@ export function createFoodVision(deps: { mistral: Mistral; search?: Search; now?
               matches = (await search(userId, t)).items.slice(0, 3);
               if (matches.length) break;
             }
-            items.push({ name, confidence: it.confidence, matches });
+            // Gizi dari referensi (hybrid kata + makna). Gagal/kosong tidak mengganggu hasil foto; nilai tidak pernah ditebak dari gambar.
+            let ref: unknown[] = [];
+            try {
+              ref = (await reference(name)).items.filter((x) => referenceCovers(name, String((x as { name?: unknown }).name ?? ""))).slice(0, 2);
+            } catch {
+              ref = [];
+            }
+            items.push({ name, confidence: it.confidence, matches, reference: ref });
           }
           return { status: items.length ? ("IDENTIFIED" as const) : ("NOT_FOOD" as const), items };
         },

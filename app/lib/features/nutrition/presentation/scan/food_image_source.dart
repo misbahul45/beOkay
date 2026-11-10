@@ -24,4 +24,6 @@ class DeviceFoodImagePicker implements FoodImagePicker {
   }
 }
 
-final foodImagePickerProvider = Provider<FoodImagePicker>((_) => DeviceFoodImagePicker());
+final foodImagePickerProvider = Provider<FoodImagePicker>(
+  (_) => DeviceFoodImagePicker(),
+);

@@ -1,0 +1,26 @@
+meta {
+  name: Upcoming reminder occurrences
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/me/reminders/upcoming?days=3
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+tests {
+  test("Upcoming reminder occurrences", function () {
+    expect(res.status).to.equal(200); expect(res.body.items).to.be.an("array");
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken and otherSessionToken are supplied by the runner.
+  DST-safe occurrences for the user's timezone, to be scheduled on the device.
+}

@@ -37,7 +37,7 @@ Sumber spesifikasi: *Database & UI/UX Master Blueprint v0.1* (proposed design, b
 - Dev stack (root): `docker compose up --build` — API `127.0.0.1:3000`, Postgres `127.0.0.1:5433`, Mailpit UI `127.0.0.1:8025`. Container dev menjalankan `db:generate` dan `db:migrate:deploy` saat start.
 - Perintah satu kali di dev: `docker compose exec api bun run typecheck` (atau `docker compose run --rm api ...`).
 - Stack uji terisolasi (root): `docker compose -f compose.test.yaml up -d --wait api-test`, lalu `docker compose -f compose.test.yaml run --rm tester bun test`; bersihkan dengan `docker compose -f compose.test.yaml down -v`. Setelah mengubah dependensi, rebuild image dan hapus volume `node_modules` (`down -v`), karena Docker hanya mengisi volume saat pertama dibuat.
-- Membuat migrasi baru: jalankan `bun run db:migrate:dev -- --create-only --name <nama>` di container uji (DB kosong), lalu tambahkan CHECK/partial index lewat SQL dan verifikasi `prisma migrate diff` (hanya noise `gen_random_uuid` pada 4 tabel auth yang boleh tersisa).
+- Membuat migrasi baru: jalankan `bun run db:migrate:dev -- --create-only --name <nama>` di container uji (DB kosong), lalu tambahkan CHECK/partial index lewat SQL dan verifikasi `prisma migrate diff` (hanya noise `gen_random_uuid` pada 4 tabel auth dan indeks HNSW `food_reference_embedding_idx` yang boleh tersisa; HNSW pgvector tidak dapat diekspresikan di skema Prisma).
 - Prod stack (root): `docker compose -f compose.prod.yaml --env-file .env.prod up -d --build` (wajib: password DB, `BETTER_AUTH_*`, `EMAIL_FROM`, `SMTP_HOST`).
 - `bun run typecheck` · `bun run db:generate` · `bun run db:migrate:dev` · `bun run db:migrate:deploy` · `bun run db:studio`.
 - **Pakai script `db:*`, bukan `bunx prisma ...`**: `bunx`/`bun run prisma` tidak memuat `.env` untuk `prisma.config.ts` (DATABASE_URL tidak ter-resolve). Script memanggil `bun --bun ./node_modules/.bin/prisma`.
@@ -49,6 +49,9 @@ Sumber spesifikasi: *Database & UI/UX Master Blueprint v0.1* (proposed design, b
 - Auth = Better Auth (keputusan pengguna). Model auth di `prisma/schema.prisma` dihasilkan CLI: ubah `src/features/auth/auth.ts` lalu `bun run auth:generate` (di container), bukan edit manual. Pengecualian: baris relasi balik ke tabel domain di model `Users` ditambahkan manual; tambahkan lagi bila `auth:generate` menimpanya. Jangan buat mekanisme password sendiri. Nama tampilan = `users.name` (satu sumber), diubah lewat `auth.api.updateUser`.
 - Tabel baru: kolom snake_case via `@map`, `TIMESTAMPTZ`, default `gen_random_uuid()`, invarian lewat CHECK di SQL migrasi. Query selalu dibatasi `user_id` dari sesi, jangan percaya ID dari klien. Endpoint yang memproses data kesehatan wajib `consentService.requireConsent`.
 - Nama model Prisma auth sengaja `Users/Sessions/Accounts/Verifications` (adapter mencari delegate sesuai `modelName`); kolom auth masih camelCase, penamaan kolom ditentukan di Data Dictionary.
+
+## Skrip operasional (di container)
+- `server/scripts/tkpi/{parse,ingest,upload}.ts`: pipeline referensi TKPI (OCR → parse → `food_reference` + embedding `mistral-embed`; unggah PDF ke UploadThing). Berkas OCR/parsed tidak disimpan di repo; jalankan dengan `docker compose ... run --rm -v <folder>:/data:ro tester bun run scripts/tkpi/ingest.ts /data/parsed.json`. Kunci hanya dari env (`MISTRAL_API_KEY`, `UPLOADTHING_TOKEN`).
 
 ## Hal yang perlu diketahui
 - Port host 5432/3000 dipakai proyek lain di mesin ini; beOkay memakai 5433 (DB) dan 3000 (API, bisa diubah via `API_HOST_PORT`).

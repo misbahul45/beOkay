@@ -1,8 +1,20 @@
 enum DiagnosisStatus {
-  diagnosed('diagnosed', 'Sudah terdiagnosis', 'Tenaga kesehatan pernah menyampaikan diagnosis diabetes.'),
-  notDiagnosed('not_diagnosed', 'Belum terdiagnosis', 'Belum pernah mendapat diagnosis diabetes.'),
+  diagnosed(
+    'diagnosed',
+    'Sudah terdiagnosis',
+    'Tenaga kesehatan pernah menyampaikan diagnosis diabetes.',
+  ),
+  notDiagnosed(
+    'not_diagnosed',
+    'Belum terdiagnosis',
+    'Belum pernah mendapat diagnosis diabetes.',
+  ),
   unknown('unknown', 'Belum yakin', 'Aku tidak tahu pasti statusnya.'),
-  undisclosed('undisclosed', 'Tidak ingin menjawab', 'Aku memilih tidak mengisi bagian ini.');
+  undisclosed(
+    'undisclosed',
+    'Tidak ingin menjawab',
+    'Aku memilih tidak mengisi bagian ini.',
+  );
 
   const DiagnosisStatus(this.wire, this.label, this.description);
   final String wire;
@@ -46,7 +58,8 @@ enum Treatment {
   final String wire;
   final String label;
 
-  bool get isExclusive => this == Treatment.none || this == Treatment.undisclosed;
+  bool get isExclusive =>
+      this == Treatment.none || this == Treatment.undisclosed;
 
   static Treatment? parse(String value) {
     for (final item in Treatment.values) {
@@ -72,10 +85,13 @@ class HealthProfile {
   final List<Treatment> treatments;
 
   factory HealthProfile.fromJson(Map<String, dynamic> json) => HealthProfile(
-        exists: json['exists'] as bool,
-        diagnosisStatus: DiagnosisStatus.parse(json['diagnosisStatus'] as String?),
-        diabetesType: DiabetesType.parse(json['diabetesType'] as String?),
-        diagnosedYear: json['diagnosedYear'] as int?,
-        treatments: (json['treatmentContext'] as List<dynamic>).map((item) => Treatment.parse(item as String)).whereType<Treatment>().toList(),
-      );
+    exists: json['exists'] as bool,
+    diagnosisStatus: DiagnosisStatus.parse(json['diagnosisStatus'] as String?),
+    diabetesType: DiabetesType.parse(json['diabetesType'] as String?),
+    diagnosedYear: json['diagnosedYear'] as int?,
+    treatments: (json['treatmentContext'] as List<dynamic>)
+        .map((item) => Treatment.parse(item as String))
+        .whereType<Treatment>()
+        .toList(),
+  );
 }

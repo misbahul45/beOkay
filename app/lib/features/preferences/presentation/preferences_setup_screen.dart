@@ -23,10 +23,12 @@ class PreferencesSetupScreen extends ConsumerStatefulWidget {
   const PreferencesSetupScreen({super.key});
 
   @override
-  ConsumerState<PreferencesSetupScreen> createState() => _PreferencesSetupScreenState();
+  ConsumerState<PreferencesSetupScreen> createState() =>
+      _PreferencesSetupScreenState();
 }
 
-class _PreferencesSetupScreenState extends ConsumerState<PreferencesSetupScreen> {
+class _PreferencesSetupScreenState
+    extends ConsumerState<PreferencesSetupScreen> {
   String? _timezone;
   GlucoseUnit? _unit;
   bool _loading = false;
@@ -39,12 +41,16 @@ class _PreferencesSetupScreenState extends ConsumerState<PreferencesSetupScreen>
       _error = null;
     });
     try {
-      await ref.read(preferencesControllerProvider.notifier).save(
+      await ref
+          .read(preferencesControllerProvider.notifier)
+          .save(
             timezone: _timezone ?? current.timezone,
             glucoseUnit: _unit ?? current.glucoseUnit,
           );
       final status = ref.read(onboardingControllerProvider).value;
-      if (mounted && status != null) context.go(routeForOnboarding(status.state));
+      if (mounted && status != null) {
+        context.go(routeForOnboarding(status.state));
+      }
     } catch (error) {
       if (mounted) setState(() => _error = messageFor(error));
     } finally {
@@ -60,13 +66,23 @@ class _PreferencesSetupScreenState extends ConsumerState<PreferencesSetupScreen>
     final unit = _unit ?? effective.glucoseUnit;
     return PageScaffold(
       showBack: false,
-      bottom: PillButton(label: 'Simpan dan Lanjut', loading: _loading, onPressed: preferences.hasValue ? _save : null),
+      bottom: PillButton(
+        label: 'Simpan dan Lanjut',
+        loading: _loading,
+        onPressed: preferences.hasValue ? _save : null,
+      ),
       children: [
         const StepHeader(current: 4, total: 4),
         const SizedBox(height: AppSpacing.lg),
-        Semantics(header: true, child: Text('Sesuaikan Pengalamanmu', style: AppTypography.headline)),
+        Semantics(
+          header: true,
+          child: Text('Sesuaikan Pengalamanmu', style: AppTypography.headline),
+        ),
         const SizedBox(height: AppSpacing.xs),
-        Text('Pengaturan ini bisa diubah kapan saja di Profil › Pengaturan.', style: AppTypography.secondary),
+        Text(
+          'Pengaturan ini bisa diubah kapan saja di Profil › Pengaturan.',
+          style: AppTypography.secondary,
+        ),
         const SizedBox(height: AppSpacing.lg),
         AsyncBody<Preferences>(
           value: preferences,
@@ -76,7 +92,14 @@ class _PreferencesSetupScreenState extends ConsumerState<PreferencesSetupScreen>
             children: [
               Text('Bahasa', style: AppTypography.title),
               const SizedBox(height: AppSpacing.sm),
-              const SelectionCard(title: 'Bahasa Indonesia', description: 'Bahasa lain menyusul setelah terjemahannya lengkap.', selected: true, onTap: null, enabled: false),
+              const SelectionCard(
+                title: 'Bahasa Indonesia',
+                description:
+                    'Bahasa lain menyusul setelah terjemahannya lengkap.',
+                selected: true,
+                onTap: null,
+                enabled: false,
+              ),
               const SizedBox(height: AppSpacing.lg),
               Text('Zona Waktu', style: AppTypography.title),
               const SizedBox(height: AppSpacing.sm),
@@ -86,8 +109,13 @@ class _PreferencesSetupScreenState extends ConsumerState<PreferencesSetupScreen>
                     title: timezoneLabel(timezone),
                     subtitle: timezone,
                     onTap: () async {
-                      final picked = await showTimezonePicker(context, current: timezone);
-                      if (picked != null && mounted) setState(() => _timezone = picked);
+                      final picked = await showTimezonePicker(
+                        context,
+                        current: timezone,
+                      );
+                      if (picked != null && mounted) {
+                        setState(() => _timezone = picked);
+                      }
                     },
                   ),
                 ],
@@ -96,16 +124,20 @@ class _PreferencesSetupScreenState extends ConsumerState<PreferencesSetupScreen>
               Text('Satuan Glukosa', style: AppTypography.title),
               const SizedBox(height: AppSpacing.sm),
               SegmentedPills<GlucoseUnit>(
-                options: [for (final item in GlucoseUnit.values) (item, item.label)],
+                options: [
+                  for (final item in GlucoseUnit.values) (item, item.label),
+                ],
                 value: unit,
                 onChanged: (value) => setState(() => _unit = value),
               ),
               const SizedBox(height: AppSpacing.sm),
-              const InfoCard(text: 'Satuan hanya mengubah tampilan. Nilai asli yang kamu catat tetap tersimpan apa adanya.', tone: InfoTone.neutral),
             ],
           ),
         ),
-        if (_error != null) ...[const SizedBox(height: AppSpacing.md), ErrorBanner(_error!)],
+        if (_error != null) ...[
+          const SizedBox(height: AppSpacing.md),
+          ErrorBanner(_error!),
+        ],
       ],
     );
   }

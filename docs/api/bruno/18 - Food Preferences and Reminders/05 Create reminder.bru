@@ -1,0 +1,30 @@
+meta {
+  name: Create reminder
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/me/reminders
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {"kind":"glucose","title":"Pagi","localTime":"07:30","daysOfWeek":[1,2,3,4,5]}
+}
+
+tests {
+  test("Create reminder", function () {
+    expect(res.status).to.equal(201); expect(res.body.lockScreen.body).to.not.contain("Pagi"); bru.setVar("reminderId",res.body.id);
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken and otherSessionToken are supplied by the runner.
+  Rule only (local time + ISO weekdays). The server schedules nothing; the device schedules local notifications. Lock-screen text is generic.
+}

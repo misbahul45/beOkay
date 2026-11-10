@@ -2,7 +2,11 @@ import '../../../core/network/account_scoped_repository.dart';
 import 'glucose_models.dart';
 
 class GlucoseRepository extends AccountScopedRepository {
-  GlucoseRepository(super.api, {required super.isCurrentAccount, super.enqueueOffline});
+  GlucoseRepository(
+    super.api, {
+    required super.isCurrentAccount,
+    super.enqueueOffline,
+  });
   Future<GlucoseRecord> get(String id) async =>
       GlucoseRecord.fromJson((await api.get('/api/me/glucose/$id')).object);
   Future<GlucoseRecord> save(Map<String, dynamic> body, {String? id}) async =>
@@ -11,7 +15,11 @@ class GlucoseRepository extends AccountScopedRepository {
           id == null ? 'POST' : 'PATCH',
           id == null ? '/api/me/glucose' : '/api/me/glucose/$id',
           body,
-          queue: id == null ? (domain: 'glucose', recordId: body['id'] as String, parentId: null) : null,
+          queue: (
+            domain: 'glucose',
+            recordId: id ?? body['id'] as String,
+            parentId: null,
+          ),
         )).object,
       );
   Future<GlucosePage> list({

@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../../core/network/error_messages.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_text_field.dart';
+import '../../food_preferences/data/food_preferences_repository.dart';
 import '../../../core/widgets/info_card.dart';
 import '../../../core/widgets/pill_button.dart';
 import '../data/nutrition_models.dart';
@@ -30,6 +34,8 @@ class _FoodPickerState extends State<FoodPicker> {
   Object? error;
   bool loading = false, searched = false, loadingExternal = false;
   ExternalSearch? external;
+  List<ReferenceFood> reference = [];
+  PreferenceChecks checks = PreferenceChecks.empty;
   int generation = 0;
   @override
   void dispose() {
@@ -54,12 +60,103 @@ class _FoodPickerState extends State<FoodPicker> {
         setState(() {
           items = found;
           searched = true;
+          reference = [];
+          checks = PreferenceChecks.empty;
         });
+        unawaited(enrich(q, request));
       }
     } catch (e) {
       if (mounted && request == generation) setState(() => error = e);
     } finally {
       if (mounted && request == generation) setState(() => loading = false);
+    }
+  }
+
+  /// Tambahan yang tidak boleh menghalangi pencarian utama: referensi TKPI dan pengecekan alergi/preferensi.
+  Future<void> enrich(String q, int request) async {
+    List<ReferenceFood> ref = [];
+    try {
+      ref = await widget.repository.searchReference(q);
+    } catch (_) {}
+    if (!mounted || request != generation) return;
+    setState(() => reference = ref);
+    await recheck(request);
+  }
+
+  Future<void> recheck(int request) async {
+    final names = [
+      ...items.map((f) => f.name),
+      ...reference.map((r) => r.name),
+      ...?external?.items.map(
+        (c) => c.brand == null ? c.name : '${c.name} · ${c.brand}',
+      ),
+    ];
+    try {
+      final c = await widget.repository.preferenceChecks(names);
+      if (mounted && request == generation) setState(() => checks = c);
+    } catch (_) {}
+  }
+
+  /// Memakai makanan hasil pencarian; bila cocok dengan kendala keras, minta konfirmasi dulu.
+  Future<bool> confirmIfExcluded(String name) async {
+    final c = checks.of(name);
+    if (c == null || !c.excluded) return true;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cocok dengan kendalamu'),
+        content: Text(
+          '"$name" tampaknya mengandung ${c.labels.join(', ')} (dugaan dari nama). Tetap gunakan?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Tetap gunakan'),
+          ),
+        ],
+      ),
+    );
+    return ok == true;
+  }
+
+  Widget? preferenceLine(String name) {
+    final c = checks.of(name);
+    if (c == null) return null;
+    if (c.excluded) {
+      return Text(
+        'Perhatian: cocok dengan ${c.labels.join(', ')} (dugaan dari nama)',
+        style: const TextStyle(
+          color: AppColors.errorForeground,
+          fontWeight: FontWeight.w600,
+        ),
+      );
+    }
+    if (c.warning) {
+      return Text(
+        'Kamu tidak suka: ${c.labels.join(', ')}',
+        style: const TextStyle(color: AppColors.warningForeground),
+      );
+    }
+    return null;
+  }
+
+  Future<void> useReference(ReferenceFood r) async {
+    if (!await confirmIfExcluded(r.name)) return;
+    try {
+      final food = await widget.repository.saveFood({
+        'name': r.name,
+        'source': r.source,
+        'sourceVersion': r.code,
+        'status': 'estimated',
+        'per100g': r.per100g,
+      });
+      if (mounted) Navigator.pop(context, food);
+    } catch (e) {
+      if (mounted) setState(() => error = e);
     }
   }
 
@@ -73,6 +170,7 @@ class _FoodPickerState extends State<FoodPicker> {
     try {
       final found = await widget.repository.searchExternal(q);
       if (mounted) setState(() => external = found);
+      await recheck(generation);
     } catch (e) {
       if (mounted) setState(() => error = e);
     } finally {
@@ -93,6 +191,11 @@ class _FoodPickerState extends State<FoodPicker> {
 
   /// Menyimpan kandidat sebagai makanan pribadi berstatus estimasi; nilai yang tidak ada tetap kosong.
   Future<void> useCandidate(FoodCandidate c) async {
+    if (!await confirmIfExcluded(
+      c.brand == null ? c.name : '${c.name} · ${c.brand}',
+    )) {
+      return;
+    }
     try {
       final food = await widget.repository.saveFood({
         'name': c.brand == null ? c.name : '${c.name} (${c.brand})',
@@ -126,7 +229,7 @@ class _FoodPickerState extends State<FoodPicker> {
           ),
           const SizedBox(height: 16),
           AppTextField(
-            label: 'Nama makanan di katalog',
+            label: 'Nama makanan',
             hint: 'mis. tempe, nasi putih',
             controller: query,
             onSubmitted: (_) => search(),
@@ -154,10 +257,43 @@ class _FoodPickerState extends State<FoodPicker> {
           for (final food in items)
             ListTile(
               title: Text(food.name),
-              subtitle: Text(
-                '${food.source}\n${food.status == 'estimated' ? 'Estimasi' : 'Dilaporkan pengguna'} · per 100 g',
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${food.source}\n${food.status == 'estimated' ? 'Perkiraan' : 'Dicatat sendiri'} · per 100 gram',
+                  ),
+                  ?preferenceLine(food.name),
+                ],
               ),
-              onTap: () => Navigator.pop(context, food),
+              onTap: () async {
+                if (await confirmIfExcluded(food.name) && context.mounted) {
+                  Navigator.pop(context, food);
+                }
+              },
+            ),
+          if (reference.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Dari Tabel Komposisi Pangan Indonesia',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            for (final r in reference)
+              ListTile(
+                title: Text(r.name),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [Text(r.summary), ?preferenceLine(r.name)],
+                ),
+                onTap: () => useReference(r),
+              ),
+          ],
+          if (searched && checks.hasStrictConstraints)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text(
+                'Alergi hanya dicek dari nama makanan. Baca label atau tanyakan penjualnya.',
+              ),
             ),
           if (searched) ...[
             const SizedBox(height: 12),
@@ -169,18 +305,37 @@ class _FoodPickerState extends State<FoodPicker> {
             ),
             const Padding(
               padding: EdgeInsets.only(top: 4),
-              child: Text('Kata kunci dikirim ke Open Food Facts dan USDA. Hasilnya berstatus estimasi.'),
+              child: Text(
+                'Mencari di Open Food Facts dan USDA. Hasilnya perkiraan.',
+              ),
             ),
           ],
           if (external != null) ...[
             if (external!.status != 'OK')
-              ErrorBanner(external!.status == 'UNAVAILABLE' ? 'Sumber luar tidak dapat dihubungi sekarang.' : 'Sebagian sumber luar tidak dapat dihubungi.'),
+              ErrorBanner(
+                external!.status == 'UNAVAILABLE'
+                    ? 'Sumber luar tidak dapat dihubungi sekarang.'
+                    : 'Sebagian sumber luar tidak dapat dihubungi.',
+              ),
             if (external!.items.isEmpty && external!.status == 'OK')
-              const Padding(padding: EdgeInsets.all(16), child: Text('Tidak ada hasil di sumber luar.')),
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('Tidak ada hasil di sumber luar.'),
+              ),
             for (final c in external!.items)
               ListTile(
-                title: Text(c.brand == null ? c.name : '${c.name} · ${c.brand}'),
-                subtitle: Text('${c.source} · ${c.completenessLabel} · per 100 g'),
+                title: Text(
+                  c.brand == null ? c.name : '${c.name} · ${c.brand}',
+                ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${c.source} · ${c.completenessLabel} · per 100 g'),
+                    ?preferenceLine(
+                      c.brand == null ? c.name : '${c.name} · ${c.brand}',
+                    ),
+                  ],
+                ),
                 onTap: () => useCandidate(c),
               ),
           ],

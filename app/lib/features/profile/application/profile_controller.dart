@@ -6,9 +6,12 @@ import '../../onboarding/application/onboarding_controller.dart';
 import '../data/profile_models.dart';
 import '../data/profile_repository.dart';
 
-final profileRepositoryProvider = Provider<ProfileRepository>((ref) => ProfileRepository(ref.watch(apiClientProvider)));
+final profileRepositoryProvider = Provider<ProfileRepository>(
+  (ref) => ProfileRepository(ref.watch(apiClientProvider)),
+);
 
-final profileControllerProvider = AsyncNotifierProvider<ProfileController, Profile?>(ProfileController.new);
+final profileControllerProvider =
+    AsyncNotifierProvider<ProfileController, Profile?>(ProfileController.new);
 
 class ProfileController extends AsyncNotifier<Profile?> {
   @override
@@ -17,14 +20,24 @@ class ProfileController extends AsyncNotifier<Profile?> {
     return ref.read(profileRepositoryProvider).get();
   }
 
-  Future<void> save({String? displayName, int? birthYear, bool clearBirthYear = false}) async {
-    final profile = await ref.read(profileRepositoryProvider).update(
+  Future<void> save({
+    String? displayName,
+    int? birthYear,
+    bool clearBirthYear = false,
+  }) async {
+    final profile = await ref
+        .read(profileRepositoryProvider)
+        .update(
           displayName: displayName,
           birthYear: birthYear,
           clearBirthYear: clearBirthYear,
         );
     state = AsyncData(profile);
-    if (displayName != null) ref.read(authControllerProvider.notifier).updateDisplayName(profile.displayName);
+    if (displayName != null) {
+      ref
+          .read(authControllerProvider.notifier)
+          .updateDisplayName(profile.displayName);
+    }
     await ref.read(onboardingControllerProvider.notifier).refresh();
   }
 }

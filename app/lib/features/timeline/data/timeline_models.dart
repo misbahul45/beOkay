@@ -23,7 +23,14 @@ class TimelineItem {
       goalTitle = json['goalTitle'] as String?;
 
   final String domain, recordId, localDate, localTime;
-  final String? category, displayUnit, qualityStatus, mealContext, activityType, status, medicationName, goalTitle;
+  final String? category,
+      displayUnit,
+      qualityStatus,
+      mealContext,
+      activityType,
+      status,
+      medicationName,
+      goalTitle;
   final int? itemCount, durationMinutes;
   final num? displayValue;
 
@@ -45,9 +52,18 @@ class TimelineItem {
       switch (domain) {
         'meal' => '$itemCount item',
         'activity' => '$durationMinutes menit · dilaporkan sendiri',
-        'medication' => switch (status) { 'taken' => 'sudah diminum', 'skipped' => 'dilewati', _ => 'belum dikonfirmasi' },
-        'goal' => switch (status) { 'completed' => 'check-in selesai', 'skipped' => 'check-in dilewati', _ => 'belum dikonfirmasi' },
-        _ => 'glukometer manual${glucoseContexts[mealContext] == null ? '' : ' · ${glucoseContexts[mealContext]}'}',
+        'medication' => switch (status) {
+          'taken' => 'sudah diminum',
+          'skipped' => 'dilewati',
+          _ => 'belum dikonfirmasi',
+        },
+        'goal' => switch (status) {
+          'completed' => 'check-in selesai',
+          'skipped' => 'check-in dilewati',
+          _ => 'belum dikonfirmasi',
+        },
+        _ =>
+          'glukometer manual${glucoseContexts[mealContext] == null ? '' : ' · ${glucoseContexts[mealContext]}'}',
       },
       if (needsReview) 'perlu ditinjau',
     ];
@@ -57,7 +73,9 @@ class TimelineItem {
 
 class TimelinePage {
   TimelinePage.fromJson(Map<String, dynamic> json)
-    : items = (json['items'] as List).map((v) => TimelineItem.fromJson(v as Map<String, dynamic>)).toList(),
+    : items = (json['items'] as List)
+          .map((v) => TimelineItem.fromJson(v as Map<String, dynamic>))
+          .toList(),
       nextCursor = json['nextCursor'] as String?,
       timezone = json['timezone'] as String,
       supportedDomains = (json['supportedDomains'] as List).cast<String>();

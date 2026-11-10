@@ -8,9 +8,18 @@ import '../../../../core/widgets/pill_button.dart';
 import 'gtin.dart';
 
 /// Pembangun kamera; diganti saat uji karena kamera tidak tersedia di tes widget.
-typedef CameraBuilder = Widget Function(BuildContext context, void Function(String code) onCode, MobileScannerController? controller);
+typedef CameraBuilder =
+    Widget Function(
+      BuildContext context,
+      void Function(String code) onCode,
+      MobileScannerController? controller,
+    );
 
-Widget _deviceCamera(BuildContext context, void Function(String) onCode, MobileScannerController? controller) => MobileScanner(
+Widget _deviceCamera(
+  BuildContext context,
+  void Function(String) onCode,
+  MobileScannerController? controller,
+) => MobileScanner(
   controller: controller,
   onDetect: (capture) {
     for (final b in capture.barcodes) {
@@ -24,14 +33,19 @@ Widget _deviceCamera(BuildContext context, void Function(String) onCode, MobileS
 /// Layar pemindai kode batang. Pemindaian terjadi di perangkat (ML Kit); yang keluar hanya kode angkanya.
 /// Mengembalikan kode GTIN yang lolos pemeriksaan digit, atau null bila dibatalkan.
 class BarcodeScanScreen extends StatefulWidget {
-  const BarcodeScanScreen({super.key, this.cameraBuilder = _deviceCamera, this.useController = true});
+  const BarcodeScanScreen({
+    super.key,
+    this.cameraBuilder = _deviceCamera,
+    this.useController = true,
+  });
   final CameraBuilder cameraBuilder;
   final bool useController;
   @override
   State<BarcodeScanScreen> createState() => _BarcodeScanScreenState();
 }
 
-class _BarcodeScanScreenState extends State<BarcodeScanScreen> with WidgetsBindingObserver {
+class _BarcodeScanScreenState extends State<BarcodeScanScreen>
+    with WidgetsBindingObserver {
   MobileScannerController? controller;
   bool done = false, torch = false;
   String? hint;
@@ -42,7 +56,12 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> with WidgetsBindi
     WidgetsBinding.instance.addObserver(this);
     if (widget.useController) {
       controller = MobileScannerController(
-        formats: const [BarcodeFormat.ean13, BarcodeFormat.ean8, BarcodeFormat.upcA, BarcodeFormat.upcE],
+        formats: const [
+          BarcodeFormat.ean13,
+          BarcodeFormat.ean8,
+          BarcodeFormat.upcA,
+          BarcodeFormat.upcE,
+        ],
         detectionSpeed: DetectionSpeed.noDuplicates,
       );
     }
@@ -54,7 +73,8 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> with WidgetsBindi
     if (c == null) return;
     if (state == AppLifecycleState.resumed) {
       c.start();
-    } else if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+    } else if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
       c.stop();
     }
   }
@@ -69,7 +89,9 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> with WidgetsBindi
   void accept(String code) {
     if (done) return;
     if (!validGtin(code)) {
-      setState(() => hint = 'Kode terbaca tetapi tidak valid. Coba arahkan ulang.');
+      setState(
+        () => hint = 'Kode terbaca tetapi tidak valid. Coba arahkan ulang.',
+      );
       return;
     }
     done = true;
@@ -77,7 +99,10 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> with WidgetsBindi
   }
 
   Future<void> manual() async {
-    final code = await showDialog<String>(context: context, builder: (_) => const _ManualCodeDialog());
+    final code = await showDialog<String>(
+      context: context,
+      builder: (_) => const _ManualCodeDialog(),
+    );
     if (code != null) accept(code);
   }
 
@@ -94,7 +119,9 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> with WidgetsBindi
         if (controller != null)
           IconButton(
             tooltip: torch ? 'Matikan senter' : 'Nyalakan senter',
-            icon: Icon(torch ? Icons.flash_on_rounded : Icons.flash_off_rounded),
+            icon: Icon(
+              torch ? Icons.flash_on_rounded : Icons.flash_off_rounded,
+            ),
             onPressed: () async {
               await controller!.toggleTorch();
               if (mounted) setState(() => torch = !torch);
@@ -124,9 +151,21 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> with WidgetsBindi
                 ),
               ),
             ),
-            if (hint != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(hint!, style: AppTypography.secondary.copyWith(color: Colors.white))),
+            if (hint != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(
+                  hint!,
+                  style: AppTypography.secondary.copyWith(color: Colors.white),
+                ),
+              ),
             const SizedBox(height: AppSpacing.md),
-            PillButton(label: 'Ketik kode manual', kind: PillButtonKind.secondary, icon: Icons.keyboard_rounded, onPressed: manual),
+            PillButton(
+              label: 'Ketik kode manual',
+              kind: PillButtonKind.secondary,
+              icon: Icons.keyboard_rounded,
+              onPressed: manual,
+            ),
           ],
         ),
       ),
@@ -142,7 +181,10 @@ class _Viewfinder extends StatelessWidget {
     child: Container(
       width: 260,
       height: 150,
-      decoration: BoxDecoration(border: Border.all(color: AppColors.aqua, width: 3), borderRadius: BorderRadius.circular(18)),
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.aqua, width: 3),
+        borderRadius: BorderRadius.circular(18),
+      ),
       alignment: Alignment.center,
       child: Container(height: 2, width: 220, color: AppColors.emerald),
     ),
@@ -182,7 +224,10 @@ class _ManualCodeDialogState extends State<_ManualCodeDialog> {
   void submit() {
     final v = c.text.trim();
     if (!validGtin(v)) {
-      setState(() => error = 'Kode tidak valid. Periksa 8, 12, 13, atau 14 angka di bawah kode batang.');
+      setState(
+        () => error =
+            'Kode tidak valid. Periksa 8, 12, 13, atau 14 angka di bawah kode batang.',
+      );
       return;
     }
     Navigator.pop(context, v);
@@ -195,9 +240,19 @@ class _ManualCodeDialogState extends State<_ManualCodeDialog> {
       controller: c,
       autofocus: true,
       keyboardType: TextInputType.number,
-      decoration: InputDecoration(labelText: 'Kode batang', hintText: 'mis. 8999999999999', errorText: error),
+      decoration: InputDecoration(
+        labelText: 'Kode batang',
+        hintText: 'mis. 8999999999999',
+        errorText: error,
+      ),
       onSubmitted: (_) => submit(),
     ),
-    actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')), FilledButton(onPressed: submit, child: const Text('Cari'))],
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Batal'),
+      ),
+      FilledButton(onPressed: submit, child: const Text('Cari')),
+    ],
   );
 }

@@ -16,7 +16,13 @@ class DayReadout {
 
 /// Bingkai gambar yang diberikan ke tiap pelukis grafik.
 class DayFrame {
-  DayFrame({required this.plot, required this.count, required this.progress, required this.selected, required this.scaler});
+  DayFrame({
+    required this.plot,
+    required this.count,
+    required this.progress,
+    required this.selected,
+    required this.scaler,
+  });
   final Rect plot;
   final int count;
 
@@ -31,22 +37,42 @@ class DayFrame {
   /// Tumbuh berurutan dari kiri ke kanan; hasil 0..1 per hari.
   double grow(int i) {
     final delay = count <= 1 ? 0.0 : 0.45 * i / (count - 1);
-    return Curves.easeOutCubic.transform(((progress - delay) / 0.55).clamp(0.0, 1.0));
+    return Curves.easeOutCubic.transform(
+      ((progress - delay) / 0.55).clamp(0.0, 1.0),
+    );
   }
 
   TextPainter text(String s, TextStyle style, {double? maxWidth}) =>
-      TextPainter(text: TextSpan(text: s, style: style), textDirection: TextDirection.ltr, textScaler: scaler, maxLines: 1, ellipsis: '…')..layout(maxWidth: maxWidth ?? double.infinity);
+      TextPainter(
+        text: TextSpan(text: s, style: style),
+        textDirection: TextDirection.ltr,
+        textScaler: scaler,
+        maxLines: 1,
+        ellipsis: '…',
+      )..layout(maxWidth: maxWidth ?? double.infinity);
 
   /// Garis pemandu hari terpilih (hairline) di belakang tanda data.
   void guide(Canvas canvas) {
     final s = selected;
     if (s == null) return;
-    canvas.drawLine(Offset(centerX(s), plot.top), Offset(centerX(s), plot.bottom), Paint()..color = AppColors.brand.withValues(alpha: 0.35)..strokeWidth = 1.5);
+    canvas.drawLine(
+      Offset(centerX(s), plot.top),
+      Offset(centerX(s), plot.bottom),
+      Paint()
+        ..color = AppColors.brand.withValues(alpha: 0.35)
+        ..strokeWidth = 1.5,
+    );
   }
 
   void emptySlot(Canvas canvas, int i, {double? y}) {
-    final tp = text('–', AppTypography.caption.copyWith(color: AppColors.decorative));
-    tp.paint(canvas, Offset(centerX(i) - tp.width / 2, (y ?? plot.bottom) - tp.height - 2));
+    final tp = text(
+      '–',
+      AppTypography.caption.copyWith(color: AppColors.decorative),
+    );
+    tp.paint(
+      canvas,
+      Offset(centerX(i) - tp.width / 2, (y ?? plot.bottom) - tp.height - 2),
+    );
   }
 }
 
@@ -93,8 +119,12 @@ class DayChart extends StatefulWidget {
   State<DayChart> createState() => _DayChartState();
 }
 
-class _DayChartState extends State<DayChart> with SingleTickerProviderStateMixin {
-  late final AnimationController controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
+class _DayChartState extends State<DayChart>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 800),
+  );
   int? selected;
   bool reduced = false;
 
@@ -132,7 +162,10 @@ class _DayChartState extends State<DayChart> with SingleTickerProviderStateMixin
 
   void pick(double dx, double width, {bool toggle = false}) {
     final plotW = width - widget.leftInset;
-    final i = ((dx - widget.leftInset) / (plotW / widget.count)).floor().clamp(0, widget.count - 1);
+    final i = ((dx - widget.leftInset) / (plotW / widget.count)).floor().clamp(
+      0,
+      widget.count - 1,
+    );
     if (toggle && selected == i) {
       setState(() => selected = null);
       return;
@@ -154,21 +187,38 @@ class _DayChartState extends State<DayChart> with SingleTickerProviderStateMixin
         children: [
           // Pembacaan: nilai besar, label kecil; menggantikan teks petunjuk tanpa mengubah tinggi.
           AnimatedSwitcher(
-            duration: reduced ? Duration.zero : const Duration(milliseconds: 150),
+            duration: reduced
+                ? Duration.zero
+                : const Duration(milliseconds: 150),
             child: SizedBox(
               key: ValueKey(selected),
               height: 76 * math.max(1.0, scaler.scale(1)),
               width: double.infinity,
               child: r == null
-                  ? Align(alignment: Alignment.centerLeft, child: Text(widget.hint, style: AppTypography.caption))
+                  ? Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(widget.hint, style: AppTypography.caption),
+                    )
                   : Semantics(
                       liveRegion: true,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(r.value, style: AppTypography.title.copyWith(color: widget.accent)),
-                          Text(r.extra == null ? r.label : '${r.label} · ${r.extra}', style: AppTypography.caption, maxLines: 2, overflow: TextOverflow.ellipsis),
+                          Text(
+                            r.value,
+                            style: AppTypography.title.copyWith(
+                              color: widget.accent,
+                            ),
+                          ),
+                          Text(
+                            r.extra == null
+                                ? r.label
+                                : '${r.label} · ${r.extra}',
+                            style: AppTypography.caption,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ],
                       ),
                     ),
@@ -177,9 +227,12 @@ class _DayChartState extends State<DayChart> with SingleTickerProviderStateMixin
           LayoutBuilder(
             builder: (context, c) => GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTapDown: (d) => pick(d.localPosition.dx, c.maxWidth, toggle: true),
-              onHorizontalDragStart: (d) => pick(d.localPosition.dx, c.maxWidth),
-              onHorizontalDragUpdate: (d) => pick(d.localPosition.dx, c.maxWidth),
+              onTapDown: (d) =>
+                  pick(d.localPosition.dx, c.maxWidth, toggle: true),
+              onHorizontalDragStart: (d) =>
+                  pick(d.localPosition.dx, c.maxWidth),
+              onHorizontalDragUpdate: (d) =>
+                  pick(d.localPosition.dx, c.maxWidth),
               child: Semantics(
                 container: true,
                 label: widget.summary,
@@ -187,7 +240,13 @@ class _DayChartState extends State<DayChart> with SingleTickerProviderStateMixin
                   animation: controller,
                   builder: (context, _) => CustomPaint(
                     size: Size(c.maxWidth, widget.height),
-                    painter: _Painter(widget, controller.value, selected, scaler, (i) => setState(() => selected = i)),
+                    painter: _Painter(
+                      widget,
+                      controller.value,
+                      selected,
+                      scaler,
+                      (i) => setState(() => selected = i),
+                    ),
                   ),
                 ),
               ),
@@ -210,18 +269,47 @@ class _Painter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     const bottom = 22.0;
-    final plot = Rect.fromLTRB(w.leftInset, 4, size.width, size.height - bottom);
-    final f = DayFrame(plot: plot, count: w.count, progress: progress, selected: selected, scaler: scaler);
+    final plot = Rect.fromLTRB(
+      w.leftInset,
+      4,
+      size.width,
+      size.height - bottom,
+    );
+    final f = DayFrame(
+      plot: plot,
+      count: w.count,
+      progress: progress,
+      selected: selected,
+      scaler: scaler,
+    );
     w.painter.paint(canvas, f);
     // Sumbu-x: jarang agar tidak bertabrakan; hari terpilih selalu berlabel.
     final every = (w.count / 7).ceil();
     for (var i = 0; i < w.count; i++) {
       if (i % every != 0 && i != selected && i != w.count - 1) continue;
-      if (i != selected && i != w.count - 1 && w.count - 1 - i < every ~/ 2 + 1) continue;
+      if (i != selected &&
+          i != w.count - 1 &&
+          w.count - 1 - i < every ~/ 2 + 1) {
+        continue;
+      }
       final s = w.xLabel(i);
       if (s == null) continue;
-      final tp = f.text(s, AppTypography.caption.copyWith(color: i == selected ? AppColors.textPrimary : AppColors.textSecondary, fontWeight: i == selected ? FontWeight.w700 : FontWeight.w400));
-      tp.paint(canvas, Offset((f.centerX(i) - tp.width / 2).clamp(0.0, size.width - tp.width), plot.bottom + 4));
+      final tp = f.text(
+        s,
+        AppTypography.caption.copyWith(
+          color: i == selected
+              ? AppColors.textPrimary
+              : AppColors.textSecondary,
+          fontWeight: i == selected ? FontWeight.w700 : FontWeight.w400,
+        ),
+      );
+      tp.paint(
+        canvas,
+        Offset(
+          (f.centerX(i) - tp.width / 2).clamp(0.0, size.width - tp.width),
+          plot.bottom + 4,
+        ),
+      );
     }
   }
 
@@ -234,7 +322,12 @@ class _Painter extends CustomPainter {
       for (var i = 0; i < w.count; i++)
         CustomPainterSemantics(
           rect: Rect.fromLTWH(w.leftInset + cell * i, 0, cell, size.height),
-          properties: SemanticsProperties(label: w.semanticFor(i), textDirection: TextDirection.ltr, button: true, onTap: () => onSelect(i)),
+          properties: SemanticsProperties(
+            label: w.semanticFor(i),
+            textDirection: TextDirection.ltr,
+            button: true,
+            onTap: () => onSelect(i),
+          ),
         ),
     ];
   };
@@ -243,5 +336,8 @@ class _Painter extends CustomPainter {
   bool shouldRebuildSemantics(_Painter old) => old.w.dataKey != w.dataKey;
 
   @override
-  bool shouldRepaint(_Painter old) => old.progress != progress || old.selected != selected || old.w.dataKey != w.dataKey;
+  bool shouldRepaint(_Painter old) =>
+      old.progress != progress ||
+      old.selected != selected ||
+      old.w.dataKey != w.dataKey;
 }

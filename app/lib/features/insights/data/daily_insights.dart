@@ -12,7 +12,9 @@ class DailyInsights {
       nutritionFreshness = json['freshness'] as String? ?? 'CURRENT',
       nutritionComputedAt = json['computedAt'] as String?,
       glucose = GlucoseDay.fromJson(json['glucose'] as Map<String, dynamic>),
-      activity = ActivitySummary.fromJson(json['activity'] as Map<String, dynamic>);
+      activity = ActivitySummary.fromJson(
+        json['activity'] as Map<String, dynamic>,
+      );
 
   final String date, timezone, nutritionFreshness;
   final String? nutritionComputedAt;
@@ -20,5 +22,6 @@ class DailyInsights {
   final GlucoseDay glucose;
   final ActivitySummary activity;
 
-  bool get isEmpty => nutrition.mealCount == 0 && glucose.count == 0 && activity.count == 0;
+  bool get isEmpty =>
+      nutrition.mealCount == 0 && glucose.count == 0 && activity.count == 0;
 }

@@ -6,9 +6,14 @@ class ProfileRepository {
 
   final ApiClient _api;
 
-  Future<Profile> get() async => Profile.fromJson((await _api.get('/api/me/profile')).object);
+  Future<Profile> get() async =>
+      Profile.fromJson((await _api.get('/api/me/profile')).object);
 
-  Future<Profile> update({String? displayName, int? birthYear, bool clearBirthYear = false}) async {
+  Future<Profile> update({
+    String? displayName,
+    int? birthYear,
+    bool clearBirthYear = false,
+  }) async {
     final body = <String, dynamic>{};
     if (displayName != null) body['displayName'] = displayName;
     if (clearBirthYear) {
@@ -16,6 +21,8 @@ class ProfileRepository {
     } else if (birthYear != null) {
       body['birthYear'] = birthYear;
     }
-    return Profile.fromJson((await _api.patch('/api/me/profile', body: body)).object);
+    return Profile.fromJson(
+      (await _api.patch('/api/me/profile', body: body)).object,
+    );
   }
 }

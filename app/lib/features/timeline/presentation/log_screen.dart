@@ -25,7 +25,14 @@ import '../data/timeline_models.dart';
 class LogScreen extends ConsumerWidget {
   const LogScreen({super.key});
 
-  static const _domains = [('all', 'Semua'), ('meal', 'Makanan'), ('glucose', 'Glukosa'), ('activity', 'Aktivitas'), ('medication', 'Obat'), ('goal', 'Tujuan')];
+  static const _domains = [
+    ('all', 'Semua'),
+    ('meal', 'Makanan'),
+    ('glucose', 'Glukosa'),
+    ('activity', 'Aktivitas'),
+    ('medication', 'Obat'),
+    ('goal', 'Tujuan'),
+  ];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -38,19 +45,31 @@ class LogScreen extends ConsumerWidget {
       showBack: false,
       onRefresh: () async {
         ref.invalidate(logFeedProvider);
-        await ref.read(logFeedProvider.future).catchError((_) => const LogFeed());
+        await ref
+            .read(logFeedProvider.future)
+            .catchError((_) => const LogFeed());
       },
       children: [
-        Semantics(header: true, child: Text('Catatan', style: AppTypography.headline)),
+        Semantics(
+          header: true,
+          child: Text('Catatan', style: AppTypography.headline),
+        ),
         const SizedBox(height: AppSpacing.xs),
-        Text('Diurutkan menurut waktu kejadian, bukan waktu kamu menginputnya.', style: AppTypography.secondary),
+        Text(
+          'Diurutkan menurut waktu kejadian, bukan waktu kamu menginputnya.',
+          style: AppTypography.secondary,
+        ),
         const SizedBox(height: AppSpacing.md),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
               for (final (key, label) in _domains) ...[
-                PillChip(label: label, selected: filter.domain == key, onTap: () => set(filter.copyWith(domain: key))),
+                PillChip(
+                  label: label,
+                  selected: filter.domain == key,
+                  onTap: () => set(filter.copyWith(domain: key)),
+                ),
                 const SizedBox(width: AppSpacing.xs),
               ],
             ],
@@ -62,22 +81,41 @@ class LogScreen extends ConsumerWidget {
           runSpacing: AppSpacing.xs,
           children: [
             PillChip(
-              label: filter.date == null ? 'Pilih tanggal' : _dateLabel(filter.date!),
+              label: filter.date == null
+                  ? 'Pilih tanggal'
+                  : _dateLabel(filter.date!),
               selected: filter.date != null,
               onTap: () async {
                 final now = DateTime.now();
-                final current = filter.date == null ? null : DateTime.tryParse(filter.date!);
+                final current = filter.date == null
+                    ? null
+                    : DateTime.tryParse(filter.date!);
                 final chosen = await showDatePicker(
                   context: context,
                   initialDate: current ?? now,
                   firstDate: DateTime(2000),
                   lastDate: now.add(const Duration(days: 1)),
                 );
-                if (chosen != null) set(filter.copyWith(date: DateFormat('yyyy-MM-dd').format(chosen)));
+                if (chosen != null) {
+                  set(
+                    filter.copyWith(
+                      date: DateFormat('yyyy-MM-dd').format(chosen),
+                    ),
+                  );
+                }
               },
             ),
-            if (filter.date != null) PillChip(label: 'Semua tanggal', selected: false, onTap: () => set(filter.copyWith(date: null))),
-            PillChip(label: 'Diarsipkan', selected: filter.archived, onTap: () => set(filter.copyWith(archived: !filter.archived))),
+            if (filter.date != null)
+              PillChip(
+                label: 'Semua tanggal',
+                selected: false,
+                onTap: () => set(filter.copyWith(date: null)),
+              ),
+            PillChip(
+              label: 'Diarsipkan',
+              selected: filter.archived,
+              onTap: () => set(filter.copyWith(archived: !filter.archived)),
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.md),
@@ -90,15 +128,24 @@ class LogScreen extends ConsumerWidget {
               return InfoCard(
                 title: 'Persetujuan diperlukan',
                 text: 'Tinjau persetujuan untuk membuka catatan kesehatanmu.',
-                action: PillButton(label: 'Kelola persetujuan', expand: false, onPressed: () => context.push(Routes.consentManagement)),
+                action: PillButton(
+                  label: 'Kelola persetujuan',
+                  expand: false,
+                  onPressed: () => context.push(Routes.consentManagement),
+                ),
               );
             }
-            return ErrorState(error: error, onRetry: () => ref.invalidate(logFeedProvider));
+            return ErrorState(
+              error: error,
+              onRetry: () => ref.invalidate(logFeedProvider),
+            );
           },
           data: (data) {
             if (data.items.isEmpty) {
               return EmptyState(
-                icon: isFiltered || filter.archived ? Icons.filter_alt_off_outlined : Icons.edit_note_rounded,
+                icon: isFiltered || filter.archived
+                    ? Icons.filter_alt_off_outlined
+                    : Icons.edit_note_rounded,
                 title: filter.archived
                     ? 'Belum ada catatan diarsipkan'
                     : isFiltered
@@ -109,11 +156,18 @@ class LogScreen extends ConsumerWidget {
                     : isFiltered
                     ? 'Coba ganti jenis catatan atau tanggal.'
                     : 'Mulai dengan satu catatan. Kamu yang menentukan apa yang dicatat.',
-                actionLabel: isFiltered ? 'Hapus filter' : (filter.archived ? null : 'Mulai mencatat'),
-                onAction: isFiltered ? () => set(filter.copyWith(domain: 'all', date: null)) : () => showQuickRecord(context),
+                actionLabel: isFiltered
+                    ? 'Hapus filter'
+                    : (filter.archived ? null : 'Mulai mencatat'),
+                onAction: isFiltered
+                    ? () => set(filter.copyWith(domain: 'all', date: null))
+                    : () => showQuickRecord(context),
               );
             }
-            return _Feed(data: data, onMore: () => ref.read(logFeedProvider.notifier).loadMore());
+            return _Feed(
+              data: data,
+              onMore: () => ref.read(logFeedProvider.notifier).loadMore(),
+            );
           },
         ),
       ],
@@ -143,14 +197,22 @@ class _Feed extends StatelessWidget {
       children: [
         for (final entry in groups.entries) ...[
           Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: AppSpacing.xs),
+            padding: const EdgeInsets.only(
+              top: AppSpacing.xs,
+              bottom: AppSpacing.xs,
+            ),
             child: Semantics(
               header: true,
               child: Text(_heading(entry.key), style: AppTypography.overline),
             ),
           ),
           for (final item in entry.value) ...[
-            TimelineTile(item: item, onTap: () => context.push(DomainStyle.of(item.domain).detailRoute(item.recordId))),
+            TimelineTile(
+              item: item,
+              onTap: () => context.push(
+                DomainStyle.of(item.domain).detailRoute(item.recordId),
+              ),
+            ),
             const SizedBox(height: AppSpacing.xs),
           ],
         ],
@@ -160,19 +222,39 @@ class _Feed extends StatelessWidget {
         ],
         if (data.nextCursor != null) ...[
           const SizedBox(height: AppSpacing.xs),
-          PillButton(label: 'Muat catatan lebih lama', kind: PillButtonKind.secondary, loading: data.loadingMore, onPressed: onMore),
+          PillButton(
+            label: 'Muat catatan lebih lama',
+            kind: PillButtonKind.secondary,
+            loading: data.loadingMore,
+            onPressed: onMore,
+          ),
         ] else
           Padding(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-            child: Center(child: Text('Semua catatan sudah tampil', style: AppTypography.caption.copyWith(color: AppColors.textSecondary))),
+            child: Center(
+              child: Text(
+                'Semua catatan sudah tampil',
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
           ),
-        if (data.timezone != null) Center(child: Text('Waktu lokal: ${data.timezone}', style: AppTypography.caption)),
+        if (data.timezone != null)
+          Center(
+            child: Text(
+              'Waktu lokal: ${data.timezone}',
+              style: AppTypography.caption,
+            ),
+          ),
       ],
     );
   }
 
   static String _heading(String iso) {
     final parsed = DateTime.tryParse(iso);
-    return parsed == null ? iso : DateFormat('EEEE, d MMMM y', 'id_ID').format(parsed).toUpperCase();
+    return parsed == null
+        ? iso
+        : DateFormat('EEEE, d MMMM y', 'id_ID').format(parsed).toUpperCase();
   }
 }

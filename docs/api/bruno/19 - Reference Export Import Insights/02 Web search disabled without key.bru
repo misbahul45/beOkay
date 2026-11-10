@@ -1,0 +1,26 @@
+meta {
+  name: Web search disabled without key
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/me/foods/web-search?q=tempe
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+tests {
+  test("Web search disabled without key", function () {
+    expect(res.status).to.equal(200); expect(["NOT_CONFIGURED","OK","UNAVAILABLE"]).to.include(res.body.status);
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken and otherSessionToken are supplied by the runner.
+  Links and snippets only; never used as nutrition data. NOT_CONFIGURED without BRAVE_API_KEY.
+}

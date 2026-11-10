@@ -31,15 +31,59 @@ class DomainStyle {
   final bool listOnly;
 
   /// Route to the original record, used by Timeline tiles.
-  String detailRoute(String recordId) => listOnly ? listRoute : '$listRoute/$recordId';
+  String detailRoute(String recordId) =>
+      listOnly ? listRoute : '$listRoute/$recordId';
 
-  static const meal = DomainStyle(key: 'meal', label: 'Makanan', icon: Icons.restaurant_outlined, listRoute: Routes.meals, addRoute: Routes.addMeal, tint: AppColors.mealTint, ink: AppColors.mealInk);
-  static const glucose = DomainStyle(key: 'glucose', label: 'Glukosa', icon: Icons.water_drop_outlined, listRoute: Routes.glucose, addRoute: Routes.addGlucose, tint: AppColors.glucoseTint, ink: AppColors.glucoseInk);
-  static const activity = DomainStyle(key: 'activity', label: 'Aktivitas', icon: Icons.directions_walk_rounded, listRoute: Routes.activities, addRoute: Routes.addActivity, tint: AppColors.activityTint, ink: AppColors.activityInk);
-  static const medication = DomainStyle(key: 'medication', label: 'Obat', icon: Icons.medication_outlined, listRoute: Routes.medications, addRoute: Routes.addMedication, tint: AppColors.medicationTint, ink: AppColors.medicationInk, listOnly: true);
-  static const goal = DomainStyle(key: 'goal', label: 'Tujuan', icon: Icons.flag_outlined, listRoute: Routes.goals, addRoute: Routes.addGoal, tint: AppColors.goalTint, ink: AppColors.goalInk, listOnly: true);
+  static const meal = DomainStyle(
+    key: 'meal',
+    label: 'Makanan',
+    icon: Icons.restaurant_outlined,
+    listRoute: Routes.meals,
+    addRoute: Routes.addMeal,
+    tint: AppColors.mealTint,
+    ink: AppColors.mealInk,
+  );
+  static const glucose = DomainStyle(
+    key: 'glucose',
+    label: 'Glukosa',
+    icon: Icons.water_drop_outlined,
+    listRoute: Routes.glucose,
+    addRoute: Routes.addGlucose,
+    tint: AppColors.glucoseTint,
+    ink: AppColors.glucoseInk,
+  );
+  static const activity = DomainStyle(
+    key: 'activity',
+    label: 'Aktivitas',
+    icon: Icons.directions_walk_rounded,
+    listRoute: Routes.activities,
+    addRoute: Routes.addActivity,
+    tint: AppColors.activityTint,
+    ink: AppColors.activityInk,
+  );
+  static const medication = DomainStyle(
+    key: 'medication',
+    label: 'Obat',
+    icon: Icons.medication_outlined,
+    listRoute: Routes.medications,
+    addRoute: Routes.addMedication,
+    tint: AppColors.medicationTint,
+    ink: AppColors.medicationInk,
+    listOnly: true,
+  );
+  static const goal = DomainStyle(
+    key: 'goal',
+    label: 'Tujuan',
+    icon: Icons.flag_outlined,
+    listRoute: Routes.goals,
+    addRoute: Routes.addGoal,
+    tint: AppColors.goalTint,
+    ink: AppColors.goalInk,
+    listOnly: true,
+  );
 
   static const all = [meal, glucose, activity, medication, goal];
 
-  static DomainStyle of(String domain) => all.firstWhere((style) => style.key == domain, orElse: () => meal);
+  static DomainStyle of(String domain) =>
+      all.firstWhere((style) => style.key == domain, orElse: () => meal);
 }

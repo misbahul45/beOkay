@@ -1,10 +1,9 @@
 import { z } from "zod";
 import { authenticated } from "../auth/guard.ts";
-import { nutritionService } from "../nutrition/nutrition.service.ts";
-import { glucoseService } from "../glucose/glucose.service.ts";
+import { dailyService } from "./daily.service.ts";
+import { contextualService } from "./contextual.service.ts";
 import { weeklyService } from "./weekly.service.ts";
 import { trendsService } from "./trends.service.ts";
-import { activityService } from "../activity/activity.service.ts";
 export const insightsRoutes = {
   "/api/me/summaries/daily": {
     GET: authenticated(async ({ req, session }) => {
@@ -12,12 +11,7 @@ export const insightsRoutes = {
         .date()
         .optional()
         .parse(new URL(req.url).searchParams.get("date") ?? undefined);
-      const [nutrition, glucose, activity] = await Promise.all([
-        nutritionService.daily(session.userId, date),
-        glucoseService.daily(session.userId, date),
-        activityService.daily(session.userId, date),
-      ]);
-      return { body: { ...nutrition, glucose, activity } };
+      return { body: await dailyService.get(session.userId, date) };
     }),
   },
   "/api/me/summaries/weekly": {
@@ -27,6 +21,9 @@ export const insightsRoutes = {
         z.iso.date().optional().parse(new URL(req.url).searchParams.get("date") ?? undefined),
       ),
     })),
+  },
+  "/api/me/insights/contextual": {
+    GET: authenticated(async ({ session }) => ({ body: await contextualService.get(session.userId) })),
   },
   "/api/me/trends": {
     GET: authenticated(async ({ req, session }) => {

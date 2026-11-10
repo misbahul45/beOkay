@@ -21,12 +21,20 @@ String? validateNewPassword(String? value) {
   return null;
 }
 
-String? validateRequired(String? value, String message) => (value == null || value.isEmpty) ? message : null;
+String? validateRequired(String? value, String message) =>
+    (value == null || value.isEmpty) ? message : null;
 
-String? validateOptionalYear(String? value, {required int minYear, required int maxYear, required String label}) {
+String? validateOptionalYear(
+  String? value, {
+  required int minYear,
+  required int maxYear,
+  required String label,
+}) {
   final text = value?.trim() ?? '';
   if (text.isEmpty) return null;
   final year = int.tryParse(text);
-  if (year == null || year < minYear || year > maxYear) return '$label harus antara $minYear dan $maxYear.';
+  if (year == null || year < minYear || year > maxYear) {
+    return '$label harus antara $minYear dan $maxYear.';
+  }
   return null;
 }

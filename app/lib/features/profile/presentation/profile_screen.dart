@@ -6,7 +6,6 @@ import '../../../core/router/routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
-import '../../../core/widgets/info_card.dart';
 import '../../../core/widgets/page_scaffold.dart';
 import '../../../core/widgets/settings_group.dart';
 import '../../auth/application/auth_controller.dart';
@@ -119,9 +118,31 @@ class ProfileScreen extends ConsumerWidget {
           title: 'Rutinitas',
           children: [
             SettingsRow(
+              icon: Icons.groups_outlined,
+              title: 'Komunitas dan tantangan',
+              subtitle: 'Opsional, memakai alias',
+              onTap: () => context.push(Routes.community),
+            ),
+            SettingsRow(
+              icon: Icons.auto_awesome_outlined,
+              title: 'Asisten beOkay',
+              subtitle: 'Alternatif makanan dan rencana aktivitas',
+              onTap: () => context.push(Routes.coach),
+            ),
+            SettingsRow(
+              icon: Icons.no_food_outlined,
+              title: 'Alergi dan preferensi makanan',
+              onTap: () => context.push(Routes.foodPreferences),
+            ),
+            SettingsRow(
               icon: Icons.medication_outlined,
               title: 'Obat dan jadwal',
               onTap: () => context.push(Routes.medications),
+            ),
+            SettingsRow(
+              icon: Icons.notifications_none_rounded,
+              title: 'Pengingat',
+              onTap: () => context.push(Routes.reminders),
             ),
             SettingsRow(
               icon: Icons.flag_outlined,
@@ -157,9 +178,12 @@ class ProfileScreen extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
-        const InfoCard(
-          text: 'beOkay bukan alat diagnosis dan tidak memberi saran medis.',
-          tone: InfoTone.neutral,
+        Center(
+          child: Text(
+            'beOkay bukan alat diagnosis dan tidak memberi saran medis.',
+            style: AppTypography.caption,
+            textAlign: TextAlign.center,
+          ),
         ),
       ],
     );

@@ -5,7 +5,9 @@ import '../features/auth/application/auth_controller.dart';
 import 'network/api_client.dart';
 import 'storage/token_storage.dart';
 
-final tokenStorageProvider = Provider<TokenStorage>((ref) => SecureTokenStorage());
+final tokenStorageProvider = Provider<TokenStorage>(
+  (ref) => SecureTokenStorage(),
+);
 
 final httpClientProvider = Provider<http.Client>((ref) {
   final client = http.Client();
@@ -17,6 +19,7 @@ final apiClientProvider = Provider<ApiClient>((ref) {
   return ApiClient(
     client: ref.watch(httpClientProvider),
     tokens: ref.watch(tokenStorageProvider),
-    onUnauthorized: () => ref.read(authControllerProvider.notifier).sessionExpired(),
+    onUnauthorized: () =>
+        ref.read(authControllerProvider.notifier).sessionExpired(),
   );
 });

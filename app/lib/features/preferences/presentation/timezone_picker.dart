@@ -5,18 +5,33 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/selection_card.dart';
 import '../data/preferences_models.dart';
 
-Future<String?> showTimezonePicker(BuildContext context, {required String current}) {
+Future<String?> showTimezonePicker(
+  BuildContext context, {
+  required String current,
+}) {
   return showModalBottomSheet<String>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.sheet))),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(AppRadius.sheet),
+      ),
+    ),
     builder: (context) => SafeArea(
       child: ListView(
         shrinkWrap: true,
-        padding: const EdgeInsets.fromLTRB(AppSpacing.page, 0, AppSpacing.page, AppSpacing.lg),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.page,
+          0,
+          AppSpacing.page,
+          AppSpacing.lg,
+        ),
         children: [
-          Semantics(header: true, child: Text('Zona Waktu', style: AppTypography.heading)),
+          Semantics(
+            header: true,
+            child: Text('Zona Waktu', style: AppTypography.heading),
+          ),
           const SizedBox(height: AppSpacing.sm),
           for (final zone in supportedTimezones) ...[
             SelectionCard(

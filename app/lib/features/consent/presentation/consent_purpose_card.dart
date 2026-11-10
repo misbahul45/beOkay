@@ -7,7 +7,12 @@ import '../../../core/widgets/info_card.dart';
 import '../data/consent_models.dart';
 
 class ConsentPurposeCard extends StatelessWidget {
-  const ConsentPurposeCard({super.key, required this.purpose, required this.footer, this.badge});
+  const ConsentPurposeCard({
+    super.key,
+    required this.purpose,
+    required this.footer,
+    this.badge,
+  });
 
   final PolicyPurpose purpose;
   final Widget footer;
@@ -18,7 +23,11 @@ class ConsentPurposeCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: AppRadius.cardRadius, boxShadow: AppShadows.soft),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: AppRadius.cardRadius,
+        boxShadow: AppShadows.soft,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -26,7 +35,10 @@ class ConsentPurposeCard extends StatelessWidget {
             spacing: AppSpacing.xs,
             runSpacing: AppSpacing.xs,
             children: [
-              StatusBadge(label: purpose.required ? 'Wajib' : 'Opsional', tone: purpose.required ? InfoTone.info : InfoTone.neutral),
+              StatusBadge(
+                label: purpose.required ? 'Wajib' : 'Opsional',
+                tone: purpose.required ? InfoTone.info : InfoTone.neutral,
+              ),
               ?badge,
             ],
           ),
@@ -43,8 +55,17 @@ class ConsentPurposeCard extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Padding(padding: EdgeInsets.only(top: 7, right: 8), child: Icon(Icons.circle, size: 5, color: AppColors.textSecondary)),
-                  Expanded(child: Text(category, style: AppTypography.secondary)),
+                  const Padding(
+                    padding: EdgeInsets.only(top: 7, right: 8),
+                    child: Icon(
+                      Icons.circle,
+                      size: 5,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(category, style: AppTypography.secondary),
+                  ),
                 ],
               ),
             ),
@@ -53,11 +74,19 @@ class ConsentPurposeCard extends StatelessWidget {
             child: Material(
               color: Colors.transparent,
               child: ExpansionTile(
-              tilePadding: EdgeInsets.zero,
-              childrenPadding: const EdgeInsets.only(bottom: AppSpacing.xs),
-              title: Text('Jika persetujuan ditarik', style: AppTypography.secondaryStrong),
-              expandedCrossAxisAlignment: CrossAxisAlignment.start,
-                children: [Text(purpose.withdrawalEffect, style: AppTypography.secondary)],
+                tilePadding: EdgeInsets.zero,
+                childrenPadding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                title: Text(
+                  'Jika persetujuan ditarik',
+                  style: AppTypography.secondaryStrong,
+                ),
+                expandedCrossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    purpose.withdrawalEffect,
+                    style: AppTypography.secondary,
+                  ),
+                ],
               ),
             ),
           ),

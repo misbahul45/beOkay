@@ -1,13 +1,16 @@
 import 'account_scoped_repository.dart';
 import 'api_exception.dart';
 
-const queuedOfflineMessage = 'Tersimpan di perangkat. Akan dikirim saat tersambung.';
+const queuedOfflineMessage =
+    'Tersimpan di perangkat. Akan dikirim saat tersambung.';
 
 String messageFor(Object error) {
   if (error is QueuedOffline) return queuedOfflineMessage;
   if (error is! ApiException) return 'Terjadi kendala. Coba lagi.';
   if (error.isNetwork) return error.message;
-  if (error.isRateLimited) return 'Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.';
+  if (error.isRateLimited) {
+    return 'Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.';
+  }
   switch (error.code) {
     case 'INVALID_EMAIL_OR_PASSWORD':
       return 'Email atau kata sandi belum sesuai.';
@@ -34,6 +37,6 @@ String messageFor(Object error) {
     case 'UNAUTHENTICATED':
       return 'Sesimu sudah berakhir. Masuk kembali.';
   }
-  if (error.status >= 500) return 'Terjadi kendala di server. Coba lagi nanti.';
+  if (error.status >= 500) return 'Terjadi kendala. Coba lagi nanti.';
   return error.message;
 }

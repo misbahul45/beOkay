@@ -43,6 +43,12 @@ import '../../features/medication/presentation/medication_history_screen.dart';
 import '../../features/sync/presentation/sync_screen.dart';
 import '../../features/insights/presentation/trends_screen.dart';
 import '../../features/goals/presentation/goal_form_screen.dart';
+import '../../features/food_preferences/presentation/food_preferences_screen.dart';
+import '../../features/reminders/presentation/reminders_screen.dart';
+import '../../features/coach/presentation/coach_screen.dart';
+import '../../features/community/data/community_repository.dart';
+import '../../features/community/presentation/challenge_screen.dart';
+import '../../features/community/presentation/community_screen.dart';
 import 'redirect.dart';
 import 'routes.dart';
 
@@ -116,7 +122,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(path: Routes.home, builder: (_, _) => const HomeScreen()),
           GoRoute(path: Routes.log, builder: (_, _) => const LogScreen()),
-          GoRoute(path: Routes.insights, builder: (_, _) => const InsightsScreen()),
+          GoRoute(
+            path: Routes.insights,
+            builder: (_, _) => const InsightsScreen(),
+          ),
           GoRoute(
             path: Routes.profile,
             builder: (_, _) => const ProfileScreen(),
@@ -127,15 +136,57 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.editProfile,
         builder: (_, _) => const PersonalProfileScreen(onboarding: false),
       ),
-      GoRoute(path: Routes.medications, builder: (_, _) => const MedicationScreen()),
-      GoRoute(path: Routes.addMedication, builder: (_, _) => const MedicationFormScreen()),
-      GoRoute(path: '/medications/:id/edit', builder: (_, s) => MedicationFormScreen(initial: s.extra as Regimen?)),
-      GoRoute(path: '/medications/:id/history', builder: (_, s) => MedicationHistoryScreen(regimen: s.extra as Regimen)),
+      GoRoute(
+        path: Routes.medications,
+        builder: (_, _) => const MedicationScreen(),
+      ),
+      GoRoute(
+        path: Routes.addMedication,
+        builder: (_, _) => const MedicationFormScreen(),
+      ),
+      GoRoute(
+        path: '/medications/:id/edit',
+        builder: (_, s) => MedicationFormScreen(initial: s.extra as Regimen?),
+      ),
+      GoRoute(
+        path: '/medications/:id/history',
+        builder: (_, s) => MedicationHistoryScreen(regimen: s.extra as Regimen),
+      ),
+      GoRoute(
+        path: Routes.community,
+        builder: (_, _) => const CommunityScreen(),
+      ),
+      GoRoute(
+        path: '/community/:id',
+        builder: (_, s) => ChallengeListScreen(
+          communityId: s.pathParameters['id']!,
+          communityName: (s.extra as String?) ?? 'Komunitas',
+        ),
+      ),
+      GoRoute(
+        path: '/challenge/:id',
+        // `extra` hilang bila rute dibangun ulang (mis. setelah proses dipulihkan); kembali ke daftar komunitas, bukan crash.
+        redirect: (_, s) => s.extra is Challenge ? null : Routes.community,
+        builder: (_, s) =>
+            ChallengeDetailScreen(challenge: s.extra! as Challenge),
+      ),
+      GoRoute(path: Routes.coach, builder: (_, _) => const CoachScreen()),
+      GoRoute(
+        path: Routes.reminders,
+        builder: (_, _) => const RemindersScreen(),
+      ),
+      GoRoute(
+        path: Routes.foodPreferences,
+        builder: (_, _) => const FoodPreferencesScreen(),
+      ),
       GoRoute(path: Routes.sync, builder: (_, _) => const SyncScreen()),
       GoRoute(path: Routes.trends, builder: (_, _) => const TrendsScreen()),
       GoRoute(path: Routes.goals, builder: (_, _) => const GoalsScreen()),
       GoRoute(path: Routes.addGoal, builder: (_, _) => const GoalFormScreen()),
-      GoRoute(path: '/goals/:id/edit', builder: (_, s) => GoalFormScreen(initial: s.extra as Goal?)),
+      GoRoute(
+        path: '/goals/:id/edit',
+        builder: (_, s) => GoalFormScreen(initial: s.extra as Goal?),
+      ),
       GoRoute(path: Routes.meals, builder: (_, _) => const MealHistoryScreen()),
       GoRoute(
         path: Routes.activities,

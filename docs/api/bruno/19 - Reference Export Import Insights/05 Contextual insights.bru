@@ -1,0 +1,26 @@
+meta {
+  name: Contextual insights
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/me/insights/contextual
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+tests {
+  test("Contextual insights", function () {
+    expect(res.status).to.equal(200); expect(res.body.rulesVersion).to.equal("contextual-rules-v1");
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken and otherSessionToken are supplied by the runner.
+  Deterministic observations about own records; no glucose value judgments; max 3.
+}

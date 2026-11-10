@@ -16,24 +16,34 @@ final medicationRepositoryProvider = Provider<MedicationRepository>((ref) {
     isCurrentAccount: () {
       if (!ref.mounted) return false;
       final current = ref.read(authControllerProvider);
-      return id != null && current is AuthAuthenticated && current.user.id == id;
+      return id != null &&
+          current is AuthAuthenticated &&
+          current.user.id == id;
     },
   );
 });
 
-Future<void> _ready(Ref ref) => Future.wait([ref.watch(consentControllerProvider.future), ref.watch(preferencesControllerProvider.future)]);
+Future<void> _ready(Ref ref) => Future.wait([
+  ref.watch(consentControllerProvider.future),
+  ref.watch(preferencesControllerProvider.future),
+]);
 
-final medicationListProvider = FutureProvider.autoDispose<List<Regimen>>((ref) async {
+final medicationListProvider = FutureProvider.autoDispose<List<Regimen>>((
+  ref,
+) async {
   await _ready(ref);
   return ref.watch(medicationRepositoryProvider).list();
 });
 
-final medicationTodayProvider = FutureProvider.autoDispose<MedicationToday>((ref) async {
+final medicationTodayProvider = FutureProvider.autoDispose<MedicationToday>((
+  ref,
+) async {
   await _ready(ref);
   return ref.watch(medicationRepositoryProvider).today();
 });
 
-final medicationIntakesProvider = FutureProvider.autoDispose.family<List<IntakeRecord>, String>((ref, regimenId) async {
-  await _ready(ref);
-  return ref.watch(medicationRepositoryProvider).intakes(regimenId);
-});
+final medicationIntakesProvider = FutureProvider.autoDispose
+    .family<List<IntakeRecord>, String>((ref, regimenId) async {
+      await _ready(ref);
+      return ref.watch(medicationRepositoryProvider).intakes(regimenId);
+    });

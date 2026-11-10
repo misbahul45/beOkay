@@ -1,3 +1,4 @@
+import { ACTIVITY_COUNTED_QUALITY } from "../activity/activity.model.ts";
 import { prisma } from "../../infrastructure/database/prisma.ts";
 import { localRecordTime } from "../../shared/http/record-schema.ts";
 import { shiftActivityDate } from "../activity/activity.model.ts";
@@ -27,7 +28,7 @@ export const trendsService = {
         select: { measuredAt: true, valueMgDl: true },
       }),
       prisma.activitySession.findMany({
-        where: { userId, archivedAt: null, qualityStatus: "user_reported", startedAt: { gte: from, lt: to } },
+        where: { userId, archivedAt: null, qualityStatus: { in: [...ACTIVITY_COUNTED_QUALITY] }, startedAt: { gte: from, lt: to } },
         select: { startedAt: true, durationMinutes: true },
       }),
       nutritionService.mealsBetween(userId, from, to, timezone),

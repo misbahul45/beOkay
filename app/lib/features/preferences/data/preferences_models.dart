@@ -6,7 +6,10 @@ enum GlucoseUnit {
   final String wire;
   String get label => wire;
 
-  static GlucoseUnit parse(String value) => GlucoseUnit.values.firstWhere((unit) => unit.wire == value, orElse: () => GlucoseUnit.mgDl);
+  static GlucoseUnit parse(String value) => GlucoseUnit.values.firstWhere(
+    (unit) => unit.wire == value,
+    orElse: () => GlucoseUnit.mgDl,
+  );
 }
 
 enum TextSizePreference {
@@ -20,7 +23,10 @@ enum TextSizePreference {
   final double scale;
 
   static TextSizePreference parse(String value) =>
-      TextSizePreference.values.firstWhere((item) => item.wire == value, orElse: () => TextSizePreference.system);
+      TextSizePreference.values.firstWhere(
+        (item) => item.wire == value,
+        orElse: () => TextSizePreference.system,
+      );
 }
 
 class Preferences {
@@ -50,13 +56,13 @@ class Preferences {
   final bool isDefault;
 
   factory Preferences.fromJson(Map<String, dynamic> json) => Preferences(
-        locale: json['locale'] as String,
-        timezone: json['timezone'] as String,
-        glucoseUnit: GlucoseUnit.parse(json['glucoseUnit'] as String),
-        textSize: TextSizePreference.parse(json['textSize'] as String),
-        reduceMotion: json['reduceMotion'] as bool,
-        isDefault: json['isDefault'] as bool,
-      );
+    locale: json['locale'] as String,
+    timezone: json['timezone'] as String,
+    glucoseUnit: GlucoseUnit.parse(json['glucoseUnit'] as String),
+    textSize: TextSizePreference.parse(json['textSize'] as String),
+    reduceMotion: json['reduceMotion'] as bool,
+    isDefault: json['isDefault'] as bool,
+  );
 }
 
 class TimezoneOption {

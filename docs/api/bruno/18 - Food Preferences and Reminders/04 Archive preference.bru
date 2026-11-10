@@ -1,0 +1,30 @@
+meta {
+  name: Archive preference
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/api/me/food-preferences/{{preferenceId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {"expectedVersion":1,"archived":true}
+}
+
+tests {
+  test("Archive preference", function () {
+    expect(res.status).to.equal(200); expect(res.body.archivedAt).to.not.equal(null);
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken and otherSessionToken are supplied by the runner.
+  Optimistic version check via expectedVersion.
+}

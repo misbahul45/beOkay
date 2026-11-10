@@ -23,7 +23,9 @@ class MedicationToday {
       taken = j['taken'] as int,
       skipped = j['skipped'] as int,
       unknown = j['unknown'] as int,
-      items = (j['items'] as List).map((v) => Occurrence.fromJson(v as Map<String, dynamic>)).toList();
+      items = (j['items'] as List)
+          .map((v) => Occurrence.fromJson(v as Map<String, dynamic>))
+          .toList();
   final String date;
   final int scheduled, taken, skipped, unknown;
   final List<Occurrence> items;
@@ -38,14 +40,17 @@ class Regimen {
       instructions = j['dosingInstructions'] as String?,
       status = j['status'] as String,
       version = j['version'] as int,
-      schedules = ((j['schedules'] as List?) ?? const []).cast<Map<String, dynamic>>();
+      schedules = ((j['schedules'] as List?) ?? const [])
+          .cast<Map<String, dynamic>>();
   final String id, name, status;
   final String? strength, dosageForm, instructions;
   final int version;
   final List<Map<String, dynamic>> schedules;
 
   String get subtitle => [?strength, ?dosageForm].join(' · ');
-  String get scheduleLabel => schedules.isEmpty ? 'Belum ada jadwal' : schedules.map((s) => s['localTime']).join(', ');
+  String get scheduleLabel => schedules.isEmpty
+      ? 'Belum ada jadwal'
+      : schedules.map((s) => s['localTime']).join(', ');
 }
 
 class IntakeRecord {
@@ -62,15 +67,55 @@ class IntakeRecord {
 }
 
 class MedicationRepository extends AccountScopedRepository {
-  MedicationRepository(super.api, {required super.isCurrentAccount, super.enqueueOffline});
+  MedicationRepository(
+    super.api, {
+    required super.isCurrentAccount,
+    super.enqueueOffline,
+  });
 
-  Future<List<Regimen>> list() async => ((await api.get('/api/me/medications?limit=50')).object['items'] as List).map((v) => Regimen.fromJson(v as Map<String, dynamic>)).toList();
-  Future<MedicationToday> today() async => MedicationToday.fromJson((await api.get('/api/me/medications/today')).object);
-  Future<void> createRegimen(Map<String, dynamic> body) async => write('POST', '/api/me/medications', body);
-  Future<void> updateRegimen(String id, Map<String, dynamic> body) async => write('PATCH', '/api/me/medications/$id', body);
-  Future<void> createSchedule(String regimenId, Map<String, dynamic> body) async => write('POST', '/api/me/medications/$regimenId/schedules', body);
-  Future<void> updateIntake(String regimenId, String id, Map<String, dynamic> body) async => write('PATCH', '/api/me/medications/$regimenId/intakes/$id', body);
-  Future<void> createIntake(String regimenId, Map<String, dynamic> body) async => write('POST', '/api/me/medications/$regimenId/intakes', body, queue: (domain: 'medication_intake', recordId: body['id'] as String, parentId: regimenId));
+  Future<List<Regimen>> list() async =>
+      ((await api.get('/api/me/medications?limit=50')).object['items'] as List)
+          .map((v) => Regimen.fromJson(v as Map<String, dynamic>))
+          .toList();
+  Future<MedicationToday> today() async => MedicationToday.fromJson(
+    (await api.get('/api/me/medications/today')).object,
+  );
+  Future<void> createRegimen(Map<String, dynamic> body) async =>
+      write('POST', '/api/me/medications', body);
+  Future<void> updateRegimen(String id, Map<String, dynamic> body) async =>
+      write('PATCH', '/api/me/medications/$id', body);
+  Future<void> createSchedule(
+    String regimenId,
+    Map<String, dynamic> body,
+  ) async => write('POST', '/api/me/medications/$regimenId/schedules', body);
+  Future<void> updateIntake(
+    String regimenId,
+    String id,
+    Map<String, dynamic> body,
+  ) async => write(
+    'PATCH',
+    '/api/me/medications/$regimenId/intakes/$id',
+    body,
+    queue: (domain: 'medication_intake', recordId: id, parentId: regimenId),
+  );
+  Future<void> createIntake(
+    String regimenId,
+    Map<String, dynamic> body,
+  ) async => write(
+    'POST',
+    '/api/me/medications/$regimenId/intakes',
+    body,
+    queue: (
+      domain: 'medication_intake',
+      recordId: body['id'] as String,
+      parentId: regimenId,
+    ),
+  );
   Future<List<IntakeRecord>> intakes(String regimenId) async =>
-      ((await api.get('/api/me/medications/$regimenId/intakes?limit=50&archived=false')).object['items'] as List).map((v) => IntakeRecord.fromJson(v as Map<String, dynamic>)).toList();
+      ((await api.get(
+                '/api/me/medications/$regimenId/intakes?limit=50&archived=false',
+              )).object['items']
+              as List)
+          .map((v) => IntakeRecord.fromJson(v as Map<String, dynamic>))
+          .toList();
 }

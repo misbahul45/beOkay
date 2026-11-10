@@ -12,6 +12,7 @@ x-server: &server
   user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
   environment: &server-env
     NODE_ENV: test
+    OUTBOX_WORKER_ENABLED: "false" # tes memanggil outbox.drain() sendiri agar deterministik
     HOME: /tmp
     PORT: "3000"
     DATABASE_URL: postgresql://beokay_test:beokay_test@postgres-test:5432/beokay_test

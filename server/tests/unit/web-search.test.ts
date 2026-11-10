@@ -1,0 +1,62 @@
+import { expect, mock, test } from "bun:test";
+import { createWebSearchClient, safeResultUrl } from "../../src/features/food-discovery/web-search.client.ts";
+
+mock.module("../../src/features/nutrition/nutrition.service.ts", () => ({ nutritionService: { searchFoods: async () => ({ items: [] }) } }));
+mock.module("../../src/features/food-preferences/food-preferences.service.ts", () => ({ foodPreferencesService: { activeFor: async () => [] } }));
+mock.module("../../src/features/consent/consent.service.ts", () => ({ consentService: { requireConsent: async () => {} } }));
+const { createFoodDiscovery } = await import("../../src/features/food-discovery/food-discovery.service.ts");
+
+const reply = (body: unknown, status = 200) => (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
+
+test("tautan hasil: hanya https publik tanpa kredensial, port, atau host lokal/IP", () => {
+  expect(safeResultUrl("https://id.wikipedia.org/wiki/Tempe")?.hostname).toBe("id.wikipedia.org");
+  for (const bad of ["http://a.com", "https://user:pw@a.com", "https://a.com:8443/x", "https://localhost/x", "https://127.0.0.1/x", "https://10.0.0.5/x", "https://intranet/x", "https://svc.internal/x", "javascript:alert(1)", "ftp://a.com", 5, null, "x".repeat(600)])
+    expect(safeResultUrl(bad as unknown)).toBeNull();
+});
+
+test("tanpa kunci tidak ada panggilan jaringan", async () => {
+  let called = 0;
+  const c = createWebSearchClient(undefined, (async () => { called++; return new Response("{}"); }) as unknown as typeof fetch);
+  expect(c.configured).toBe(false);
+  await expect(c.search("tempe")).rejects.toMatchObject({ code: "PROVIDER_NOT_CONFIGURED" });
+  expect(called).toBe(0);
+});
+
+test("hasil dibersihkan: tag HTML dibuang, URL berbahaya dibuang, ditandai tidak ditinjau dan bukan data gizi, kunci hanya di header", async () => {
+  let seen: { url?: string; init?: RequestInit } = {};
+  const fetchImpl = (async (url: URL, init: RequestInit) => {
+    seen = { url: String(url), init };
+    return new Response(JSON.stringify({ web: { results: [
+      { title: "<strong>Tempe</strong> &amp; gizinya", url: "https://id.wikipedia.org/wiki/Tempe", description: "<b>Tempe</b> kaya protein." },
+      { title: "Jahat", url: "http://evil.example/x", description: "x" },
+      { title: "Lokal", url: "https://localhost/x", description: "x" },
+      { title: 5, url: "https://a.example.com/x" },
+    ] } }));
+  }) as unknown as typeof fetch;
+  const items = await createWebSearchClient("brave-test-key", fetchImpl).search("tempe");
+  expect(items).toEqual([{ title: "Tempe & gizinya", url: "https://id.wikipedia.org/wiki/Tempe", host: "id.wikipedia.org", snippet: "Tempe kaya protein.", reviewed: false, usableForNutrition: false }]);
+  expect(seen.url).toContain("https://api.search.brave.com/res/v1/web/search?");
+  expect(seen.url).not.toContain("brave-test-key");
+  expect((seen.init!.headers as Record<string, string>)["x-subscription-token"]).toBe("brave-test-key");
+  expect(seen.init!.redirect).toBe("error");
+});
+
+test("balasan rusak dan galat jaringan menjadi ProviderError", async () => {
+  await expect(createWebSearchClient("k", reply({ nope: 1 })).search("a")).rejects.toMatchObject({ code: "PROVIDER_BAD_RESPONSE" });
+  await expect(createWebSearchClient("k", reply({}, 500)).search("a")).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE" });
+  await expect(createWebSearchClient("k", (async () => { throw new Error("net"); }) as unknown as typeof fetch).search("a")).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE" });
+});
+
+test("layanan: nonaktif tanpa kunci, dibatasi laju bersama sumber luar, kegagalan penyedia tidak melempar", async () => {
+  const off = { search: async () => [], byBarcode: async () => null };
+  const usda = { configured: false, search: async () => [] };
+  const none = createFoodDiscovery({ off, usda, web: createWebSearchClient(undefined) });
+  expect(await none.web("u", "tempe")).toEqual({ status: "NOT_CONFIGURED", items: [] });
+
+  const down = createFoodDiscovery({ off, usda, web: createWebSearchClient("k", reply({}, 503)) });
+  expect(await down.web("u", "tempe")).toMatchObject({ status: "UNAVAILABLE", items: [], code: "PROVIDER_UNAVAILABLE" });
+
+  const ok = createFoodDiscovery({ off, usda, web: createWebSearchClient("k", reply({ web: { results: [] } })) });
+  for (let i = 0; i < 20; i++) await ok.web("u", "tempe");
+  await expect(ok.web("u", "tempe")).rejects.toMatchObject({ status: 429 });
+});

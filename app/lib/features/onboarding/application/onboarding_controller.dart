@@ -5,9 +5,14 @@ import '../../auth/application/auth_controller.dart';
 import '../data/onboarding_repository.dart';
 import '../data/onboarding_status.dart';
 
-final onboardingRepositoryProvider = Provider<OnboardingRepository>((ref) => OnboardingRepository(ref.watch(apiClientProvider)));
+final onboardingRepositoryProvider = Provider<OnboardingRepository>(
+  (ref) => OnboardingRepository(ref.watch(apiClientProvider)),
+);
 
-final onboardingControllerProvider = AsyncNotifierProvider<OnboardingController, OnboardingStatus?>(OnboardingController.new);
+final onboardingControllerProvider =
+    AsyncNotifierProvider<OnboardingController, OnboardingStatus?>(
+      OnboardingController.new,
+    );
 
 class OnboardingController extends AsyncNotifier<OnboardingStatus?> {
   @override

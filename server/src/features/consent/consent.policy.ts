@@ -1,4 +1,4 @@
-export const CONSENT_PURPOSES = ["health_data_processing", "descriptive_summaries", "product_analytics"] as const;
+export const CONSENT_PURPOSES = ["health_data_processing", "descriptive_summaries", "product_analytics", "personalized_ai", "community_membership", "challenge_participation", "leaderboard_visibility", "model_inference", "ai_text_generation"] as const;
 export type ConsentPurpose = (typeof CONSENT_PURPOSES)[number];
 
 export const CONSENT_SOURCES = ["onboarding", "settings", "api"] as const;
@@ -52,6 +52,55 @@ export const currentPolicy: ConsentPolicy = {
       description: "Menggunakan data penggunaan yang tidak memuat isi catatan kesehatanmu untuk memperbaiki aplikasi. Opsional.",
       dataCategories: ["Data penggunaan aplikasi tanpa isi catatan kesehatan"],
       withdrawalEffect: "Data penggunaan tidak lagi dipakai untuk tujuan ini. Tidak memengaruhi fitur lain.",
+    },
+    {
+      purpose: "personalized_ai",
+      required: false,
+      title: "Saran personal dari asisten beOkay",
+      description:
+        "Memakai preferensi makananmu dan catatan yang relevan untuk menyusun pilihan makanan. Semua saran menunggu persetujuanmu, tidak mengubah catatan kesehatan, dan bukan saran medis. Teks tetap dibuat dari aturan; data tidak dikirim ke pihak ketiga untuk ini.",
+      dataCategories: ["Preferensi dan alergi makananmu", "Keputusanmu atas setiap saran"],
+      withdrawalEffect: "Saran baru tidak dibuat dan saran yang menunggu tidak bisa diterima. Preferensi yang sudah dipelajari tetap tersimpan sampai kamu menghapusnya.",
+    },
+    {
+      purpose: "community_membership",
+      required: false,
+      title: "Bergabung dengan komunitas wilayah",
+      description: "Bergabung dengan komunitas di tingkat provinsi memakai alias yang kamu pilih. Yang terlihat oleh anggota hanya aliasmu; tidak ada data kesehatan, lokasi tepat, atau namamu.",
+      dataCategories: ["Wilayah (provinsi) yang kamu pilih", "Alias komunitas"],
+      withdrawalEffect: "Kamu tidak dapat bergabung atau tampil di komunitas. Keanggotaan yang ada tidak ditampilkan lagi sampai kamu menyetujui kembali.",
+    },
+    {
+      purpose: "challenge_participation",
+      required: false,
+      title: "Ikut tantangan kebiasaan",
+      description: "Ikut tantangan hari aktif. Skor dihitung dari catatan aktivitas atau check-in yang kamu pilih sendiri, bukan dari nilai kesehatan.",
+      dataCategories: ["Hari aktif dan check-in kebiasaan"],
+      withdrawalEffect: "Kamu tidak dapat ikut atau memperbarui skor tantangan.",
+    },
+    {
+      purpose: "leaderboard_visibility",
+      required: false,
+      title: "Tampil di papan peringkat",
+      description: "Menampilkan alias dan skor kebiasaanmu di papan peringkat tantangan. Bisa dimatikan kapan saja dan berlaku segera.",
+      dataCategories: ["Alias dan skor tantangan"],
+      withdrawalEffect: "Aliasmu langsung hilang dari papan peringkat.",
+    },
+    {
+      purpose: "model_inference",
+      required: false,
+      title: "Evaluasi model pengenal makanan",
+      description: "Mengirim foto makanan yang kamu pindai ke layanan model kami (Modal) untuk mengenali nama hidangan. Selama model masih tahap uji, hasilnya hanya dievaluasi di belakang layar. Setelah model disetujui, hasilnya tampil sebagai perkiraan yang harus kamu periksa, tidak pernah dicatat otomatis. Foto tidak disimpan.",
+      dataCategories: ["Foto makanan yang kamu pindai (hanya saat memindai)"],
+      withdrawalEffect: "Foto tidak lagi dikirim ke layanan model. Tidak memengaruhi fitur lain.",
+    },
+    {
+      purpose: "ai_text_generation",
+      required: false,
+      title: "Teks saran ditulis model bahasa",
+      description: "Menyusun penjelasan saran dengan bantuan model bahasa pihak ketiga (Mistral). Yang dikirim hanya fakta saran itu: nama makanan atau aktivitas, nilai gizi bersumber, alasan peringkat, dan kata pencarianmu. Tidak dikirim: nama, surel, alergi, kadar glukosa, atau riwayat catatanmu. Teks selalu diperiksa aturan keselamatan dan diganti templat bila gagal.",
+      dataCategories: ["Fakta saran (nama makanan/aktivitas, nilai gizi bersumber, kata pencarian)"],
+      withdrawalEffect: "Penjelasan kembali memakai templat tetap. Saran yang sudah ada tidak berubah.",
     },
   ],
 };

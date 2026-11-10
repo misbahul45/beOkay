@@ -17,28 +17,63 @@ class WelcomeScreen extends StatelessWidget {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF0E6B73), AppColors.brand, Color(0xFF07313B)]),
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF0E6B73), AppColors.brand, Color(0xFF07313B)],
+          ),
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.page, AppSpacing.md, AppSpacing.page, AppSpacing.lg),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.page,
+              AppSpacing.md,
+              AppSpacing.page,
+              AppSpacing.lg,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Spacer(flex: 2),
                 const Center(child: BeOkayAvatar(size: 132)),
                 const SizedBox(height: AppSpacing.xl),
-                Semantics(header: true, child: Text('Halo, aku beOkay.', style: AppTypography.display.copyWith(color: AppColors.onPrimary))),
+                Semantics(
+                  header: true,
+                  child: Text(
+                    'Halo, aku beOkay.',
+                    style: AppTypography.display.copyWith(
+                      color: AppColors.onPrimary,
+                    ),
+                  ),
+                ),
                 const SizedBox(height: AppSpacing.xs),
-                Text('Teman catatan kesehatan harianmu.', style: AppTypography.body.copyWith(color: const Color(0xFFCFE8E4))),
+                Text(
+                  'Teman catatan kesehatan harianmu.',
+                  style: AppTypography.body.copyWith(
+                    color: const Color(0xFFCFE8E4),
+                  ),
+                ),
                 const Spacer(flex: 3),
-                PillButton(label: 'Mulai Sekarang', kind: PillButtonKind.light, onPressed: () => context.go(Routes.register)),
+                PillButton(
+                  label: 'Mulai Sekarang',
+                  kind: PillButtonKind.light,
+                  onPressed: () => context.go(Routes.register),
+                ),
                 const SizedBox(height: AppSpacing.xs),
                 Center(
                   child: TextButton(
-                    style: TextButton.styleFrom(minimumSize: const Size(48, 48), foregroundColor: AppColors.onPrimary, backgroundColor: Colors.transparent),
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(48, 48),
+                      foregroundColor: AppColors.onPrimary,
+                      backgroundColor: Colors.transparent,
+                    ),
                     onPressed: () => context.go(Routes.login),
-                    child: Text('Sudah punya akun? Masuk', style: AppTypography.bodyStrong.copyWith(color: AppColors.onPrimary)),
+                    child: Text(
+                      'Sudah punya akun? Masuk',
+                      style: AppTypography.bodyStrong.copyWith(
+                        color: AppColors.onPrimary,
+                      ),
+                    ),
                   ),
                 ),
               ],

@@ -9,18 +9,39 @@ class AuthRepository {
   final ApiClient api;
   final TokenStorage tokens;
 
-  Future<void> signUp({required String name, required String email, required String password}) async {
-    await api.post('/api/auth/sign-up/email', body: {'name': name, 'email': email, 'password': password}, authenticated: false);
+  Future<void> signUp({
+    required String name,
+    required String email,
+    required String password,
+  }) async {
+    await api.post(
+      '/api/auth/sign-up/email',
+      body: {'name': name, 'email': email, 'password': password},
+      authenticated: false,
+    );
   }
 
-  Future<SessionUser> signIn({required String email, required String password}) async {
-    final response = await api.post('/api/auth/sign-in/email', body: {'email': email, 'password': password}, authenticated: false);
+  Future<SessionUser> signIn({
+    required String email,
+    required String password,
+  }) async {
+    final response = await api.post(
+      '/api/auth/sign-in/email',
+      body: {'email': email, 'password': password},
+      authenticated: false,
+    );
     final token = response.headers['set-auth-token'];
     if (token == null || token.isEmpty) {
-      throw const ApiException(status: 500, code: 'MISSING_SESSION_TOKEN', message: 'Sesi tidak bisa dibuat. Coba lagi.');
+      throw const ApiException(
+        status: 500,
+        code: 'MISSING_SESSION_TOKEN',
+        message: 'Sesi tidak bisa dibuat. Coba lagi.',
+      );
     }
     await tokens.write(token);
-    return SessionUser.fromJson(response.object['user'] as Map<String, dynamic>);
+    return SessionUser.fromJson(
+      response.object['user'] as Map<String, dynamic>,
+    );
   }
 
   Future<SessionUser?> restore() async {
@@ -45,19 +66,33 @@ class AuthRepository {
   Future<void> clearLocalSession() => tokens.clear();
 
   Future<void> resendVerification(String email) async {
-    await api.post('/api/auth/send-verification-email', body: {'email': email}, authenticated: false);
+    await api.post(
+      '/api/auth/send-verification-email',
+      body: {'email': email},
+      authenticated: false,
+    );
   }
 
   Future<void> requestPasswordReset(String email) async {
-    await api.post('/api/auth/request-password-reset', body: {'email': email}, authenticated: false);
+    await api.post(
+      '/api/auth/request-password-reset',
+      body: {'email': email},
+      authenticated: false,
+    );
   }
 
-  Future<void> changePassword({required String currentPassword, required String newPassword}) async {
-    await api.post('/api/auth/change-password', body: {
-      'currentPassword': currentPassword,
-      'newPassword': newPassword,
-      'revokeOtherSessions': true,
-    });
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    await api.post(
+      '/api/auth/change-password',
+      body: {
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+        'revokeOtherSessions': true,
+      },
+    );
   }
 
   Future<List<DeviceSession>> listSessions() async {
@@ -70,7 +105,9 @@ class AuthRepository {
         token: token,
         userAgent: item['userAgent'] as String? ?? '',
         ipAddress: item['ipAddress'] as String? ?? '',
-        createdAt: DateTime.tryParse(item['createdAt'] as String? ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0),
+        createdAt:
+            DateTime.tryParse(item['createdAt'] as String? ?? '') ??
+            DateTime.fromMillisecondsSinceEpoch(0),
         isCurrent: token == current,
       );
     }).toList();

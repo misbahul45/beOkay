@@ -1,0 +1,30 @@
+meta {
+  name: Add allergy
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/me/food-preferences
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {"kind":"allergy","term":"kacang"}
+}
+
+tests {
+  test("Add allergy", function () {
+    expect([200,201]).to.include(res.status); expect(res.body.severity).to.equal("strict"); bru.setVar("preferenceId",res.body.id);
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken and otherSessionToken are supplied by the runner.
+  Allergies and restrictions are strict constraints; aliases normalize (peanut -> kacang). Repeating is idempotent.
+}

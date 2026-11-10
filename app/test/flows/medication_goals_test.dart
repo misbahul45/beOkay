@@ -62,10 +62,8 @@ void main() {
       expect(find.text('Belum dikonfirmasi'), findsOneWidget);
       expect(find.text('Sudah diminum'), findsOneWidget);
       expect(find.text('Lewati'), findsOneWidget);
-      expect(
-        find.textContaining('bukan bukti kamu sudah minum'),
-        findsOneWidget,
-      );
+      // Status ditampilkan langsung pada item; tidak ada kotak penjelasan di atas daftar.
+      expect(find.textContaining('bukan bukti kamu sudah minum'), findsNothing);
       expect(find.text('Belum ada obat'), findsOneWidget);
     },
   );
@@ -117,37 +115,65 @@ void main() {
     expect(find.text('Jalan sore'), findsOneWidget);
     expect(
       find.textContaining('poin'),
-      findsOneWidget,
-    ); // the disclaimer says there are no points
+      findsNothing,
+    ); // tidak ada bahasa skor pada tujuan
     expect(
       find.text('Check-in'),
       findsNothing,
     ); // derived goals are not checked in by hand
   });
 
-  testWidgets('Intake history lists confirmations and a correction needs a reason', (tester) async {
-    final regimen = Regimen.fromJson({'id': 'r1', 'name': 'Obat uji', 'strength': '500 mg', 'status': 'active', 'version': 1});
-    await tester.pumpWidget(
-      _app(MedicationHistoryScreen(regimen: regimen), [
-        medicationIntakesProvider('r1').overrideWith(
-          (ref) async => [IntakeRecord.fromJson({'id': 'i1', 'status': 'taken', 'eventAt': '2026-11-09T01:00:00.000Z', 'version': 2, 'archivedAt': null})],
-        ),
-      ]),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Riwayat konfirmasi'), findsOneWidget);
-    expect(find.text('Sudah diminum'), findsOneWidget);
-    expect(find.textContaining('dikoreksi'), findsOneWidget);
-    await tester.tap(find.text('Koreksi'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Simpan'));
-    await tester.pumpAndSettle();
-    expect(find.text('Isi alasan koreksi.'), findsOneWidget);
-  });
+  testWidgets(
+    'Intake history lists confirmations and a correction needs a reason',
+    (tester) async {
+      final regimen = Regimen.fromJson({
+        'id': 'r1',
+        'name': 'Obat uji',
+        'strength': '500 mg',
+        'status': 'active',
+        'version': 1,
+      });
+      await tester.pumpWidget(
+        _app(MedicationHistoryScreen(regimen: regimen), [
+          medicationIntakesProvider('r1').overrideWith(
+            (ref) async => [
+              IntakeRecord.fromJson({
+                'id': 'i1',
+                'status': 'taken',
+                'eventAt': '2026-11-09T01:00:00.000Z',
+                'version': 2,
+                'archivedAt': null,
+              }),
+            ],
+          ),
+        ]),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Riwayat konfirmasi'), findsOneWidget);
+      expect(find.text('Sudah diminum'), findsOneWidget);
+      expect(find.textContaining('dikoreksi'), findsOneWidget);
+      await tester.tap(find.text('Koreksi'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Simpan'));
+      await tester.pumpAndSettle();
+      expect(find.text('Isi alasan koreksi.'), findsOneWidget);
+    },
+  );
 
-  testWidgets('Edit forms start from the saved values and require a reason', (tester) async {
-    final regimen = Regimen.fromJson({'id': 'r1', 'name': 'Obat uji', 'strength': '500 mg', 'dosageForm': 'tablet', 'status': 'active', 'version': 3});
-    await tester.pumpWidget(_app(MedicationFormScreen(initial: regimen), const []));
+  testWidgets('Edit forms start from the saved values and require a reason', (
+    tester,
+  ) async {
+    final regimen = Regimen.fromJson({
+      'id': 'r1',
+      'name': 'Obat uji',
+      'strength': '500 mg',
+      'dosageForm': 'tablet',
+      'status': 'active',
+      'version': 3,
+    });
+    await tester.pumpWidget(
+      _app(MedicationFormScreen(initial: regimen), const []),
+    );
     await tester.pumpAndSettle();
     expect(find.text('Ubah obat'), findsOneWidget);
     expect(find.text('Obat uji'), findsOneWidget);
@@ -156,7 +182,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Isi alasan perubahan.'), findsOneWidget);
 
-    final goal = Goal.fromJson({'id': 'g1', 'title': 'Jalan sore', 'goalType': 'activity_minutes', 'targetValue': 150, 'period': 'weekly', 'status': 'active', 'version': 1});
+    final goal = Goal.fromJson({
+      'id': 'g1',
+      'title': 'Jalan sore',
+      'goalType': 'activity_minutes',
+      'targetValue': 150,
+      'period': 'weekly',
+      'status': 'active',
+      'version': 1,
+    });
     await tester.pumpWidget(_app(GoalFormScreen(initial: goal), const []));
     await tester.pumpAndSettle();
     expect(find.text('Ubah tujuan'), findsOneWidget);

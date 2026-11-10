@@ -105,7 +105,10 @@ class _Option extends StatelessWidget {
                 Container(
                   height: 40,
                   width: 40,
-                  decoration: BoxDecoration(color: style.tint, shape: BoxShape.circle),
+                  decoration: BoxDecoration(
+                    color: style.tint,
+                    shape: BoxShape.circle,
+                  ),
                   child: Icon(style.icon, color: style.ink),
                 ),
                 const SizedBox(width: AppSpacing.sm),

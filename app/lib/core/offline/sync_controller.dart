@@ -8,7 +8,9 @@ import '../network/api_exception.dart';
 import '../providers.dart';
 import 'offline_queue.dart';
 
-final keyValueStoreProvider = Provider<KeyValueStore>((ref) => SecureKeyValueStore());
+final keyValueStoreProvider = Provider<KeyValueStore>(
+  (ref) => SecureKeyValueStore(),
+);
 
 /// Antrean milik akun yang sedang masuk; null bila belum masuk.
 final offlineQueueProvider = Provider<OfflineQueue?>((ref) {
@@ -18,14 +20,30 @@ final offlineQueueProvider = Provider<OfflineQueue?>((ref) {
 });
 
 class SyncSnapshot {
-  const SyncSnapshot({this.items = const [], this.running = false, this.blockedByConsent = false, this.offline = false});
+  const SyncSnapshot({
+    this.items = const [],
+    this.running = false,
+    this.blockedByConsent = false,
+    this.offline = false,
+  });
   final List<QueuedOperation> items;
   final bool running;
   final bool blockedByConsent;
   final bool offline;
 
-  int get pending => items.where((o) => o.state == QueueState.savedLocal || o.state == QueueState.syncFailed).length;
-  int get needsAttention => items.where((o) => o.state == QueueState.conflict || o.state == QueueState.needsReview).length;
+  int get pending => items
+      .where(
+        (o) =>
+            o.state == QueueState.savedLocal ||
+            o.state == QueueState.syncFailed,
+      )
+      .length;
+  int get needsAttention => items
+      .where(
+        (o) =>
+            o.state == QueueState.conflict || o.state == QueueState.needsReview,
+      )
+      .length;
 }
 
 class _ResumeObserver with WidgetsBindingObserver {
@@ -63,7 +81,12 @@ class SyncController extends Notifier<SyncSnapshot> {
     final items = await queue.load();
     if (!ref.mounted) return;
     state = SyncSnapshot(items: items);
-    if (items.any((o) => o.state == QueueState.savedLocal || o.state == QueueState.syncFailed)) unawaited(flush());
+    if (items.any(
+      (o) =>
+          o.state == QueueState.savedLocal || o.state == QueueState.syncFailed,
+    )) {
+      unawaited(flush());
+    }
   }
 
   /// Dipanggil repositori saat jaringan gagal. Menyimpan lokal, lalu mencoba kirim di latar.
@@ -81,18 +104,39 @@ class SyncController extends Notifier<SyncSnapshot> {
     _flushing = true;
     try {
       var items = await queue.load();
-      final todo = items.where((o) => o.state == QueueState.savedLocal || o.state == QueueState.syncFailed).toList();
+      final todo = items
+          .where(
+            (o) =>
+                o.state == QueueState.savedLocal ||
+                o.state == QueueState.syncFailed,
+          )
+          .toList();
       if (todo.isEmpty) return;
       state = SyncSnapshot(items: items, running: true);
       final api = ref.read(apiClientProvider);
       try {
         for (var i = 0; i < todo.length; i += 50) {
-          final batch = todo.sublist(i, i + 50 > todo.length ? todo.length : i + 50);
-          final res = await api.post('/api/me/sync/operations', body: {'operations': [for (final o in batch) o.toWire()]});
+          final batch = todo.sublist(
+            i,
+            i + 50 > todo.length ? todo.length : i + 50,
+          );
+          final res = await api.post(
+            '/api/me/sync/operations',
+            body: {
+              'operations': [for (final o in batch) o.toWire()],
+            },
+          );
           // Akun berganti saat permintaan berjalan: jangan menyentuh antrean akun lain.
           final auth = ref.read(authControllerProvider);
-          if (!ref.mounted || auth is! AuthAuthenticated || auth.user.id != accountId) return;
-          final results = {for (final r in (res.object['items'] as List)) (r as Map)['operationId'] as String: r.cast<String, dynamic>()};
+          if (!ref.mounted ||
+              auth is! AuthAuthenticated ||
+              auth.user.id != accountId) {
+            return;
+          }
+          final results = {
+            for (final r in (res.object['items'] as List))
+              (r as Map)['operationId'] as String: r.cast<String, dynamic>(),
+          };
           items = await queue.load();
           final next = <QueuedOperation>[];
           for (final o in items) {
@@ -105,9 +149,21 @@ class SyncController extends Notifier<SyncSnapshot> {
               case 'SYNCED':
                 break; // selesai: hapus dari antrean
               case 'CONFLICT':
-                next.add(o.copyWith(state: QueueState.conflict, errorCode: (r['error'] as Map?)?['code'] as String?, errorMessage: (r['error'] as Map?)?['message'] as String?));
+                next.add(
+                  o.copyWith(
+                    state: QueueState.conflict,
+                    errorCode: (r['error'] as Map?)?['code'] as String?,
+                    errorMessage: (r['error'] as Map?)?['message'] as String?,
+                  ),
+                );
               case 'NEEDS_REVIEW':
-                next.add(o.copyWith(state: QueueState.needsReview, errorCode: (r['error'] as Map?)?['code'] as String?, errorMessage: (r['error'] as Map?)?['message'] as String?));
+                next.add(
+                  o.copyWith(
+                    state: QueueState.needsReview,
+                    errorCode: (r['error'] as Map?)?['code'] as String?,
+                    errorMessage: (r['error'] as Map?)?['message'] as String?,
+                  ),
+                );
               default:
                 next.add(o.copyWith(state: QueueState.syncFailed));
             }
@@ -118,7 +174,11 @@ class SyncController extends Notifier<SyncSnapshot> {
       } on ApiException catch (e) {
         if (!ref.mounted) return;
         final cur = await queue.load();
-        state = SyncSnapshot(items: cur, offline: e.isNetwork, blockedByConsent: e.code == 'CONSENT_REQUIRED');
+        state = SyncSnapshot(
+          items: cur,
+          offline: e.isNetwork,
+          blockedByConsent: e.code == 'CONSENT_REQUIRED',
+        );
       }
     } finally {
       _flushing = false;
@@ -138,7 +198,12 @@ class SyncController extends Notifier<SyncSnapshot> {
     final queue = ref.read(offlineQueueProvider);
     if (queue == null) return;
     final items = await queue.load();
-    await queue.replaceAll([for (final o in items) o.operationId == operationId ? o.copyWith(state: QueueState.savedLocal) : o]);
+    await queue.replaceAll([
+      for (final o in items)
+        o.operationId == operationId
+            ? o.copyWith(state: QueueState.savedLocal)
+            : o,
+    ]);
     await flush();
   }
 
@@ -149,4 +214,6 @@ class SyncController extends Notifier<SyncSnapshot> {
   }
 }
 
-final syncControllerProvider = NotifierProvider<SyncController, SyncSnapshot>(SyncController.new);
+final syncControllerProvider = NotifierProvider<SyncController, SyncSnapshot>(
+  SyncController.new,
+);

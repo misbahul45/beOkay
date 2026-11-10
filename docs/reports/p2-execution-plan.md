@@ -37,10 +37,10 @@ Audit P1 menyatakan PDF "tidak terbaca andal". Setelah uji OCR Mistral pada hala
 | Tahap | Isi | Bukti selesai | Status |
 |---|---|---|---|
 | **A — P2-00** | Audit, peta dependensi | 3 dokumen; baseline 69 + 97 tes | selesai |
-| **B — RAG pangan (TKPI)** | OCR 140 hlm → parser deterministik → validator → tabel `food_reference` (+ `pgvector`, embedding `mistral-embed`) → pencarian hibrida (nama + vektor) → masuk Food Discovery sebagai sumber lokal terverifikasi; unggah PDF sumber ke UploadThing | tes unit parser/validator; tes integrasi pencarian; laporan tingkat lolos | OCR berjalan |
-| **C — Fondasi agen** | Migrasi (conversations, runs, run_events, tool_calls, checkpoints, consent purposes v1.1); gateway `/api/me/agent/*` + SSE + cancel; mesin status run; API konteks bercakupan; registri alat deny-by-default; keselamatan deterministik berversi | tes Bun lulus di Docker; tes adversarial (injeksi, akun lain, dosis obat) | belum |
-| **D — Graf agen & bukti** | Graf TS (intent → konteks → klarifikasi → alat → keselamatan → konfirmasi → simpan), klien LLM HTTP, retrieval bukti dari korpus yang ditinjau | tes graf, resume tanpa efek ganda | belum |
-| **E — Model Kaggle → Modal** | Pilih model & dataset, latih di kernel Kaggle, evaluasi (split bersih, tanpa kebocoran), registri model, `ml/modal_app.py`, klien HTTP + circuit breaker + fallback | laporan evaluasi nyata; **deploy hanya bila token Modal ada** | terblokir token |
+| **B — RAG pangan (TKPI)** | OCR 140 hlm → parser deterministik → validator → tabel `food_reference` (+ `pgvector`, embedding `mistral-embed`) → pencarian hibrida (nama + vektor) → masuk Food Discovery sebagai sumber lokal terverifikasi; unggah PDF sumber ke UploadThing | tes unit parser/validator; tes integrasi pencarian; laporan tingkat lolos | **selesai (backend)** — 1.037/1.132 baris `verified_auto`, 1.037 embedding, PDF terunggah; UI belum (menunggu desain). Lihat `docs/audits/p1-readiness-audit.md` "Irisan 3" |
+| **C — Fondasi agen** | Migrasi (conversations, runs, run_events, tool_calls, checkpoints, consent purposes v1.1); gateway `/api/me/agent/*` + SSE + cancel; mesin status run; API konteks bercakupan; registri alat deny-by-default; keselamatan deterministik berversi | tes Bun lulus di Docker; tes adversarial (injeksi, akun lain, dosis obat) | **sebagian selesai** (9 Nov): runs/events/tool_calls, cancel, registri alat, keselamatan, consent `personalized_ai` — tanpa SSE dan percakapan. Lihat `p2-completion-report.md` |
+| **D — Graf agen & bukti** (nutrisi selesai; lihat laporan) | Graf TS (intent → konteks → klarifikasi → alat → keselamatan → konfirmasi → simpan), klien LLM HTTP, retrieval bukti dari korpus yang ditinjau | tes graf, resume tanpa efek ganda | belum |
+| **E — Model Kaggle → Modal** | Pilih model & dataset, latih di kernel Kaggle, evaluasi (split bersih, tanpa kebocoran), registri model, `ml/modal_app.py`, klien HTTP + circuit breaker + fallback | laporan evaluasi nyata; deploy hanya dengan bukti | belum dimulai (token Modal sudah ada sejak 9 Nov; dataset dan backbone sudah dipilih) |
 | **F — Nutrisi & aktivitas** | Preferensi/alergi, rencana makan (≠ konsumsi), filter kendala keras, peringkat, opsi aktivitas manual | tes alergi, tidak ada auto-log | belum |
 | **G — Coaching & komunitas** | Mikro-aksi, tinjauan mingguan; wilayah, alias, keanggotaan, tantangan, buku besar skor, leaderboard, blok/laporan | tes isolasi, skor idempoten | belum |
 | **H — Flutter** | Desain FigCraft dulu, lalu layar | **terblokir sampai figcraft tersambung** | belum |
@@ -55,3 +55,7 @@ Dari kandidat prompt induk, hanya yang punya dataset publik nyata dan tugas jela
 1. **Modal**: jalankan `! modal token new` (login browser) — atau beri `MODAL_TOKEN_ID`/`MODAL_TOKEN_SECRET`. Tanpa ini deploy tidak dapat dilakukan dan tidak akan saya klaim.
 2. **FigCraft**: sambungkan ulang sebelum tahap H.
 3. Kebijakan kohort minimum komunitas dan teks consent baru perlu ditinjau pemilik produk.
+
+## Pembaruan 9 Nov 2026 — prasyarat dari P1 yang kini ada
+
+Preferensi/alergi/pembatasan makanan, pengingat, ekspor data, impor aktivitas perangkat (backend), dan insight kontekstual sudah ada (tahap F/G bisa memakainya). Masih dibutuhkan sebelum nutrisi P2: entitas **rencana makan** (≠ konsumsi). P2 sendiri (agen, keselamatan, ML, komunitas) **belum dimulai** selain tahap A dan B.

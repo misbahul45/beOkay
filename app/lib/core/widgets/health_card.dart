@@ -11,7 +11,10 @@ class HealthCard extends StatelessWidget {
     borderRadius: AppRadius.cardRadius,
     child: SizedBox(
       width: double.infinity,
-      child: Padding(padding: const EdgeInsets.all(AppSpacing.md), child: child),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: child,
+      ),
     ),
   );
 }

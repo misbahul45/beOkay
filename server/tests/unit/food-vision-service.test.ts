@@ -3,7 +3,7 @@ import { describe, expect, it, mock } from "bun:test";
 mock.module("../../src/features/consent/consent.service.ts", () => ({ consentService: { requireConsent: async () => {} } }));
 mock.module("../../src/features/nutrition/nutrition.service.ts", () => ({ nutritionService: { searchFoods: async () => ({ items: [] }) } }));
 
-const { createFoodVision, photoOutput } = await import("../../src/features/food-vision/food-vision.service.ts");
+const { createFoodVision, photoOutput, referenceCovers } = await import("../../src/features/food-vision/food-vision.service.ts");
 const { createMistralClient } = await import("../../src/features/food-vision/mistral.client.ts");
 const { sniffImage } = await import("../../src/features/food-vision/image.ts");
 
@@ -64,6 +64,33 @@ describe("food vision", () => {
     expect(r.items[0].matches[0].id).toBe("f1");
     expect(r.items[1].matches).toEqual([]);
     expect(JSON.stringify(r)).not.toContain("9999");
+  });
+
+  it("foto: gizi dari referensi (RAG) menempel pada tiap nama; kegagalan referensi tidak merusak hasil; nilai dari foto tidak dipercaya", async () => {
+    const f = (() => json({ choices: [{ message: { content: JSON.stringify({ isFood: true, items: [{ name: "Nasi goreng", confidence: "high" }, { name: "Kerupuk", confidence: "low" }] }) } }] })) as unknown as typeof fetch;
+    const reference = async (q: string) => {
+      if (q === "Kerupuk") throw new Error("embedding down");
+      return { items: [{ code: "AR001", name: "Nasi goreng", per100g: { calories: 212 } }, { code: "AR002", name: "Nasi goreng ayam", per100g: { calories: 230 } }, { code: "AR004", name: "Nasi goreng kampung", per100g: {} }, { code: "AR003", name: "Gendar goreng", per100g: {} }] };
+    };
+    const r: any = await createFoodVision({ mistral: createMistralClient(cfg, f), search: async () => ({ items: [] }), reference }).identifyPhoto("u1", jpeg);
+    expect(r.items[0].reference.map((x: any) => x.code)).toEqual(["AR001", "AR002"]); // maks 2
+    expect(r.items[1].reference).toEqual([]); // gagal → kosong, bukan galat
+    expect(r.status).toBe("IDENTIFIED");
+  });
+
+  it("gerbang kecocokan referensi: setiap kata penting harus ada; tetangga makna yang salah ditolak; ejaan dekat diterima", () => {
+    // Kasus nyata dari uji foto: pencarian makna mengembalikan makanan lain.
+    expect(referenceCovers("nasi goreng", "Gendar goreng")).toBe(false);
+    expect(referenceCovers("sambal", "Jambal goreng, masakan")).toBe(false);
+    expect(referenceCovers("sambal", "Cabai rawit, segar")).toBe(false);
+    expect(referenceCovers("lontong", "Daun pakis longgiho, segar")).toBe(false);
+    expect(referenceCovers("sayur lodeh", "Gudeg, sayur")).toBe(false);
+    expect(referenceCovers("nasi goreng", "Nasi goreng")).toBe(true);
+    expect(referenceCovers("nasi goreng", "Nasi goreng ayam")).toBe(true);
+    expect(referenceCovers("telur dadar", "Telur ayam, dadar, masakan")).toBe(true);
+    expect(referenceCovers("krupuk", "Kerupuk kemplang goreng")).toBe(true); // ejaan
+    expect(referenceCovers("ab", "ab cd")).toBe(false); // tanpa kata bermakna
+    expect(referenceCovers("", "apa saja")).toBe(false);
   });
 
   it("foto bukan makanan → NOT_FOOD; keluaran tak sesuai skema ditolak", async () => {

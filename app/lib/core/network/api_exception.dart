@@ -1,5 +1,10 @@
 class ApiException implements Exception {
-  const ApiException({required this.status, required this.code, required this.message, this.details});
+  const ApiException({
+    required this.status,
+    required this.code,
+    required this.message,
+    this.details,
+  });
 
   final int status;
   final String code;

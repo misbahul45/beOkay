@@ -1,0 +1,30 @@
+meta {
+  name: Check foods against preferences
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/me/food-preferences/check
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {"items":[{"name":"Gado-gado"},{"name":"Nasi putih"}]}
+}
+
+tests {
+  test("Check foods against preferences", function () {
+    expect(res.status).to.equal(200); expect(res.body.results[0].status).to.equal("EXCLUDED");
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variables sessionToken and otherSessionToken are supplied by the runner.
+  Name-based heuristic only. NO_MATCH_FOUND never means safe; the note says ingredients are unknown.
+}

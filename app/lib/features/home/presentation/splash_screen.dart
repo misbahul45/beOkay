@@ -35,11 +35,19 @@ class SplashScreen extends ConsumerWidget {
               if (problem == null) ...[
                 const AvatarLoader(),
                 const SizedBox(height: AppSpacing.lg),
-                Image.asset('assets/images/logo_full.png', width: 150, semanticLabel: 'beOkay'),
+                Image.asset(
+                  'assets/images/logo_full.png',
+                  width: 150,
+                  semanticLabel: 'beOkay',
+                ),
               ] else ...[
                 const BeOkayAvatar(size: 72, animate: false),
                 const SizedBox(height: AppSpacing.md),
-                Text(problem, textAlign: TextAlign.center, style: AppTypography.secondary),
+                Text(
+                  problem,
+                  textAlign: TextAlign.center,
+                  style: AppTypography.secondary,
+                ),
                 const SizedBox(height: AppSpacing.md),
                 PillButton(label: 'Coba lagi', expand: false, onPressed: retry),
               ],

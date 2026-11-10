@@ -70,7 +70,10 @@ void main() {
     );
     await tester.pumpAndSettle();
     final tile = find.widgetWithText(TimelineTile, 'Jalan kaki');
-    expect(find.descendant(of: tile, matching: find.textContaining('07:00')), findsOneWidget);
+    expect(
+      find.descendant(of: tile, matching: find.textContaining('07:00')),
+      findsOneWidget,
+    );
     await tester.ensureVisible(tile);
     await tester.tap(tile);
     await tester.pumpAndSettle();
@@ -124,7 +127,10 @@ void main() {
     );
     await tester.pumpAndSettle();
     final tile = find.byType(TimelineTile);
-    expect(find.descendant(of: tile, matching: find.textContaining('07:00')), findsOneWidget);
+    expect(
+      find.descendant(of: tile, matching: find.textContaining('07:00')),
+      findsOneWidget,
+    );
     await tester.ensureVisible(tile);
     await tester.tap(tile);
     await tester.pumpAndSettle();

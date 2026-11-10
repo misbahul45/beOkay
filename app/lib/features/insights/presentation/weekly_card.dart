@@ -17,24 +17,34 @@ class WeeklyCard extends ConsumerWidget {
     if (w == null) return const SizedBox.shrink();
     return Semantics(
       container: true,
-      label: 'Ringkasan minggu ${w.weekStart} sampai ${w.weekEnd}. ${w.recordedDays} dari ${w.totalDays} hari ada catatan.',
+      label:
+          'Ringkasan minggu ${w.weekStart} sampai ${w.weekEnd}. ${w.recordedDays} dari ${w.totalDays} hari ada catatan.',
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(color: AppColors.surface, borderRadius: AppRadius.cardRadius),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: AppRadius.cardRadius,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Minggu ini', style: AppTypography.bodyStrong),
             const SizedBox(height: 2),
             Text(
-              w.hasData ? '${w.recordedDays} dari ${w.totalDays} hari ada catatan' : 'Belum ada catatan minggu ini',
+              w.hasData
+                  ? '${w.recordedDays} dari ${w.totalDays} hari ada catatan'
+                  : 'Belum ada catatan minggu ini',
               style: AppTypography.secondary,
             ),
             if (w.hasData) ...[
               const SizedBox(height: AppSpacing.sm),
               _Row(DomainStyle.meal, 'Makanan', '${w.mealDays} hari'),
               _Row(DomainStyle.glucose, 'Glukosa', '${w.glucoseDays} hari'),
-              _Row(DomainStyle.activity, 'Aktivitas', w.activityMinutes == null ? '–' : '${w.activityMinutes} menit'),
+              _Row(
+                DomainStyle.activity,
+                'Aktivitas',
+                w.activityMinutes == null ? '–' : '${w.activityMinutes} menit',
+              ),
               if (w.medScheduled > 0)
                 _Row(
                   DomainStyle.medication,

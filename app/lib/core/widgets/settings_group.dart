@@ -77,9 +77,7 @@ class SettingsRow extends StatelessWidget {
         : AppColors.textPrimary;
     // A long value goes under the title so the title keeps one line.
     final stacked =
-        value != null &&
-        subtitle == null &&
-        title.length + value!.length > 28;
+        value != null && subtitle == null && title.length + value!.length > 28;
     return Semantics(
       button: onTap != null,
       label: [title, ?value, ?subtitle].join('. '),

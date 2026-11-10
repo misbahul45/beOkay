@@ -12,7 +12,10 @@ enum OnboardingState {
   final String wire;
 
   static OnboardingState parse(String value) =>
-      OnboardingState.values.firstWhere((state) => state.wire == value, orElse: () => OnboardingState.notStarted);
+      OnboardingState.values.firstWhere(
+        (state) => state.wire == value,
+        orElse: () => OnboardingState.notStarted,
+      );
 }
 
 class OnboardingStatus {

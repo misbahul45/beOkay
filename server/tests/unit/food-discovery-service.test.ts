@@ -4,6 +4,7 @@ import { expect, mock, test } from "bun:test";
 mock.module("../../src/features/nutrition/nutrition.service.ts", () => ({
   nutritionService: { searchFoods: async () => ({ items: [{ id: "local-1", name: "Nasi putih" }] }) },
 }));
+mock.module("../../src/features/food-preferences/food-preferences.service.ts", () => ({ foodPreferencesService: { activeFor: async () => [] } }));
 mock.module("../../src/features/consent/consent.service.ts", () => ({ consentService: { requireConsent: async () => {} } }));
 const { createFoodDiscovery } = await import("../../src/features/food-discovery/food-discovery.service.ts");
 const { ProviderError } = await import("../../src/features/food-discovery/food-candidate.ts");
@@ -65,4 +66,24 @@ test("barcode: invalid code rejected before any network call; provider outage re
   await expect(svc.barcode("u", "123")).rejects.toMatchObject({ code: "INVALID_BARCODE" });
   expect(called).toBe(0);
   expect(await svc.barcode("u", "4006381333931")).toMatchObject({ status: "UNAVAILABLE", candidate: null });
+});
+
+test("hasil diberi pengecekan preferensi; alergi mengecualikan, dan disembunyikan hanya bila diminta", async () => {
+  const prefs = [{ id: "p1", kind: "allergy" as const, term: "kacang", label: "Kacang", severity: "strict" as const }];
+  const { foodPreferencesService } = await import("../../src/features/food-preferences/food-preferences.service.ts");
+  const original = foodPreferencesService.activeFor;
+  (foodPreferencesService as any).activeFor = async () => prefs;
+  try {
+    const svc = createFoodDiscovery({
+      off: { search: async () => [cand("Selai kacang"), cand("Roti tawar")], byBarcode: async () => null },
+      usda: { configured: false, search: async () => [] },
+    });
+    const all = await svc.discover("u", "x", true);
+    const byName = Object.fromEntries(all.external.items.map((i: any) => [i.name, i.preferenceCheck.status]));
+    expect(byName).toEqual({ "Selai kacang": "EXCLUDED", "Roti tawar": "NO_MATCH_FOUND" });
+    const hidden = await svc.discover("u", "x", true, { hideExcluded: true });
+    expect(hidden.external.items.map((i: any) => i.name)).toEqual(["Roti tawar"]);
+  } finally {
+    (foodPreferencesService as any).activeFor = original;
+  }
 });

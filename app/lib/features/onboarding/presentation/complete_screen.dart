@@ -15,10 +15,12 @@ class OnboardingCompleteScreen extends ConsumerStatefulWidget {
   const OnboardingCompleteScreen({super.key});
 
   @override
-  ConsumerState<OnboardingCompleteScreen> createState() => _OnboardingCompleteScreenState();
+  ConsumerState<OnboardingCompleteScreen> createState() =>
+      _OnboardingCompleteScreenState();
 }
 
-class _OnboardingCompleteScreenState extends ConsumerState<OnboardingCompleteScreen> {
+class _OnboardingCompleteScreenState
+    extends ConsumerState<OnboardingCompleteScreen> {
   bool _loading = false;
   String? _error;
 
@@ -40,15 +42,33 @@ class _OnboardingCompleteScreenState extends ConsumerState<OnboardingCompleteScr
   Widget build(BuildContext context) {
     return PageScaffold(
       showBack: false,
-      bottom: PillButton(label: 'Masuk ke Beranda', loading: _loading, onPressed: _finish),
+      bottom: PillButton(
+        label: 'Masuk ke Beranda',
+        loading: _loading,
+        onPressed: _finish,
+      ),
       children: [
         const SizedBox(height: AppSpacing.giant),
         const Center(child: BeOkayAvatar(size: 112)),
         const SizedBox(height: AppSpacing.xl),
-        Semantics(header: true, child: Text('Semua siap!', textAlign: TextAlign.center, style: AppTypography.headline)),
+        Semantics(
+          header: true,
+          child: Text(
+            'Semua siap!',
+            textAlign: TextAlign.center,
+            style: AppTypography.headline,
+          ),
+        ),
         const SizedBox(height: AppSpacing.sm),
-        Text('Yuk mulai mencatat.', textAlign: TextAlign.center, style: AppTypography.body.copyWith(color: AppColors.textSecondary)),
-        if (_error != null) ...[const SizedBox(height: AppSpacing.md), ErrorBanner(_error!)],
+        Text(
+          'Yuk mulai mencatat.',
+          textAlign: TextAlign.center,
+          style: AppTypography.body.copyWith(color: AppColors.textSecondary),
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: AppSpacing.md),
+          ErrorBanner(_error!),
+        ],
       ],
     );
   }

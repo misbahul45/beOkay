@@ -19,8 +19,14 @@ class DiscardGuard extends StatelessWidget {
             title: const Text('Buang perubahan?'),
             content: const Text('Perubahan yang belum disimpan akan hilang.'),
             actions: [
-              TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Tetap di sini')),
-              TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Buang')),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Tetap di sini'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Buang'),
+              ),
             ],
           ),
         );

@@ -21,7 +21,7 @@ class SyncScreen extends ConsumerWidget {
     QueueState.savedLocal => 'Tersimpan di perangkat',
     QueueState.syncing => 'Mengirim',
     QueueState.syncFailed => 'Belum terkirim, akan dicoba lagi',
-    QueueState.conflict => 'Bentrok dengan data di server',
+    QueueState.conflict => 'Berbeda dengan data tersimpan',
     QueueState.needsReview => 'Perlu ditinjau',
   };
 
@@ -31,13 +31,22 @@ class SyncScreen extends ConsumerWidget {
     final ctl = ref.read(syncControllerProvider.notifier);
     return PageScaffold(
       title: 'Sinkronisasi',
-      onBack: () => context.canPop() ? context.pop() : context.go(Routes.profile),
+      onBack: () =>
+          context.canPop() ? context.pop() : context.go(Routes.profile),
       bottom: s.pending > 0
-          ? PillButton(label: 'Kirim sekarang', icon: Icons.cloud_upload_outlined, onPressed: ctl.flush)
+          ? PillButton(
+              label: 'Kirim sekarang',
+              icon: Icons.cloud_upload_outlined,
+              onPressed: ctl.flush,
+            )
           : null,
       children: [
         if (s.items.isEmpty)
-          const EmptyState(icon: Icons.cloud_done_outlined, title: 'Semua tersinkron', message: 'Tidak ada catatan yang menunggu.')
+          const EmptyState(
+            icon: Icons.cloud_done_outlined,
+            title: 'Semua tersinkron',
+            message: 'Tidak ada catatan yang menunggu.',
+          )
         else
           for (final o in s.items)
             Padding(
@@ -50,18 +59,31 @@ class SyncScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(o.label, style: AppTypography.bodyStrong),
+                      Text(
+                        o.isCorrection ? 'Koreksi · ${o.label}' : o.label,
+                        style: AppTypography.bodyStrong,
+                      ),
                       Text(
                         '${DateFormat('d MMM, HH:mm').format(o.createdAt.toLocal())} · ${_stateLabel(o.state)}',
                         style: AppTypography.secondary,
                       ),
-                      if (o.errorMessage != null) Text(o.errorMessage!, style: AppTypography.secondary),
+                      if (o.errorMessage != null)
+                        Text(o.errorMessage!, style: AppTypography.secondary),
                       Row(
                         children: [
-                          if (o.state == QueueState.syncFailed || o.state == QueueState.savedLocal)
-                            TextButton(onPressed: () => ctl.retry(o.operationId), child: const Text('Coba lagi')),
-                          if (o.state == QueueState.conflict || o.state == QueueState.needsReview || o.state == QueueState.syncFailed)
-                            TextButton(onPressed: () => ctl.discard(o.operationId), child: const Text('Buang catatan ini')),
+                          if (o.state == QueueState.syncFailed ||
+                              o.state == QueueState.savedLocal)
+                            TextButton(
+                              onPressed: () => ctl.retry(o.operationId),
+                              child: const Text('Coba lagi'),
+                            ),
+                          if (o.state == QueueState.conflict ||
+                              o.state == QueueState.needsReview ||
+                              o.state == QueueState.syncFailed)
+                            TextButton(
+                              onPressed: () => ctl.discard(o.operationId),
+                              child: const Text('Buang catatan ini'),
+                            ),
                         ],
                       ),
                     ],

@@ -7,6 +7,8 @@ import {
   activityQuerySchema,
 } from "./activity.schema.ts";
 import { activityService } from "./activity.service.ts";
+import { importRequestSchema } from "./activity-import.model.ts";
+import { activityImportService } from "./activity-import.service.ts";
 const id = (req: Request) =>
   z.uuid().parse(new URL(req.url).pathname.split("/")[4]);
 const date = (req: Request) =>
@@ -31,6 +33,12 @@ export const activityRoutes = {
         await readJson(req, activityCreateSchema),
       ),
     })),
+  },
+  "/api/me/activities/import": {
+    POST: authenticated(async ({ req, session }) => {
+      const input = await readJson(req, importRequestSchema);
+      return { body: await activityImportService.import(session.userId, input.source, input.sessions) };
+    }),
   },
   "/api/me/activities/summary": {
     GET: authenticated(async ({ req, session }) => ({

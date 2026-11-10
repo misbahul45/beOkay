@@ -3,6 +3,8 @@ import { authenticated } from "../auth/guard.ts";
 import { readJson } from "../../shared/http/handler.ts";
 import { calculateSchema, measureSchema } from "../nutrition/calculator.schema.ts";
 import { calculatorService } from "../nutrition/calculator.service.ts";
+import { referenceService } from "../food-reference/reference.service.ts";
+import { consentService } from "../consent/consent.service.ts";
 import { foodDiscoveryService } from "./food-discovery.service.ts";
 
 const seg = (req: Request, i: number) => new URL(req.url).pathname.split("/")[i]!;
@@ -13,7 +15,21 @@ export const foodDiscoveryRoutes = {
       const params = new URL(req.url).searchParams;
       const q = z.string().trim().min(2).max(80).parse(params.get("q"));
       const external = z.enum(["true", "false"]).default("false").parse(params.get("external") ?? "false") === "true";
-      return { body: await foodDiscoveryService.discover(session.userId, q, external) };
+      const hideExcluded = z.enum(["true", "false"]).default("false").parse(params.get("hideExcluded") ?? "false") === "true";
+      return { body: await foodDiscoveryService.discover(session.userId, q, external, { hideExcluded }) };
+    }),
+  },
+  "/api/me/foods/web-search": {
+    GET: authenticated(async ({ req, session }) => {
+      const q = z.string().trim().min(2).max(80).parse(new URL(req.url).searchParams.get("q"));
+      return { body: await foodDiscoveryService.web(session.userId, q) };
+    }),
+  },
+  "/api/me/foods/reference": {
+    GET: authenticated(async ({ req, session }) => {
+      await consentService.requireConsent(session.userId, "health_data_processing");
+      const q = z.string().trim().min(2).max(80).parse(new URL(req.url).searchParams.get("q"));
+      return { body: await referenceService.search(q, 10) };
     }),
   },
   "/api/me/foods/barcode/:code": {

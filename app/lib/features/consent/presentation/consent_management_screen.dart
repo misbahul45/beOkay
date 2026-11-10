@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/format/formatters.dart';
 import '../../../core/network/error_messages.dart';
+import '../../../core/notifications/reminder_scheduler.dart';
 import '../../../core/offline/sync_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -13,6 +14,7 @@ import '../../../core/widgets/page_scaffold.dart';
 import '../../../core/widgets/pill_button.dart';
 import '../application/consent_controller.dart';
 import '../data/consent_models.dart';
+import '../../export/presentation/export_section.dart';
 import 'consent_purpose_card.dart';
 
 class ConsentManagementScreen extends ConsumerStatefulWidget {
@@ -61,18 +63,21 @@ class _ConsentManagementScreenState
       ),
     );
     if (confirmed != true) return;
-    await _run(
-      purpose.purpose,
-      () async {
-        await ref.read(consentControllerProvider.notifier).withdraw([
-          purpose.purpose,
-        ]);
-        // Catatan yang belum terkirim tidak boleh diproses setelah persetujuan ditarik.
-        if (purpose.purpose == 'health_data_processing') {
-          await ref.read(syncControllerProvider.notifier).clearForConsentWithdrawal();
-        }
-      },
-    );
+    await _run(purpose.purpose, () async {
+      await ref.read(consentControllerProvider.notifier).withdraw([
+        purpose.purpose,
+      ]);
+      // Catatan yang belum terkirim tidak boleh diproses setelah persetujuan ditarik.
+      if (purpose.purpose == 'health_data_processing') {
+        await ref
+            .read(syncControllerProvider.notifier)
+            .clearForConsentWithdrawal();
+        await ref
+            .read(reminderSchedulerProvider)
+            .cancelAll()
+            .catchError((_) {});
+      }
+    });
   }
 
   Future<void> _grant(ConsentPolicy policy, PolicyPurpose purpose) {
@@ -133,7 +138,7 @@ class _ConsentManagementScreenState
       title: 'Persetujuan Data',
       children: [
         Text(
-          'Lihat tujuan pemrosesan, ubah persetujuanmu, dan baca riwayatnya. Perubahan langsung berlaku di server.',
+          'Atur apa yang boleh dipakai beOkay. Perubahan langsung berlaku.',
           style: AppTypography.secondary,
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -148,11 +153,9 @@ class _ConsentManagementScreenState
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                InfoCard(
-                  text:
-                      'Kebijakan versi ${policyData.version} (draf). Penarikan tidak otomatis menghapus data yang sudah tersimpan.',
-                  tone: InfoTone.neutral,
-                  icon: Icons.policy_outlined,
+                Text(
+                  'Menarik persetujuan tidak menghapus data yang sudah tersimpan.',
+                  style: AppTypography.caption,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 for (final purpose in policyData.purposes) ...[
@@ -185,6 +188,7 @@ class _ConsentManagementScreenState
             );
           },
         ),
+        const ExportSection(),
       ],
     );
   }
