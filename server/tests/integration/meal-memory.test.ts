@@ -208,8 +208,8 @@ test("Cari di web (Firecrawl) lewat alat terdaftar: hanya atas permintaan, angka
     search: async (q: string) => {
       queries.push(q);
       return [
-        { title: "Kandungan gizi zelvoli bakar", url: "https://gizi.example.id/zelvoli", host: "gizi.example.id", snippet: "", markdown: "Per 100 gram: Energi 150 kkal, Protein 10 g, Lemak 5 g, Karbohidrat 16 g" },
-        { title: "Resep ayam goreng", url: "https://resep.example.id/ayam", host: "resep.example.id", snippet: "", markdown: "Per 100 gram: Energi 250 kkal, Protein 20 g, Lemak 18 g, Karbohidrat 1 g" },
+        { title: "Kandungan gizi zelvoli bakar", url: "https://gizi.example.id/zelvoli", host: "gizi.example.id", snippet: "", markdown: "# Zelvoli bakar\n\nPer 100 gram: Energi 150 kkal, Protein 10 g, Lemak 5 g, Karbohidrat 16 g" },
+        { title: "Resep ayam goreng", url: "https://resep.example.id/ayam", host: "resep.example.id", snippet: "", markdown: "# Ayam goreng\n\nPer 100 gram: Energi 250 kkal, Protein 20 g, Lemak 18 g, Karbohidrat 1 g" },
         { title: "Zelvoli bakar porsi besar", url: "https://lain.example.id/z", host: "lain.example.id", snippet: "", markdown: "Per porsi: Energi 600 kkal" },
       ];
     },

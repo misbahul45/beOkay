@@ -62,6 +62,7 @@ Tidak valid → proses gagal start dengan `Invalid environment configuration: <b
 | `MISTRAL_API_KEY` | — | — | kosong → OCR label, visi foto, embedding, dan penulis teks saran nonaktif |
 | `MISTRAL_VISION_MODEL` / `MISTRAL_OCR_MODEL` / `MISTRAL_EMBEDDING_MODEL` / `MISTRAL_AGENT_MODEL` | — | `mistral-small-latest` / `mistral-ocr-latest` / `mistral-embed` / `mistral-small-latest` | host dipaku `api.mistral.ai` di kode |
 | `BRAVE_API_KEY` | — | — | kosong → pencarian web nonaktif |
+| `FIRECRAWL_API_KEY` | opsional | tombol "Cari di web" pada draf catatan makan (Firecrawl `v2/search`); tanpa kunci membalas `NOT_CONFIGURED`. Nama makanan dikirim hanya atas permintaan pengguna |
 | `FCM_PROJECT_ID` + `FCM_SERVICE_ACCOUNT_JSON` | — | — | keduanya perlu; JSON mentah **atau base64** (`base64 -w0 file.json`). Kosong → push nonaktif, pengingat tetap lokal |
 | `PUSH_DISPATCH_ENABLED` | — | `true` | dev compose: `false` |
 | `OUTBOX_WORKER_ENABLED` | — | `true` | `false` di stack uji |

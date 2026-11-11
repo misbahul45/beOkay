@@ -96,6 +96,15 @@ Indeks: GIN trigram `food_reference_name_trgm_idx` (kata) dan **HNSW** `food_ref
 | `conversation_threads` | `id` dari klien, `title` (CHECK 1–80), `last_run_id` (FK `agent_runs`, SET NULL; run terakhir yang bisa dilanjutkan "kenapa"/"pilihan lain"), `message_count` (CHECK 0–400), `last_message_at` |
 | `conversation_messages` | `seq` (`UNIQUE(thread_id, seq)`), `role` `USER`/`ASSISTANT`; pesan pengguna wajib `client_message_id` (`UNIQUE(user_id, client_message_id)`) dan `text` 1–1000; balasan wajib `reply_to_id` (unik, satu balasan per pesan), `route`, `router_version`; `parts` JSONB array (CHECK `jsonb_typeof`); `run_id` (FK `agent_runs`, SET NULL) |
 
+### Draf makan dan memori (3.0 Fase 4)
+
+| Tabel | Fungsi |
+|---|---|
+| `meal_drafts` | draf catatan makan dari kalimat atau foto: `source` `TEXT`/`PHOTO`, `status` `PROPOSED`/`SAVED`/`DISCARDED` (CHECK `resolved_at` terisi tepat saat tidak `PROPOSED`), `category`, `consumed_at`, `items` JSONB (kandidat dan pilihan), `meal_id` (FK unik `meal_logs`, SET NULL; sama dengan ID draf), `version`, `expires_at` (48 jam), `thread_id` (SET NULL) |
+| `memory_items` | ingatan pengguna: `category` `PREFERENCE`, `kind` (`ACTIVITY_TIME`, `SCHEDULE`, `ACTIVITY_LIKE`, `ACTIVITY_DISLIKE`, `AVAILABLE_MINUTES`), `key`, `content` (1–160), `status` `PROPOSED`/`ACTIVE`/`DISMISSED`, `source_type` `CONVERSATION`/`USER`, `confidence` `STATED`, `sensitivity` `LOW`, `retention` `UNTIL_DELETED`, `version`, `confirmed_at` (wajib bila `ACTIVE`); indeks unik parsial `(user_id, key)` untuk `ACTIVE` dan untuk `PROPOSED` |
+
+Kolom baru: `user_settings.memory_enabled` (default `true`), `conversation_threads.context` (JSONB objek: rute terakhir), `conversation_messages.basis` (JSONB objek atau NULL).
+
 ## 8. Komunitas (P2)
 
 | Tabel | Fungsi |
@@ -143,6 +152,7 @@ Indeks: GIN trigram `food_reference_name_trgm_idx` (kata) dan **HNSW** `food_ref
 | 20 | `20261109140000_p2_outbox_outcomes_conversations` | outbox, hasil terukur, percakapan |
 | 21 | `20261110010000_interventions` | intervensi |
 | 22 | `20261110132120_conversations` | thread & pesan percakapan Asisten + CHECK |
+| 23 | `20261110162503_memory_meal_drafts` | draf makan, memori, sakelar memori, `basis`/`context` percakapan + CHECK dan indeks parsial |
 
 ## 11. Membuat migrasi baru (ringkas)
 

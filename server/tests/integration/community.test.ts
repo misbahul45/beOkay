@@ -60,7 +60,7 @@ test("Keanggotaan sukarela: butuh consent, alias divalidasi dan unik, nama asli 
   expect((await call(`/api/me/communities/${c.id}/join`, noConsent.token, { alias: "Sehat Selalu" })).status).toBe(403);
   expect((await call(`/api/me/communities/${c.id}/join`, a.token, { alias: "a@b.com" })).status).toBe(422);
   expect((await call(`/api/me/communities/${c.id}/join`, a.token, { alias: "Admin Resmi" })).status).toBe(422);
-  const al = `Sehat ${crypto.randomUUID().slice(0, 6)}`;
+  const al = `Sehat ${crypto.randomUUID().slice(0, 6).replace(/\d/g, (d) => "ghijklmnop"[Number(d)]!)}`;
   const joined = await call(`/api/me/communities/${c.id}/join`, a.token, { alias: al });
   expect(joined.status).toBe(201);
   expect((await call(`/api/me/communities/${c.id}/join`, a.token, { alias: al })).status).toBe(200); // idempoten
@@ -88,7 +88,7 @@ test("Keanggotaan sukarela: butuh consent, alias divalidasi dan unik, nama asli 
 test("Tantangan: ikut butuh keanggotaan + dua consent; hari aktif dihitung sekali; check-in sukarela idempoten; tidak ada akun lain di progres", async () => {
   const a = await actor(), outsider = await actor();
   const c = await communityOf(a.token);
-  await call(`/api/me/communities/${c.id}/join`, a.token, { alias: `Jalan ${crypto.randomUUID().slice(0, 6)}` });
+  await call(`/api/me/communities/${c.id}/join`, a.token, { alias: `Jalan ${crypto.randomUUID().slice(0, 6).replace(/\d/g, (d) => "ghijklmnop"[Number(d)]!)}` });
   const ch = await challengeOf(a.token, c.id);
   expect(ch).toMatchObject({ kind: "ACTIVE_DAYS", targetDays: 20, scoringVersion: "score-v1", participating: false });
   expect((await call(`/api/me/challenges/${ch.id}/join`, outsider.token, {})).status).toBe(403); // bukan anggota

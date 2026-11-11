@@ -15,7 +15,8 @@ export type Part =
   | { type: "link"; label: string; target: LinkTarget }
   | { type: "meal_draft"; draftId: string }
   | { type: "memory_proposal"; memoryId: string }
-  | { type: "photo"; items: { name: string; confidence: "high" | "medium" | "low" }[] };
+  | { type: "photo"; items: { name: string; confidence: "high" | "medium" | "low" }[] }
+  | { type: "reflection"; weekStart: string; positives: string[]; actionsDone: number; canAdjust: boolean; done: boolean };
 
 export type BasisSource = { kind: "STATISTICS" | "FOOD_REFERENCE" | "USER_CATALOG" | "FOOD_PREFERENCES" | "ACTIVITY_HISTORY" | "GOALS" | "SAFETY_POLICY" | "MESSAGE" | "PHOTO" | "PORTION_MEASURES"; label: string };
 export type Basis = { sources: BasisSource[]; memories: { id: string; content: string }[] };

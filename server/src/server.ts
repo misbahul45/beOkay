@@ -26,6 +26,7 @@ import { agentRoutes } from "./features/agent/agent.routes.ts";
 import { communityRoutes } from "./features/community/community.routes.ts";
 import { mlRoutes } from "./features/ml/ml.routes.ts";
 import { interventionRoutes } from "./features/interventions/intervention.routes.ts";
+import { coachingRoutes } from "./features/coaching/coaching.routes.ts";
 import { syncRoutes } from "./features/sync/sync.routes.ts";
 import { insightsRoutes } from "./features/insights/insights.routes.ts";
 import { conversationRoutes } from "./features/conversation/conversation.routes.ts";
@@ -60,6 +61,7 @@ const server = Bun.serve({
     ...communityRoutes,
     ...mlRoutes,
     ...interventionRoutes,
+    ...coachingRoutes,
     ...nutritionRoutes,
     ...glucoseRoutes,
     ...activityRoutes,

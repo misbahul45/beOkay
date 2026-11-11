@@ -48,6 +48,10 @@ export const EXPORTED_TABLES = [
   "conversation_messages",
   "meal_drafts",
   "memory_items",
+  "coaching_actions",
+  "coaching_outcomes",
+  "coaching_events",
+  "weekly_checkins",
   "audit_events",
 ] as const;
 
@@ -84,7 +88,7 @@ export const exportService = {
       user, profile, healthProfile, settings, onboarding, consents, foods, portionMeasures, meals, glucose, activities, regimens, goals, revisions,
       foodPreferences, reminders, pushDevices, pushDeliveries, agentRuns, recommendations, plannedMeals, activityPlans, personalization,
       personalizationEvents, communityMemberships, challengeParticipants, challengeCheckins, scoreEvents, interventionPreference, interventionDecisions,
-      mlInferenceRuns, conversationThreads, mealDrafts, memoryItems, audit,
+      mlInferenceRuns, conversationThreads, mealDrafts, memoryItems, coachingActions, coachingEvents, weeklyCheckins, audit,
     ] = await prisma.$transaction(
       [
         prisma.users.findUniqueOrThrow({ where: { id: userId }, select: { id: true, name: true, email: true, emailVerified: true, createdAt: true } }),
@@ -125,6 +129,9 @@ export const exportService = {
         }),
         prisma.mealDraft.findMany({ where: own, orderBy: asc }),
         prisma.memoryItem.findMany({ where: own, orderBy: asc }),
+        prisma.coachingAction.findMany({ where: own, include: { outcomes: { orderBy: { localDate: "asc" } } }, orderBy: asc }),
+        prisma.coachingEvent.findMany({ where: own, orderBy: asc }),
+        prisma.weeklyCheckin.findMany({ where: own, orderBy: { weekStart: "asc" } }),
         prisma.auditEvent.findMany({ where: own, orderBy: { occurredAt: "asc" } }),
       ],
       { isolationLevel: "RepeatableRead" },
@@ -165,6 +172,9 @@ export const exportService = {
       conversations: conversationThreads,
       mealDrafts,
       memories: memoryItems,
+      coachingActions,
+      coachingEvents,
+      weeklyCheckins,
       auditEvents: audit,
     });
     const counts = Object.fromEntries(Object.entries(data).map(([k, v]) => [k, Array.isArray(v) ? v.length : v ? 1 : 0]));

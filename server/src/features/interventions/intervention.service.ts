@@ -5,7 +5,8 @@ import { recordAudit } from "../../shared/audit/audit.ts";
 import { conflict, notFound, unprocessable } from "../../shared/errors/app-error.ts";
 import { consentService } from "../consent/consent.service.ts";
 import { preferencesService } from "../preferences/preferences.service.ts";
-import { EXPIRY_MS, INTERVENTION_POLICY_VERSION, REPEAT_SUPPRESS_DAYS, USER_INITIATED, contentFor, decide, type Trigger } from "./intervention.policy.ts";
+import { coachingService } from "../coaching/coaching.service.ts";
+import { CLARIFICATION_CONTENT, EXPIRY_MS, INTERVENTION_POLICY_VERSION, REPEAT_SUPPRESS_DAYS, USER_INITIATED, classify, contentFor, decide, type Trigger } from "./intervention.policy.ts";
 import type { EvaluateInput, PreferencesInput, ResponseInput } from "./intervention.schema.ts";
 
 const COUNTED = ["ELIGIBLE", "DELIVERED", "OPENED", "SNOOZED", "RESPONDED", "EXPIRED"]; // dikirim ke pengguna (bukan dibatalkan)
@@ -37,6 +38,7 @@ const view = (r: Row, replayed = false) => ({
   id: r.id,
   trigger: r.triggerType,
   option: r.option,
+  decision: classify({ option: r.option as Parameters<typeof classify>[0]["option"], reason: r.reason }),
   reason: r.reason,
   deliveryStatus: r.deliveryStatus,
   content: r.content,
@@ -65,7 +67,9 @@ export const interventionService = {
         : await prisma.behaviorGoal.findFirst({ where: { userId, status: "active" }, orderBy: { createdAt: "desc" }, select: { id: true, title: true } });
       if (input.goalId && !goal) throw notFound("GOAL_NOT_FOUND", "Tujuan tidak ditemukan.");
     }
-    const subject = goal?.id ?? null;
+    const due = consent && trigger === "COACHING_ACTION_DUE" ? await coachingService.dueToday(userId, now) : null;
+    const reviewDone = consent && trigger === "WEEKLY_REVIEW_AVAILABLE" ? await coachingService.reflectionDone(userId, now) : false;
+    const subject = goal?.id ?? due?.action.id ?? null;
     const key = `${userId}:${trigger}:${subject ?? "-"}:${clock.localDate}`;
 
     // Konteks dari log keputusan sendiri (tanpa data klinis).
@@ -75,6 +79,7 @@ export const interventionService = {
     const sent = delivered.filter((d) => d.approvalStatus === "NOT_REQUIRED");
     const sameKey = delivered.filter((d) => d.triggerType === trigger && d.subjectRef === subject);
     const repeatSince = now.getTime() - REPEAT_SUPPRESS_DAYS * 86_400_000;
+    const lastRating = delivered.find((d) => d.triggerType === trigger && (d.response === "NOT_USEFUL" || d.response === "USEFUL"));
     const result = decide({
       trigger,
       nowMs: now.getTime(),
@@ -91,6 +96,9 @@ export const interventionService = {
         sameKeyUnrespondedWithinDays: sameKey.some((d) => d.decidedAt.getTime() >= repeatSince && d.response === null),
         snoozedUntilMs: sameKey.find((d) => d.deliveryStatus === "SNOOZED" && d.snoozedUntil)?.snoozedUntil?.getTime() ?? null,
       },
+      coaching: trigger === "COACHING_ACTION_DUE" ? { due: Boolean(due), slotStarted: due?.slotStarted ?? false, safe: due?.safe ?? true } : undefined,
+      review: trigger === "WEEKLY_REVIEW_AVAILABLE" ? { done: reviewDone } : undefined,
+      recentNotUseful: lastRating?.response === "NOT_USEFUL",
     });
 
     // Permintaan berulang yang sama: kembalikan keputusan yang sudah ada, jangan buat baris baru.
@@ -102,7 +110,7 @@ export const interventionService = {
         data:
           result.option === "NO_INTERVENTION"
             ? { ...base, reason: result.reason, approvalStatus: "NOT_REQUIRED", deliveryStatus: "NOT_APPLICABLE" }
-            : { ...base, reason: null, approvalStatus: USER_INITIATED.has(trigger) ? "USER_INITIATED" : "NOT_REQUIRED", deliveryStatus: "ELIGIBLE", content: contentFor(trigger, goal?.title) as Prisma.InputJsonObject, dedupeKey: key, expiresAt: new Date(now.getTime() + EXPIRY_MS) },
+            : { ...base, reason: null, approvalStatus: USER_INITIATED.has(trigger) ? "USER_INITIATED" : "NOT_REQUIRED", deliveryStatus: "ELIGIBLE", content: (result.option === "CLARIFICATION_QUESTION" ? CLARIFICATION_CONTENT : contentFor(trigger, due ? `${due.action.title}${due.action.slotLabel ? ` · ${due.action.slotLabel}` : ""}` : goal?.title)) as Prisma.InputJsonObject, dedupeKey: key, expiresAt: new Date(now.getTime() + EXPIRY_MS) },
       });
       return view(row);
     } catch (e) {

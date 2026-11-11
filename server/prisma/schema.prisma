@@ -62,6 +62,10 @@ model Users {
   conversationMessages ConversationMessage[]
   mealDrafts MealDraft[]
   memoryItems MemoryItem[]
+  coachingActions CoachingAction[]
+  coachingOutcomes CoachingOutcome[]
+  coachingEvents CoachingEvent[]
+  weeklyCheckins WeeklyCheckin[]
 
   @@unique([email])
   @@map("users")
@@ -539,6 +543,7 @@ model Reminder {
   updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   user       Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
   deliveries PushDelivery[]
+  coachingActions CoachingAction[]
   @@index([userId, archivedAt])
   @@map("reminders")
 }
@@ -1080,4 +1085,90 @@ model MemoryItem {
   user        Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId, status])
   @@map("memory_items")
+}
+
+/// Rencana kecil dari peluang yang didukung catatan. Usulan (PROPOSED) baru menjadi rencana setelah diterima pengguna; status per hari ada di coaching_outcomes.
+model CoachingAction {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  opportunityKey String    @map("opportunity_key")
+  source         String
+  kind           String
+  title          String
+  rationale      String
+  evidence       Json
+  params         Json
+  slot           String?
+  startDate      DateTime  @map("start_date") @db.Date
+  days           Int
+  status         String    @default("PROPOSED")
+  closeReason    String?   @map("close_reason")
+  reminderId     String?   @map("reminder_id") @db.Uuid
+  policyVersion  String    @map("policy_version")
+  version        Int       @default(1)
+  expiresAt      DateTime  @map("expires_at") @db.Timestamptz(6)
+  decidedAt      DateTime? @map("decided_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user           Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reminder       Reminder? @relation(fields: [reminderId], references: [id], onDelete: SetNull)
+  outcomes       CoachingOutcome[]
+  events         CoachingEvent[]
+  @@index([userId, status, createdAt(sort: Desc)])
+  @@map("coaching_actions")
+}
+
+/// Bukti per hari untuk rencana yang diterima: tercatat (OBSERVED), dikonfirmasi sendiri (USER_CONFIRMED), atau bukti ditarik (RETRACTED). Hari tanpa baris = belum terlihat, bukan gagal.
+model CoachingOutcome {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  actionId     String    @map("action_id") @db.Uuid
+  localDate    DateTime  @map("local_date") @db.Date
+  status       String
+  evidenceType String?   @map("evidence_type")
+  evidenceId   String?   @map("evidence_id") @db.Uuid
+  observedAt   DateTime? @map("observed_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user         Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action       CoachingAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  @@unique([actionId, localDate])
+  @@index([userId, localDate])
+  @@map("coaching_outcomes")
+}
+
+/// Kuitansi idempotensi dan jejak audit keputusan, umpan balik, dan konfirmasi: satu operationId = satu efek.
+model CoachingEvent {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  actionId    String?  @map("action_id") @db.Uuid
+  operationId String   @map("operation_id") @db.Uuid
+  type        String
+  value       String
+  detail      Json?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user        Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action      CoachingAction? @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  @@unique([userId, operationId])
+  @@index([actionId])
+  @@map("coaching_events")
+}
+
+/// Refleksi mingguan: satu per minggu. Menyimpan jawaban pengguna dan penyesuaian yang ia setujui; ringkasan hanya angka deskriptif tanpa nilai klinis.
+model WeeklyCheckin {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  weekStart     DateTime @map("week_start") @db.Date
+  operationId   String   @map("operation_id") @db.Uuid
+  mood          String?
+  hardest       String[] @default([])
+  note          String?
+  preferredSlot String?  @map("preferred_slot")
+  adjustments   Json     @default("[]")
+  summary       Json
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user          Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, weekStart])
+  @@unique([userId, operationId])
+  @@map("weekly_checkins")
 }

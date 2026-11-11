@@ -5,6 +5,7 @@ import { AppError, conflict, notFound, unprocessable } from "../../shared/errors
 import type { RecommendationPayload } from "../agent/agent.graph.ts";
 import { agentService } from "../agent/agent.service.ts";
 import { identityMatch, identityTokens } from "../agent/food-identity.ts";
+import { coachingService } from "../coaching/coaching.service.ts";
 import { consentService } from "../consent/consent.service.ts";
 import { statisticsService } from "../insights/statistics.service.ts";
 import { mealDraftService, type DraftInputItem } from "../meal-drafts/meal-draft.service.ts";
@@ -238,6 +239,32 @@ async function mealDraftReply(userId: string, thread: Thread, body: string, msg:
   };
 }
 
+async function reflectionReply(userId: string): Promise<Reply> {
+  const r = await coachingService.reflection(userId);
+  if (r.consentRequired) {
+    return { parts: [text("Wajar merasa begitu. Satu minggu yang berat tidak membuatmu gagal."), ...consentReply("descriptive_summaries")], route: "REFLECTION", runId: null, continuesRun: false };
+  }
+  const positives = r.positives.slice(0, 3);
+  const actionsDone = r.actions.observed + r.actions.confirmed + r.actions.fromAssistant;
+  const lead = positives.length
+    ? "Wajar merasa begitu, dan satu minggu yang berat tidak membuatmu gagal. Ini yang benar-benar tercatat minggu ini:"
+    : "Wajar merasa begitu. Minggu ini belum banyak yang tercatat, dan itu tidak apa-apa. Kita bisa mulai lagi dari langkah yang sangat kecil.";
+  const ask = r.done
+    ? "Refleksi minggu ini sudah kamu isi. Bagian mana yang paling berat? Ceritakan saja, atau lihat lagi rencanamu."
+    : r.adjustments.length
+      ? "Bagian mana yang paling berat? Kalau mau, target minggu depan bisa kita kecilkan bersama lewat refleksi mingguan."
+      : "Bagian mana yang paling berat? Di refleksi mingguan kita bisa memilih satu langkah kecil untuk minggu depan.";
+  const sources: BasisSource[] = [{ kind: "STATISTICS", label: `Ringkasan minggu ${r.weekStart} dari catatanmu` }];
+  if (r.goals.length) sources.push({ kind: "GOALS", label: "Tujuan yang kamu pilih" });
+  return {
+    parts: [text(lead), { type: "reflection", weekStart: r.weekStart, positives, actionsDone, canAdjust: r.adjustments.length > 0, done: Boolean(r.done) }, text(ask)],
+    route: "REFLECTION",
+    runId: null,
+    continuesRun: false,
+    basis: { sources, memories: [] },
+  };
+}
+
 async function compose(userId: string, thread: Thread, msg: Message): Promise<Reply> {
   const body = msg.text!;
   if ((msg.parts as Part[]).some((p) => p.type === "photo")) return mealDraftReply(userId, thread, body, msg, true);
@@ -253,6 +280,8 @@ async function compose(userId: string, thread: Thread, msg: Message): Promise<Re
       return fixed(THANKS_REPLY);
     case "SUPPORT":
       return fixed(SUPPORT_REPLY);
+    case "REFLECTION":
+      return reflectionReply(userId);
     case "HELP":
       return fixed(HELP_REPLY);
     case "CLARIFY_FOOD":

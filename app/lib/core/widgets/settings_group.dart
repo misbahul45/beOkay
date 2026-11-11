@@ -108,7 +108,7 @@ class SettingsRow extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        maxLines: title.contains(' ') ? 2 : 1,
+                        maxLines: title.contains(' ') ? 3 : 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppTypography.body.copyWith(
                           fontWeight: FontWeight.w500,

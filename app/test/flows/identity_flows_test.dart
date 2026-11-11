@@ -212,6 +212,8 @@ void main() {
     await h.pump(tester);
     expect(find.textContaining('Halo, Rina!'), findsOneWidget);
     expect(find.text('Mulai Sekarang'), findsNothing);
+    expect(find.bySemanticsLabel('beOkay'), findsOneWidget);
+    expect(find.text('beOkay'), findsNothing);
     await h.shot(tester, 'today-foundation');
   });
 
@@ -443,7 +445,7 @@ void main() {
     final h = TestHarness(backend: backend, tokens: tokens);
     await h.pump(tester);
     await h.openProfile(tester);
-    await h.tapText(tester, 'Nama dan tahun lahir');
+    await h.tapText(tester, 'Ubah profil');
     expect(find.text('Informasi Pribadi'), findsOneWidget);
     await h.shot(tester, '13-edit-profile');
 
@@ -461,7 +463,9 @@ void main() {
     await h.fill(tester, 'Tahun lahir (opsional)', '1990');
     await h.tapText(tester, 'Simpan');
     expect(find.text('Informasi Pribadi'), findsNothing);
-    expect(find.text('Rina P · rina@example.test'), findsOneWidget);
+    expect(find.text('Rina P'), findsOneWidget);
+    expect(find.text('rina@example.test'), findsOneWidget);
+    expect(find.text('Lahir 1990'), findsOneWidget);
   });
 
   testWidgets('L. account security lists sessions and revokes the others', (
@@ -515,6 +519,27 @@ void main() {
     final h = TestHarness(backend: backend, tokens: tokens);
     await h.pump(tester);
     await h.openProfile(tester);
+    expect(find.text('Lahir 1985'), findsOneWidget);
+    expect(
+      find.text('Sudah terdiagnosis · Tipe 2 · sejak 2019'),
+      findsOneWidget,
+    );
+    expect(find.text('Atur pola hidup'), findsOneWidget);
+    for (final tile in [
+      'Tujuan personal',
+      'Obat dan jadwal',
+      'Pengingat',
+      'Komunitas',
+    ]) {
+      expect(find.text(tile), findsOneWidget);
+    }
+    expect(find.text('Memori & personalisasi'), findsOneWidget);
+    expect(
+      find.text('Bahasa Indonesia · WIB · Jakarta · mg/dL'),
+      findsOneWidget,
+    );
+    expect(find.text('Zona waktu'), findsNothing);
+    await h.shot(tester, '12c-profile-health');
     await h.tapText(tester, 'Konteks diabetes');
     expect(find.text('Profil Kesehatan'), findsOneWidget);
     // Tidak ada kotak penjelasan panjang; pilihan "Belum yakin" tetap ada di formulir.

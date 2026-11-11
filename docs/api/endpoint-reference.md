@@ -139,10 +139,25 @@ Catatan khusus:
 |---|---|---|---|
 | GET | `/api/me/conversations` | H | 30 thread terbaru: `id`, `title`, `messageCount`, `lastMessageAt` |
 | GET | `/api/me/conversations/:id` | H | thread + semua pesan; bagian `recommendations` diisi status saran terkini (`hidden:true` bila consent A dicabut); thread orang lain → `404` |
-| POST | `/api/me/conversations/:id/messages` | H (+ A untuk makanan/aktivitas, + S untuk ringkasan; kekurangan dijawab sebagai bagian `consent_required`, bukan 403) | `{clientMessageId: uuid, text(1–1000)}`; thread dibuat otomatis dengan `id` dari klien; `201` baru, `200` + `replayed:true` untuk `clientMessageId` yang sama; teks berbeda → `409 IDEMPOTENCY_CONFLICT`; sedang diproses → `409 MESSAGE_IN_PROGRESS`; `422 THREAD_FULL` (400 pesan); `429 CONVERSATION_RATE_LIMITED` (30 pesan / 10 mnt) |
+| POST | `/api/me/conversations/:id/messages` | H (+ A untuk makanan/aktivitas, + S untuk ringkasan; kekurangan dijawab sebagai bagian `consent_required`, bukan 403) | `{clientMessageId: uuid, text(1–1000), photo?: {items: [{name(2–60), confidence: high|medium|low}] (1–6)}}` — `photo` berisi nama hasil `/foods/scan/photo`, bukan gambar; thread dibuat otomatis dengan `id` dari klien; `201` baru, `200` + `replayed:true` untuk `clientMessageId` yang sama; teks berbeda → `409 IDEMPOTENCY_CONFLICT`; sedang diproses → `409 MESSAGE_IN_PROGRESS`; `422 THREAD_FULL` (400 pesan); `429 CONVERSATION_RATE_LIMITED` (30 pesan / 10 mnt) |
 | DELETE | `/api/me/conversations/:id` | — | hapus thread dan pesan; saran terbuka dari thread itu menjadi `INVALIDATED`, run terkait `CANCELLED`, `input_text` run disamarkan; rencana yang sudah diterima tetap |
 
-Balasan berupa bagian bertipe: `text`, `statistic` (dari `stats-v1`), `recommendations` (run agen), `no_match`, `safety`, `notice`, `consent_required`, `suggestions`, `link` (`INSIGHTS`/`LOG`/`LOG_MEAL`/`CONSENT`). Rute dipilih router deterministik `router-v1` (`conversation.router.ts`).
+Balasan berupa bagian bertipe: `text`, `statistic` (dari `stats-v1`), `recommendations` (run agen), `no_match`, `safety`, `notice`, `consent_required`, `suggestions`, `link` (`INSIGHTS`/`LOG`/`LOG_MEAL`/`CONSENT`), `meal_draft` (diisi status draf terkini), `memory_proposal` (diisi status ingatan terkini); pesan pengguna dapat membawa bagian `photo`. Pesan asisten membawa `basis` `{sources: [{kind, label}], memories: [{id, content}]}` bila jawabannya memakai data atau ingatan. Rute dipilih router deterministik `router-v1` (`conversation.router.ts`).
+
+### 9b. Draf catatan makan & memori (3.0 Fase 4)
+
+| Metode | Path | Consent | Keterangan |
+|---|---|---|---|
+| GET | `/api/me/meal-drafts/:id` | H | tampilan draf: `status` (`PROPOSED`/`SAVED`/`DISCARDED`/`EXPIRED`), `items[]` dengan `candidates[]` (`TKPI`/`CATALOG`/`WEB`), `selected`, `grams` hanya bila disebut atau dari takaran milik pengguna |
+| POST | `/api/me/meal-drafts/:id/confirm` | H | `{expectedVersion, category, consumedAt, items: [{index, candidateKey|null, name, quantity, unit, grams|null}]}`; `candidateKey` harus berasal dari kandidat item itu (`422 INVALID_CANDIDATE`); ID draf = ID catatan makan, jadi ulang = `200 replayed`; `409 VERSION_CONFLICT`/`DRAFT_EXPIRED`/`DRAFT_NOT_OPEN` |
+| POST | `/api/me/meal-drafts/:id/items/:index/web-search` | H | pencarian web Firecrawl atas permintaan pengguna untuk satu makanan; balas `{status: FOUND|NONE|UNAVAILABLE|NOT_CONFIGURED, draft}`; sekali per item (kecuali `UNAVAILABLE`); `429 WEB_SEARCH_RATE_LIMITED` (10 / 10 mnt) |
+| POST | `/api/me/meal-drafts/:id/discard` | — | buang draf terbuka |
+| GET · DELETE | `/api/me/memories` | — | daftar ingatan aktif `{enabled, consentGiven, active, items}` / hapus semua |
+| PATCH · DELETE | `/api/me/memories/:id` | — | ubah isi `{content(1–160), expectedVersion}` / hapus satu |
+| POST | `/api/me/memories/:id/confirm` · `/dismiss` | A + ingatan aktif (confirm) | jadikan usulan aktif / tolak usulan |
+| PATCH | `/api/me/memory-preferences` | — | `{enabled}`; mematikan menghapus usulan yang belum dijawab dan menghentikan pemakaian |
+
+Alat agen baru `search_web_nutrition` (maksud `MEAL_DRAFT_ENRICHMENT`, consent H) memanggil Firecrawl `v2/search` dan hanya mengembalikan nama dari judul halaman, URL, host, dan angka per 100 g yang lolos parser deterministik. Tanpa `FIRECRAWL_API_KEY`, endpoint pencarian web membalas `NOT_CONFIGURED`.
 
 ## 10. Komunitas (P2) — Consent per tujuan
 

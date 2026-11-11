@@ -96,6 +96,9 @@ export const outcomes = {
       "recommendation.decided": async () => {},
       "recommendation.feedback": async () => {},
       "intervention.responded": async () => {},
+      "coaching.decided": async () => {},
+      "coaching.feedback": async () => {},
+      "coaching.checkin": async () => {},
     };
   })(),
 };

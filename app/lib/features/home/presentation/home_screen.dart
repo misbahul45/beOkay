@@ -6,13 +6,12 @@ import 'package:intl/intl.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/format/greeting.dart';
 import '../../../core/theme/app_spacing.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/adaptive_hero_card.dart';
 import '../../../core/widgets/beokay_avatar.dart';
+import '../../../core/widgets/beokay_logo.dart';
 import '../../../core/widgets/tab_root_header.dart';
 import '../../interventions/presentation/intervention_card.dart';
 import '../../medication/application/medication_controller.dart';
-import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/info_card.dart';
 import '../../../core/widgets/page_scaffold.dart';
 import '../../../core/widgets/pill_button.dart';
@@ -44,11 +43,11 @@ class HomeScreen extends ConsumerWidget {
         Row(
           children: [
             Expanded(
-              child: Text(
-                'beOkay',
-                style: AppTypography.title.copyWith(
-                  color: AppColors.brand,
-                  fontWeight: FontWeight.w700,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Semantics(
+                  header: true,
+                  child: const BeOkayLogo(height: 32),
                 ),
               ),
             ),

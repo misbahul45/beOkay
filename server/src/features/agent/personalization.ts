@@ -18,7 +18,16 @@ export const BOOST_PER_WEIGHT = 0.2;
 
 const STOP = new Set(["dan", "atau", "yang", "dengan", "untuk", "segar", "kering", "masakan", "goreng", "rebus", "bakar", "kukus", "biji", "dari", "pada"]);
 
-export type ProfileData = { dislikedTokens: Record<string, { weight: number; rejections: number }>; likedTokens: Record<string, { weight: number; observations: number }> };
+export type CoachingSlot = "MORNING" | "MIDDAY" | "AFTERNOON" | "EVENING";
+export type CoachingPrefs = {
+  muted?: string[];
+  snoozed?: Record<string, string>;
+  slot?: CoachingSlot | null;
+  declinedVariants?: Record<string, number>;
+  usefulness?: Record<string, { helpful: number; notHelpful: number }>;
+  maxSuggestions?: number;
+};
+export type ProfileData = { dislikedTokens: Record<string, { weight: number; rejections: number }>; likedTokens: Record<string, { weight: number; observations: number }>; coaching?: CoachingPrefs };
 export type Profile = { version: number; data: ProfileData };
 
 export function tokensOf(name: string, exclude: string[] = []): string[] {
@@ -55,10 +64,17 @@ export function boostFor(name: string, profile: Profile): { boost: number; match
 }
 
 const empty = (): ProfileData => ({ dislikedTokens: {}, likedTokens: {} });
-const parse = (raw: unknown): ProfileData => {
+export const parseProfileData = (raw: unknown): ProfileData => {
   const d = raw as Partial<ProfileData> | null;
-  return d && typeof d === "object" && d.dislikedTokens && typeof d.dislikedTokens === "object" ? { dislikedTokens: d.dislikedTokens, likedTokens: d.likedTokens && typeof d.likedTokens === "object" ? d.likedTokens : {} } : empty();
+  if (!d || typeof d !== "object") return empty();
+  const out: ProfileData = {
+    dislikedTokens: d.dislikedTokens && typeof d.dislikedTokens === "object" ? d.dislikedTokens : {},
+    likedTokens: d.likedTokens && typeof d.likedTokens === "object" ? d.likedTokens : {},
+  };
+  if (d.coaching && typeof d.coaching === "object") out.coaching = d.coaching;
+  return out;
 };
+const parse = parseProfileData;
 
 export const personalization = {
   async get(userId: string, db: Prisma.TransactionClient | typeof prisma = prisma): Promise<Profile> {

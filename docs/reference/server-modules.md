@@ -133,6 +133,13 @@ Teks: templat deterministik; bila ada kunci Mistral + consent `ai_text_generatio
 
 Berkas: `conversation.router.ts` (router deterministik `router-v1`, murni), `conversation.parts.ts` (tipe bagian balasan, balasan tetap, ringkasan dari `stats-v1`), `conversation.service.ts` (thread, idempotensi `clientMessageId`, penyusunan balasan, hapus), `conversation.routes.ts`. Tabel `conversation_threads`, `conversation_messages`; consent H untuk semua endpoint, A/S dijawab sebagai bagian `consent_required`. Makanan, aktivitas, dan lanjutan diteruskan ke `agentService.createRun` dengan kunci idempotensi `conv-<clientMessageId>`; ringkasan memanggil `statisticsService.get`. Tes: `tests/unit/conversation.test.ts`, `tests/integration/conversation.test.ts`.
 
+## Draf makan dan memori (3.0 Fase 4)
+
+- `meal-drafts/`: `meal-text.parser.ts` (kalimat → kategori, makanan, jumlah, satuan; gram hanya bila disebut), `meal-draft.service.ts` (kandidat TKPI/katalog dengan gerbang identitas, takaran porsi milik pengguna, konfirmasi tepat-sekali lewat `nutritionService.create` dengan ID draf, pencarian web lewat alat agen yang tercatat sebagai run `MEAL_DRAFT_ENRICHMENT`).
+- `memory/`: `memory.extract.ts` (pola preferensi yang dinyatakan; topik sensitif tidak diusulkan), `memory.service.ts` (usul → konfirmasi pengguna → aktif; ubah, hapus, hapus semua, jeda; dipakai hanya bila consent A dan ingatan aktif).
+- `food-discovery/firecrawl.client.ts` (host dipaku, tanpa redirect, kunci di header) dan `web-nutrition.parser.ts` (per 100 g eksplisit, atau nilai per sajian yang diskalakan dengan gram atau rasio energi per 100 g yang dinyatakan halaman; dibaca per entri yang diawali nama makanan; uji kewajaran 4·P + 4·K + 9·L).
+- Percakapan: rute `MEAL_LOG`, `PHOTO_MEAL`, `APPROVAL_HINT`, `PREFERENCE`; aktivitas memakai ingatan sebagai batasan yang hanya memendekkan (`applyActivityConstraints`).
+
 ## Komunitas
 Lihat [overview §7.8](../architecture/system-overview.md). Aturan tambahan: check-in hanya hari ini atau ≤ 2 hari ke belakang (`MAX_BACKFILL_DAYS`), tidak di masa depan, dan dalam jendela tantangan; join tantangan memerlukan keanggotaan komunitas aktif; `memberCount` disembunyikan (`kurang dari 5`) bila kohort < 5. **Tidak ada kode untuk membuat/menutup tantangan** — hanya seed migrasi (audit F-04).
 

@@ -5,6 +5,7 @@ import '../../../core/network/error_messages.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/beokay_avatar.dart';
+import '../../../core/widgets/beokay_logo.dart';
 import '../../../core/widgets/pill_button.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../onboarding/application/onboarding_controller.dart';
@@ -35,11 +36,7 @@ class SplashScreen extends ConsumerWidget {
               if (problem == null) ...[
                 const AvatarLoader(),
                 const SizedBox(height: AppSpacing.lg),
-                Image.asset(
-                  'assets/images/logo_full.png',
-                  width: 150,
-                  semanticLabel: 'beOkay',
-                ),
+                const BeOkayLogo(width: 150),
               ] else ...[
                 const BeOkayAvatar(size: 72, animate: false),
                 const SizedBox(height: AppSpacing.md),
