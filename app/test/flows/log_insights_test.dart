@@ -1,6 +1,7 @@
 import 'package:app/features/insights/application/insights_controller.dart';
 import 'package:app/features/insights/data/daily_insights.dart';
-import 'package:app/features/insights/presentation/insights_screen.dart';
+import 'package:app/features/insights/presentation/daily_tab.dart';
+import 'package:app/features/medication/data/medication_repository.dart';
 import 'package:app/features/timeline/application/timeline_controller.dart';
 import 'package:app/features/timeline/data/timeline_models.dart';
 import 'package:app/features/timeline/presentation/log_screen.dart';
@@ -214,55 +215,70 @@ void main() {
     },
   };
 
+  MedicationToday medication({
+    int scheduled = 0,
+    int taken = 0,
+    int unknown = 0,
+  }) => MedicationToday.fromJson({
+    'date': '2026-11-08',
+    'scheduled': scheduled,
+    'taken': taken,
+    'skipped': 0,
+    'unknown': unknown,
+    'items': <dynamic>[],
+  });
+
+  Widget daily(DailyInsights data, MedicationToday med) => _app(
+    const Scaffold(body: SingleChildScrollView(child: DailyTab())),
+    overrides: [
+      dailyInsightsProvider.overrideWith((ref) async => data),
+      dailyMedicationProvider.overrideWith((ref) async => med),
+    ],
+  );
+
   testWidgets(
-    'Insights never turns unknown into zero and explains empty days',
+    'Harian never turns unknown into zero and explains an empty day',
     (tester) async {
       tester.view.physicalSize = const Size(320, 844);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
-      final empty = DailyInsights.fromJson(summary());
       await tester.pumpWidget(
-        _app(
-          const MediaQuery(
-            data: MediaQueryData(textScaler: TextScaler.linear(2)),
-            child: InsightsScreen(),
-          ),
-          overrides: [dailyInsightsProvider.overrideWith((ref) async => empty)],
+        MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+          child: daily(DailyInsights.fromJson(summary()), medication()),
         ),
       );
       await tester.pumpAndSettle();
       expect(find.text('Belum ada catatan di hari ini'), findsOneWidget);
-      expect(find.text('Belum ada pengukuran.'), findsOneWidget);
+      expect(find.text('Belum ada pengukuran'), findsOneWidget);
+      expect(find.text('Belum ada catatan makan'), findsOneWidget);
+      expect(find.text('Belum ada jadwal obat'), findsOneWidget);
       expect(find.text('0'), findsNothing);
+      expect(find.textContaining('0 menit'), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );
 
-  testWidgets('Insights labels sparse glucose and unknown nutrition as such', (
-    tester,
-  ) async {
-    final data = DailyInsights.fromJson(
-      summary(meals: 1, glucose: 1, sessions: 1),
-    );
-    await tester.pumpWidget(
-      _app(
-        const InsightsScreen(),
-        overrides: [dailyInsightsProvider.overrideWith((ref) async => data)],
-      ),
-    );
-    await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.textContaining('bukan nol'),
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(
-      find.textContaining('Statistik ringkasan belum ditampilkan'),
-      findsOneWidget,
-    );
-    expect(find.text('Energi: Belum tersedia'), findsOneWidget);
-    expect(find.textContaining('bukan nol'), findsOneWidget);
-  });
+  testWidgets(
+    'Harian labels unknown energy and unconfirmed doses without calling them missed',
+    (tester) async {
+      await tester.pumpWidget(
+        daily(
+          DailyInsights.fromJson(summary(meals: 1, glucose: 1, sessions: 1)),
+          medication(scheduled: 3, taken: 1, unknown: 2),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('1 catatan makan'), findsOneWidget);
+      expect(find.text('Energi belum diketahui'), findsOneWidget);
+      expect(find.text('30 menit'), findsOneWidget);
+      expect(find.text('1 dari 3'), findsOneWidget);
+      expect(find.text('Jadwal dikonfirmasi · 2 belum'), findsOneWidget);
+      expect(find.textContaining('terlewat'), findsNothing);
+      expect(find.textContaining('Dihitung dari catatanmu'), findsNothing);
+      expect(find.text('Belum ada catatan di hari ini'), findsNothing);
+    },
+  );
 
   // Pixel-level wrapping cannot be asserted here (the test font is monospaced-square); that was checked on a
   // physical device at font scale 2.0. This guards against overflow exceptions at the same size.
@@ -284,25 +300,23 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-    'Large text on a narrow screen renders Insights badges without overflow',
-    (tester) async {
-      tester.view.physicalSize = const Size(360, 800);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-      const scaled = MediaQueryData(textScaler: TextScaler.linear(2));
-      final data = DailyInsights.fromJson(
-        summary(meals: 1, glucose: 1, sessions: 1),
-      );
-      await tester.pumpWidget(
-        _app(
-          const MediaQuery(data: scaled, child: InsightsScreen()),
-          overrides: [dailyInsightsProvider.overrideWith((ref) async => data)],
+  testWidgets('Large text on a narrow screen renders Harian without overflow', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MediaQuery(
+        data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+        child: daily(
+          DailyInsights.fromJson(summary(meals: 1, glucose: 1, sessions: 1)),
+          medication(scheduled: 2, taken: 2),
         ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('Data belum cukup'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    },
-  );
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('2 dari 2'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

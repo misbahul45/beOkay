@@ -5,51 +5,43 @@ import 'package:intl/intl.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
-import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/async_body.dart';
 import '../../../core/widgets/charts.dart';
-import '../../../core/widgets/choice_chips.dart';
 import '../../../core/widgets/domain_style.dart';
 import '../../../core/widgets/info_card.dart';
 import '../../../core/widgets/page_scaffold.dart';
 import '../../preferences/application/preferences_controller.dart';
 import '../application/insights_controller.dart';
 import '../data/trends.dart';
+import 'insight_widgets.dart';
 import 'trend_charts.dart';
 
-/// Tren harian. Satu pilihan rentang di atas semua grafik; semua ikut berubah.
-/// Perbandingan hanya dengan dirimu sendiri; glukosa tidak pernah dinilai baik/buruk.
 class TrendsScreen extends ConsumerWidget {
   const TrendsScreen({super.key});
 
   @override
+  Widget build(BuildContext context, WidgetRef ref) => PageScaffold(
+    title: 'Tren',
+    onRefresh: () async {
+      ref.invalidate(trendsProvider);
+      await ref.read(trendsProvider.future).catchError((_) => null);
+    },
+    children: const [TrendsBody()],
+  );
+}
+
+class TrendsBody extends ConsumerWidget {
+  const TrendsBody({super.key});
+
+  @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final range = ref.watch(trendRangeProvider);
     final state = ref.watch(trendsProvider);
     final unit = ref.watch(effectivePreferencesProvider).glucoseUnit.wire;
     final data = state.value;
-    return PageScaffold(
-      title: 'Tren',
-      onRefresh: () async {
-        ref.invalidate(trendsProvider);
-        await ref.read(trendsProvider.future).catchError((_) => null);
-      },
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Perubahan dari hari ke hari, dibandingkan dengan dirimu sendiri. Bukan penilaian kesehatan.',
-          style: AppTypography.secondary,
-        ),
-        const SizedBox(height: AppSpacing.md),
-        SegmentedPills<int>(
-          options: const [
-            (7, '7 hari'),
-            (14, '14 hari'),
-            (30, '30 hari'),
-            (90, '90 hari'),
-          ],
-          value: range,
-          onChanged: (v) => ref.read(trendRangeProvider.notifier).set(v),
-        ),
+        const PeriodSelector(),
         const SizedBox(height: AppSpacing.md),
         if (data == null && state.isLoading) const SkeletonList(rows: 3),
         if (state.hasError && data == null)
@@ -57,15 +49,15 @@ class TrendsScreen extends ConsumerWidget {
             error: state.error!,
             onRetry: () => ref.invalidate(trendsProvider),
           ),
-        if (data != null) ...[
+        if (data != null)
           if (!data.hasData)
             const InfoCard(
               tone: InfoTone.neutral,
-              text: 'Belum ada catatan di rentang ini.',
+              title: 'Belum ada catatan di rentang ini',
+              text: 'Grafik muncul setelah ada catatan.',
             )
           else
             _Sections(data: data, unit: unit, dimmed: state.isLoading),
-        ],
       ],
     );
   }
@@ -82,7 +74,7 @@ class _Error extends StatelessWidget {
       return const InfoCard(
         title: 'Persetujuan diperlukan',
         text:
-            'Tren memakai data kesehatanmu. Tinjau persetujuan di Profil untuk membukanya.',
+            'Tren memakai data kesehatanmu. Tinjau persetujuan untuk membukanya.',
       );
     }
     return ErrorState(error: error, onRetry: onRetry);
@@ -123,36 +115,12 @@ class _Sections extends StatelessWidget {
     return Column(
       children: [
         ChartCard(
-          icon: Icons.event_available_rounded,
-          tint: AppColors.accent,
-          ink: AppColors.brand,
-          title: 'Kamu mencatat',
-          caption:
-              'Hari kosong bukan kegagalan: kotak tanpa isi berarti tidak ada catatan, bukan nol.',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              HeroFigure(
-                value: '${t.recordedDays} dari ${t.days} hari',
-                label: 'Hari dengan catatan',
-              ),
-              ConsistencyChart(trends: t, dimmed: dimmed),
-              for (final n in consistencyNotes) _Note(noteText(n, t.days)),
-              ChartTableToggle(
-                headers: const ['Hari', 'Catatan', 'Makan', 'Glukosa'],
-                rows: consistencyRows(t),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        ChartCard(
           icon: DomainStyle.activity.icon,
           tint: DomainStyle.activity.tint,
           ink: DomainStyle.activity.ink,
           title: 'Aktivitas',
           caption:
-              'Batang abu = hari yang sama pada periode sebelumnya. Batang dimulai dari nol; “–” berarti tidak ada sesi tercatat.',
+              'Menit per hari. Abu-abu: periode sebelumnya. – belum ada sesi.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -180,7 +148,7 @@ class _Sections extends StatelessWidget {
           tint: DomainStyle.glucose.tint,
           ink: DomainStyle.glucose.ink,
           title: 'Glukosa',
-          caption: 'Tiap kapsul = rentang pengukuran dalam sehari.',
+          caption: 'Rentang pengukuran per hari ($unit).',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -205,7 +173,7 @@ class _Sections extends StatelessWidget {
           ink: DomainStyle.meal.ink,
           title: 'Makan',
           caption:
-              'Karbohidrat per hari. Batang berongga = sebagian makanan belum punya data gizi.',
+              'Karbohidrat tercatat per hari, dalam gram. Berongga: data gizi sebagian.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -228,7 +196,7 @@ class _Sections extends StatelessWidget {
           ink: DomainStyle.medication.ink,
           title: 'Obat',
           caption:
-              'Pekat = diminum, berongga = dilewati, “–” = belum dikonfirmasi.',
+              'Pekat: diminum · berongga: dilewati · – belum dikonfirmasi.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -242,6 +210,29 @@ class _Sections extends StatelessWidget {
               ChartTableToggle(
                 headers: const ['Hari', 'Diminum', 'Dilewati'],
                 rows: medicationRows(t),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        ChartCard(
+          icon: Icons.event_available_rounded,
+          tint: AppColors.accent,
+          ink: AppColors.brand,
+          title: 'Konsistensi mencatat',
+          caption: 'Kotak kosong: belum ada catatan.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              HeroFigure(
+                value: '${t.recordedDays} dari ${t.days} hari',
+                label: 'Hari dengan catatan',
+              ),
+              ConsistencyChart(trends: t, dimmed: dimmed),
+              for (final n in consistencyNotes) _Note(noteText(n, t.days)),
+              ChartTableToggle(
+                headers: const ['Hari', 'Catatan', 'Makan', 'Glukosa'],
+                rows: consistencyRows(t),
               ),
             ],
           ),

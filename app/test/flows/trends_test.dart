@@ -134,7 +134,7 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.textContaining('Hari kosong bukan kegagalan'),
+        find.textContaining('Kotak kosong: belum ada catatan'),
         findsOneWidget,
       );
       expect(
@@ -195,7 +195,7 @@ void main() {
   ) async {
     await _pump(tester);
     expect(find.text('Lihat sebagai tabel'), findsNWidgets(5));
-    final toggle = find.text('Lihat sebagai tabel').at(1);
+    final toggle = find.text('Lihat sebagai tabel').at(0);
     await tester.ensureVisible(toggle);
     await tester.tap(toggle);
     await tester.pump();

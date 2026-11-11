@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/format/formatters.dart';
 import '../../../core/network/error_messages.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/theme/app_typography.dart';
@@ -95,7 +96,10 @@ class _MealDetailScreenState extends ConsumerState<MealDetailScreen> {
             Text(meal.timezone, style: AppTypography.secondary),
             const SizedBox(height: 12),
             Text(
-              'Dilaporkan sendiri · versi ${meal.version}${meal.archived ? ' · diarsipkan' : ''}',
+              [
+                'Dilaporkan sendiri',
+                revisionLabel(meal.version, archived: meal.archived),
+              ].where((s) => s.isNotEmpty).join(' · '),
               style: AppTypography.secondary,
             ),
             const SizedBox(height: 24),

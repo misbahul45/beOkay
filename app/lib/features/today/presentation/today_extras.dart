@@ -13,7 +13,7 @@ import '../../../core/widgets/domain_style.dart';
 import '../../goals/application/goals_controller.dart';
 import '../../insights/application/insights_controller.dart';
 import '../../insights/data/statistics.dart';
-import '../../insights/presentation/statistics_section.dart';
+import '../../insights/presentation/insight_presentation.dart';
 import '../../medication/application/medication_controller.dart';
 import '../../nutrition/data/nutrition_models.dart';
 
@@ -77,7 +77,7 @@ class NutritionSnapshotCard extends StatelessWidget {
               Text(
                 energy?.value == null
                     ? 'Energi belum diketahui'
-                    : formatNumber(energy!.value!.toDouble().roundToDouble()),
+                    : formatValue(energy!.value!, whole: true),
                 style: energy?.value == null
                     ? AppTypography.secondaryStrong
                     : AppTypography.metricLarge,
@@ -136,7 +136,7 @@ class _MacroBar extends StatelessWidget {
     final v = total?.value?.toDouble();
     final text = v == null
         ? 'tidak diketahui'
-        : '${formatNumber(v)} g${total!.coverage == 'PARTIAL' ? ' · sebagian' : ''}';
+        : '${formatValue(v)} g${total!.coverage == 'PARTIAL' ? ' · sebagian' : ''}';
     return Semantics(
       label: '$label: $text',
       excludeSemantics: true,
@@ -314,9 +314,11 @@ class CompanionInsightCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final Statistics? stats = ref.watch(statisticsProvider(days)).value;
-    final card = stats?.insights
-        .where((c) => c.domain != 'medication')
-        .firstOrNull;
+    final card = stats == null
+        ? null
+        : prioritizeInsights(
+            stats,
+          ).where((c) => c.domain != 'medication').firstOrNull;
     if (card == null) return const SizedBox.shrink();
     return Container(
       width: double.infinity,
@@ -349,14 +351,8 @@ class CompanionInsightCard extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
-          Text(card.title, style: AppTypography.body),
-          const SizedBox(height: AppSpacing.xs),
-          DataCoverageIndicator(
-            have: card.daysWithData,
-            total: card.totalDays,
-            label:
-                'Dari ${card.daysWithData} dari ${card.totalDays} hari yang tercatat',
-          ),
+          Text(card.headline, style: AppTypography.bodyStrong),
+          Text(card.supporting, style: AppTypography.secondary),
           const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: AppSpacing.xs,
@@ -370,14 +366,12 @@ class CompanionInsightCard extends ConsumerWidget {
                 ),
                 onPressed: () {
                   ref.read(trendRangeProvider.notifier).set(days);
+                  ref
+                      .read(insightsSectionProvider.notifier)
+                      .set(InsightsSection.summary);
                   context.go(Routes.insights);
                 },
                 child: const Text('Lihat pola'),
-              ),
-              TextButton(
-                style: TextButton.styleFrom(backgroundColor: AppColors.surface),
-                onPressed: () => context.go(Routes.coach),
-                child: const Text('Tanya beOkay'),
               ),
             ],
           ),

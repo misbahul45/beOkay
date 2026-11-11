@@ -8,6 +8,14 @@ export const runCreateSchema = z
     query: z.string().trim().min(2).max(80).optional(),
     /** Giliran lanjutan dalam percakapan: run sebelumnya milik pengguna yang sama (maks 20 giliran). */
     previousRunId: z.uuid().optional(),
+    intent: z.enum(["NUTRITION_ALTERNATIVES", "ACTIVITY_PLAN"]).optional(),
+    activity: z
+      .object({
+        maxMinutes: z.number().int().min(5).max(180).optional(),
+        avoidTypes: z.array(z.enum(["walking", "cycling", "running", "strength"])).max(4).optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 

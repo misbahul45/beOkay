@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/format/formatters.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/health_card.dart';
 import '../data/activity_models.dart';
@@ -38,7 +39,7 @@ class ActivitySummaryCard extends StatelessWidget {
           title: const Text('Metode dan cakupan'),
           children: [
             Text(
-              'Jumlah sesi tercatat tidak menggambarkan seluruh aktivitasmu.\nSumber: sesi manual, dilaporkan sendiri.\nCakupan: ${summary.eligibleCount} sesi tanpa tanda peninjauan.\nDurasi dijumlahkan per sesi; waktu yang tumpang tindih tidak dihapus. Sesi dihitung pada tanggal mulai, termasuk yang melewati tengah malam.\n${summary.computationVersion}\nDihitung: ${summary.computedAt}',
+              'Dari ${summary.eligibleCount} sesi yang kamu catat; sesi yang perlu ditinjau tidak dihitung. Durasi dijumlahkan per sesi dan dihitung pada tanggal mulai. Sesi tercatat belum tentu seluruh aktivitasmu.\n${updatedAtLabel(summary.computedAt)}',
             ),
           ],
         ),

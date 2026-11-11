@@ -48,6 +48,7 @@ import '../../features/goals/presentation/goal_form_screen.dart';
 import '../../features/food_preferences/presentation/food_preferences_screen.dart';
 import '../../features/reminders/presentation/reminders_screen.dart';
 import '../../features/coach/presentation/coach_screen.dart';
+import '../../features/memory/presentation/memory_screen.dart';
 import '../../features/community/data/community_repository.dart';
 import '../../features/community/presentation/challenge_screen.dart';
 import '../../features/community/presentation/community_screen.dart';
@@ -186,6 +187,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: Routes.sync, builder: (_, _) => const SyncScreen()),
       GoRoute(path: Routes.trends, builder: (_, _) => const TrendsScreen()),
+      GoRoute(path: Routes.memory, builder: (_, _) => const MemoryScreen()),
       GoRoute(path: Routes.goals, builder: (_, _) => const GoalsScreen()),
       GoRoute(path: Routes.addGoal, builder: (_, _) => const GoalFormScreen()),
       GoRoute(

@@ -29,6 +29,8 @@ import { interventionRoutes } from "./features/interventions/intervention.routes
 import { syncRoutes } from "./features/sync/sync.routes.ts";
 import { insightsRoutes } from "./features/insights/insights.routes.ts";
 import { conversationRoutes } from "./features/conversation/conversation.routes.ts";
+import { mealDraftRoutes } from "./features/meal-drafts/meal-draft.routes.ts";
+import { memoryRoutes } from "./features/memory/memory.routes.ts";
 import { checkDatabase, prisma } from "./infrastructure/database/prisma.ts";
 import { route } from "./shared/http/handler.ts";
 import { logEvent } from "./shared/http/logger.ts";
@@ -53,6 +55,8 @@ const server = Bun.serve({
     ...pushRoutes,
     ...agentRoutes,
     ...conversationRoutes,
+    ...mealDraftRoutes,
+    ...memoryRoutes,
     ...communityRoutes,
     ...mlRoutes,
     ...interventionRoutes,

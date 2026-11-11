@@ -7,6 +7,10 @@ import { agentService } from "../agent/agent.service.ts";
 import { identityMatch, identityTokens } from "../agent/food-identity.ts";
 import { consentService } from "../consent/consent.service.ts";
 import { statisticsService } from "../insights/statistics.service.ts";
+import { mealDraftService, type DraftInputItem } from "../meal-drafts/meal-draft.service.ts";
+import { parseMealText, sanitizePhotoName } from "../meal-drafts/meal-text.parser.ts";
+import { activityConstraintsFrom } from "../memory/memory.extract.ts";
+import { memoryService } from "../memory/memory.service.ts";
 import {
   CLARIFY_FOOD_REPLY,
   GREETING_REPLY,
@@ -20,6 +24,8 @@ import {
   statisticsReply,
   suggestions,
   text,
+  type Basis,
+  type BasisSource,
   type Part,
 } from "./conversation.parts.ts";
 import { ROUTER_VERSION, routeMessage, type Route } from "./conversation.router.ts";
@@ -35,7 +41,7 @@ const REDACTED = "(percakapan dihapus)";
 type Thread = NonNullable<Awaited<ReturnType<typeof prisma.conversationThread.findFirst>>>;
 type Message = NonNullable<Awaited<ReturnType<typeof prisma.conversationMessage.findFirst>>>;
 type RunView = Awaited<ReturnType<typeof agentService.getRun>>;
-type Reply = { parts: Part[]; route: Route["kind"]; runId: string | null; continuesRun: boolean };
+type Reply = { parts: Part[]; route: string; runId: string | null; continuesRun: boolean; basis?: Basis | null };
 
 const hasConsent = async (userId: string, purpose: "personalized_ai" | "health_data_processing") => {
   try {
@@ -96,16 +102,46 @@ function runReply(run: RunView, query: string | null, followUp: boolean): Reply 
   return { parts: [text(message)], route: run.intent === "ACTIVITY_PLAN" ? "ACTIVITY_PLAN" : "FOLLOW_UP", runId: run.id, continuesRun: continues && run.intent !== "FOLLOW_UP_WHY" };
 }
 
-async function agentReply(userId: string, clientMessageId: string, message: string, opts: { query?: string; previousRunId?: string | null; route: Route["kind"] }): Promise<Reply> {
+const SAFETY_SOURCE: BasisSource = { kind: "SAFETY_POLICY", label: "Aturan keselamatan beOkay" };
+
+function runBasis(run: RunView): Basis {
+  const sources: BasisSource[] = [];
+  const events = run.events as { type: string; payload: Record<string, unknown> }[];
+  const ctx = events.find((e) => e.type === "CONTEXT_READY")?.payload ?? {};
+  if (run.intent === "ACTIVITY_PLAN") {
+    const sessions = Number(ctx.sessions ?? 0);
+    sources.push({ kind: "ACTIVITY_HISTORY", label: sessions > 0 ? `Riwayat aktivitas 28 hari (${sessions} sesi)` : "Riwayat aktivitas 28 hari (belum ada sesi)" });
+    if (Number(ctx.goals ?? 0) > 0) sources.push({ kind: "GOALS", label: `Tujuan aktifmu (${ctx.goals})` });
+    sources.push({ kind: "SAFETY_POLICY", label: "Durasi tidak melebihi sesi terpanjangmu" });
+  } else if (run.intent === "NUTRITION_ALTERNATIVES") {
+    const summary = run.summary as unknown as { coverage?: { reference?: string; userCatalog?: string } | null; preferencesConsidered?: number };
+    if (summary.coverage?.reference && summary.coverage.reference !== "UNAVAILABLE") sources.push({ kind: "FOOD_REFERENCE", label: "Tabel Komposisi Pangan Indonesia" });
+    if (summary.coverage?.userCatalog === "OK") sources.push({ kind: "USER_CATALOG", label: "Katalog makananmu" });
+    if ((summary.preferencesConsidered ?? 0) > 0) sources.push({ kind: "FOOD_PREFERENCES", label: "Preferensi dan alergi makananmu" });
+    sources.push(SAFETY_SOURCE);
+  } else if (run.status === "BLOCKED") {
+    sources.push(SAFETY_SOURCE);
+  }
+  return { sources, memories: [] };
+}
+
+async function agentReply(
+  userId: string,
+  clientMessageId: string,
+  message: string,
+  opts: { query?: string; previousRunId?: string | null; route: string; intent?: "NUTRITION_ALTERNATIVES" | "ACTIVITY_PLAN"; activity?: { maxMinutes?: number; avoidTypes?: ("walking" | "cycling" | "running" | "strength")[] } },
+): Promise<Reply> {
   try {
     const run = await agentService.createRun(userId, {
       idempotencyKey: `conv-${clientMessageId}`,
       message: message.slice(0, 2000),
       ...(opts.query ? { query: opts.query.slice(0, 80) } : {}),
       ...(opts.previousRunId ? { previousRunId: opts.previousRunId } : {}),
+      ...(opts.intent ? { intent: opts.intent } : {}),
+      ...(opts.activity && Object.keys(opts.activity).length ? { activity: opts.activity } : {}),
     });
     const reply = runReply(run, opts.query ?? null, opts.route === "FOLLOW_UP");
-    return { ...reply, route: opts.route === "FOLLOW_UP" ? "FOLLOW_UP" : reply.route };
+    return { ...reply, route: opts.route === "FOLLOW_UP" ? "FOLLOW_UP" : reply.route, basis: runBasis(run) };
   } catch (e) {
     if (e instanceof AppError) {
       if (e.code === "CONSENT_REQUIRED") return { parts: consentReply(String(e.details?.purpose ?? "personalized_ai")), route: opts.route, runId: null, continuesRun: false };
@@ -119,20 +155,98 @@ async function agentReply(userId: string, clientMessageId: string, message: stri
 async function statsReply(userId: string, route: Extract<Route, { kind: "STATS" }>): Promise<Reply> {
   try {
     const result = await statisticsService.get(userId, route.days);
-    return { parts: statisticsReply(route.domain, route.days, result.statistics, result.glucoseUnit), route: "STATS", runId: null, continuesRun: false };
+    const domainLabel = { activity: "aktivitas", glucose: "glukosa", nutrition: "makan", medication: "obat", logging: "catatan" }[route.domain];
+    return {
+      parts: statisticsReply(route.domain, route.days, result.statistics, result.glucoseUnit),
+      route: "STATS",
+      runId: null,
+      continuesRun: false,
+      basis: { sources: [{ kind: "STATISTICS", label: `Ringkasan ${domainLabel} ${route.days} hari dari catatanmu` }], memories: [] },
+    };
   } catch (e) {
     if (e instanceof AppError && e.code === "CONSENT_REQUIRED") return { parts: consentReply(String(e.details?.purpose ?? "descriptive_summaries")), route: "STATS", runId: null, continuesRun: false };
     throw e;
   }
 }
 
+const ACTIVITY_TYPES = new Set(["walking", "cycling", "running", "strength"]);
+
+async function activityReply(userId: string, msg: Message, body: string, route: Extract<Route, { kind: "ACTIVITY_PLAN" }> | null, followUp: { previousRunId: string | null } | null): Promise<Reply> {
+  const memories = await memoryService.activeFor(userId);
+  const fromMemory = activityConstraintsFrom(memories);
+  const explicit = route?.maxMinutes;
+  const maxMinutes = explicit ?? fromMemory.maxMinutes;
+  const avoidTypes = fromMemory.avoidTypes.filter((t) => ACTIVITY_TYPES.has(t)) as ("walking" | "cycling" | "running" | "strength")[];
+  const activity = { ...(avoidTypes.length ? { avoidTypes } : {}), ...(maxMinutes ? { maxMinutes } : {}) };
+  const reply = followUp
+    ? await agentReply(userId, msg.clientMessageId!, body, { previousRunId: followUp.previousRunId, route: "FOLLOW_UP", activity })
+    : await agentReply(userId, msg.clientMessageId!, body, { route: "ACTIVITY_PLAN", intent: "ACTIVITY_PLAN", activity });
+  const offered = reply.parts.some((p) => p.type === "recommendations" && p.kind === "ACTIVITY");
+  if (!offered) return reply;
+  const used = memories.filter(
+    (m) =>
+      m.kind === "ACTIVITY_TIME" ||
+      m.kind === "SCHEDULE" ||
+      (m.kind === "ACTIVITY_DISLIKE" && avoidTypes.includes(m.key.split(":")[1] as never)) ||
+      (m.kind === "AVAILABLE_MINUTES" && explicit === undefined && maxMinutes !== undefined),
+  );
+  const notes: Part[] = [];
+  if (route?.busy) notes.push(text("Kalau sedang sibuk, ini versi singkatnya."));
+  const time = used.find((m) => m.kind === "ACTIVITY_TIME");
+  if (time) notes.push(text(`Aku ingat kamu ${time.content.charAt(0).toLowerCase()}${time.content.slice(1)}, jadi coba sisihkan waktu itu.`));
+  const parts = [...reply.parts];
+  parts.splice(1, 0, ...notes);
+  return { ...reply, parts, basis: { sources: reply.basis?.sources ?? [], memories: used.map((m) => ({ id: m.id, content: m.content })) } };
+}
+
+function photoItems(msg: Message): DraftInputItem[] {
+  const photo = (msg.parts as Part[]).find((p) => p.type === "photo");
+  if (!photo || photo.type !== "photo") return [];
+  return photo.items
+    .map((i) => ({ name: sanitizePhotoName(i.name), confidence: i.confidence }))
+    .filter((i) => i.name.length >= 2)
+    .map((i) => ({ text: i.name, name: i.name, quantity: 1, unit: "portion" as const, unitLabel: null, quantityStated: false, grams: null, photoConfidence: i.confidence }));
+}
+
+async function mealDraftReply(userId: string, thread: Thread, body: string, msg: Message, fromPhoto: boolean): Promise<Reply> {
+  const items = fromPhoto ? photoItems(msg) : parseMealText(body).items;
+  const category = fromPhoto ? null : parseMealText(body).category;
+  const route = fromPhoto ? "PHOTO_MEAL" : "MEAL_LOG";
+  if (items.length === 0) {
+    return {
+      parts: [text(fromPhoto ? "Aku belum bisa mengenali makanan dari foto itu. Tulis saja namanya, misalnya \"nasi dan ayam bakar\"." : "Makanan apa saja yang kamu makan? Tulis namanya, misalnya \"nasi satu piring dan ayam bakar\".")],
+      route,
+      runId: null,
+      continuesRun: false,
+    };
+  }
+  const draft = await mealDraftService.propose(userId, { threadId: thread.id, source: fromPhoto ? "PHOTO" : "TEXT", text: fromPhoto ? null : body, category, items });
+  const missing = draft.items.filter((i) => i.candidates.length === 0).length;
+  const lead = fromPhoto
+    ? "Dari foto, ini dugaan makanannya. Foto tidak bisa menentukan porsi, jadi periksa nama dan beratnya sebelum menyimpan."
+    : "Ini draf catatan makanmu. Periksa porsinya dulu; belum ada yang tersimpan.";
+  const sources: BasisSource[] = [fromPhoto ? { kind: "PHOTO", label: "Nama makanan dari foto (perkiraan model)" } : { kind: "MESSAGE", label: "Teks pesanmu" }];
+  if (draft.items.some((i) => i.candidates.some((c) => c.kind === "TKPI"))) sources.push({ kind: "FOOD_REFERENCE", label: "Tabel Komposisi Pangan Indonesia" });
+  if (draft.items.some((i) => i.candidates.some((c) => c.kind === "CATALOG"))) sources.push({ kind: "USER_CATALOG", label: "Katalog makananmu" });
+  if (draft.items.some((i) => i.gramsBasis === "user_estimate")) sources.push({ kind: "PORTION_MEASURES", label: "Takaran porsi yang pernah kamu simpan" });
+  return {
+    parts: [text(lead), { type: "meal_draft", draftId: draft.id }, ...(missing > 0 ? [text(`${missing} makanan belum ditemukan di referensi; tetap bisa dicatat tanpa nilai gizi.`)] : [])],
+    route,
+    runId: null,
+    continuesRun: false,
+    basis: { sources, memories: [] },
+  };
+}
+
 async function compose(userId: string, thread: Thread, msg: Message): Promise<Reply> {
   const body = msg.text!;
-  const route = routeMessage(body, { hasPreviousRun: thread.lastRunId !== null });
-  const fixed = (parts: Part[]): Reply => ({ parts, route: route.kind, runId: null, continuesRun: false });
+  if ((msg.parts as Part[]).some((p) => p.type === "photo")) return mealDraftReply(userId, thread, body, msg, true);
+  const context = (thread.context ?? {}) as { lastRoute?: string };
+  const route = routeMessage(body, { hasPreviousRun: thread.lastRunId !== null, lastRoute: context.lastRoute ?? null });
+  const fixed = (parts: Part[], basis: Basis | null = null): Reply => ({ parts, route: route.kind, runId: null, continuesRun: false, basis });
   switch (route.kind) {
     case "SAFETY":
-      return fixed(safetyReply(route.code, route.message, route.urgent));
+      return fixed(safetyReply(route.code, route.message, route.urgent), { sources: [SAFETY_SOURCE], memories: [] });
     case "GREETING":
       return fixed(GREETING_REPLY);
     case "THANKS":
@@ -145,18 +259,35 @@ async function compose(userId: string, thread: Thread, msg: Message): Promise<Re
       return fixed(CLARIFY_FOOD_REPLY);
     case "NO_CONTEXT":
       return fixed(NO_CONTEXT_REPLY);
+    case "APPROVAL_HINT":
+      return fixed([text("Ketuk “Tambahkan ke rencana” pada pilihan yang kamu mau. Aku tidak menyimpan apa pun tanpa ketukan itu.")]);
+    case "MEAL_LOG":
+      return mealDraftReply(userId, thread, body, msg, false);
     case "STATS":
       return statsReply(userId, route);
     case "FOLLOW_UP":
-      return agentReply(userId, msg.clientMessageId!, body, { previousRunId: thread.lastRunId, route: "FOLLOW_UP" });
+      return context.lastRoute === "ACTIVITY_PLAN"
+        ? activityReply(userId, msg, body, null, { previousRunId: thread.lastRunId })
+        : agentReply(userId, msg.clientMessageId!, body, { previousRunId: thread.lastRunId, route: "FOLLOW_UP" });
     case "ACTIVITY_PLAN":
-      return agentReply(userId, msg.clientMessageId!, body, { route: "ACTIVITY_PLAN" });
+      return activityReply(userId, msg, body, route, null);
     case "FOOD":
       return agentReply(userId, msg.clientMessageId!, body, { query: route.query, route: "FOOD" });
     case "UNKNOWN":
       if (route.probe && (await probeFood(route.probe))) return agentReply(userId, msg.clientMessageId!, body, { query: route.probe, route: "FOOD" });
       return fixed(UNKNOWN_REPLY);
   }
+}
+
+const QUIET_ROUTES = new Set(["UNKNOWN", "NO_CONTEXT", "CLARIFY_FOOD", "HELP"]);
+
+async function withMemory(userId: string, msg: Message, reply: Reply): Promise<Reply> {
+  if (reply.route === "SAFETY" || reply.route === "PHOTO_MEAL") return reply;
+  const proposals = await memoryService.propose(userId, msg.text ?? "", msg.id);
+  if (proposals.length === 0) return reply;
+  const parts: Part[] = QUIET_ROUTES.has(reply.route) ? [text("Baik. Mau aku ingat ini untuk saran berikutnya?")] : [...reply.parts];
+  for (const p of proposals) parts.push({ type: "memory_proposal", memoryId: p.id });
+  return { ...reply, parts, route: QUIET_ROUTES.has(reply.route) ? "PREFERENCE" : reply.route };
 }
 
 type RecRow = NonNullable<Awaited<ReturnType<typeof prisma.recommendation.findFirst>>>;
@@ -183,9 +314,16 @@ function recommendationItem(r: RecRow, now: number) {
 }
 
 async function hydrate(userId: string, messages: Message[]) {
-  const ids = messages.flatMap((m) => (m.parts as Part[]).flatMap((p) => (p.type === "recommendations" ? p.recommendationIds : [])));
+  const all = messages.flatMap((m) => m.parts as Part[]);
+  const ids = all.flatMap((p) => (p.type === "recommendations" ? p.recommendationIds : []));
+  const draftIds = all.flatMap((p) => (p.type === "meal_draft" ? [p.draftId] : []));
+  const memoryIds = all.flatMap((p) => (p.type === "memory_proposal" ? [p.memoryId] : []));
   const allowed = ids.length ? await hasConsent(userId, "personalized_ai") : true;
-  const rows = ids.length && allowed ? await prisma.recommendation.findMany({ where: { id: { in: ids }, userId } }) : [];
+  const [rows, drafts, memories] = await Promise.all([
+    ids.length && allowed ? prisma.recommendation.findMany({ where: { id: { in: ids }, userId } }) : Promise.resolve([]),
+    mealDraftService.viewsFor(userId, draftIds),
+    memoryService.viewsFor(userId, memoryIds),
+  ]);
   const now = Date.now();
   const byId = new Map(rows.map((r) => [r.id, recommendationItem(r, now)]));
   return messages.map((m) => ({
@@ -197,10 +335,15 @@ async function hydrate(userId: string, messages: Message[]) {
     text: m.text,
     route: m.route,
     createdAt: m.createdAt.toISOString(),
+    basis: (m.basis as Basis | null) ?? null,
     parts: (m.parts as Part[]).map((p) =>
       p.type === "recommendations"
         ? { ...p, hidden: !allowed, items: p.recommendationIds.map((id) => byId.get(id)).filter((x) => x !== undefined) }
-        : p,
+        : p.type === "meal_draft"
+          ? { ...p, draft: drafts.get(p.draftId) ?? null }
+          : p.type === "memory_proposal"
+            ? { ...p, memory: memories.get(p.memoryId) ?? null }
+            : p,
     ),
   }));
 }
@@ -236,14 +379,27 @@ async function ensureThread(userId: string, id: string, firstText: string): Prom
 }
 
 async function respond(userId: string, thread: Thread, userMsg: Message) {
-  const reply = await compose(userId, thread, userMsg);
+  const reply = await withMemory(userId, userMsg, await compose(userId, thread, userMsg));
+  const offered = reply.parts.some((p) => p.type === "recommendations");
+  const context = { lastRoute: reply.route, offered, turns: Math.min(((thread.context as { turns?: number } | null)?.turns ?? 0) + 1, 9999) };
   const assistant = await prisma.$transaction(async (tx) => {
     const t = await tx.conversationThread.update({
       where: { id: thread.id },
-      data: { messageCount: { increment: 1 }, lastMessageAt: new Date(), ...(reply.continuesRun && reply.runId ? { lastRunId: reply.runId } : {}) },
+      data: { messageCount: { increment: 1 }, lastMessageAt: new Date(), context, ...(reply.continuesRun && reply.runId ? { lastRunId: reply.runId } : {}) },
     });
     return tx.conversationMessage.create({
-      data: { threadId: thread.id, userId, seq: t.messageCount, role: "ASSISTANT", replyToId: userMsg.id, parts: reply.parts as unknown as Prisma.InputJsonArray, route: reply.route, routerVersion: ROUTER_VERSION, runId: reply.runId },
+      data: {
+        threadId: thread.id,
+        userId,
+        seq: t.messageCount,
+        role: "ASSISTANT",
+        replyToId: userMsg.id,
+        parts: reply.parts as unknown as Prisma.InputJsonArray,
+        route: reply.route,
+        routerVersion: ROUTER_VERSION,
+        runId: reply.runId,
+        ...(reply.basis && reply.basis.sources.length + reply.basis.memories.length > 0 ? { basis: reply.basis as unknown as Prisma.InputJsonObject } : {}),
+      },
     });
   });
   return assistant;
@@ -273,6 +429,8 @@ export const conversationService = {
     const prior = await prisma.conversationMessage.findUnique({ where: { userId_clientMessageId: { userId, clientMessageId: input.clientMessageId } }, include: { reply: true } });
     if (prior) {
       if (prior.threadId !== threadId || prior.text !== input.text) throw conflict("IDEMPOTENCY_CONFLICT", "clientMessageId dipakai untuk pesan lain.");
+      const priorPhoto = (prior.parts as Part[]).find((p) => p.type === "photo");
+      if (JSON.stringify(priorPhoto && priorPhoto.type === "photo" ? priorPhoto.items : null) !== JSON.stringify(input.photo?.items ?? null)) throw conflict("IDEMPOTENCY_CONFLICT", "clientMessageId dipakai untuk pesan lain.");
       if (prior.reply) return exchange(userId, threadId, prior, prior.reply, true);
       if (Date.now() - prior.createdAt.getTime() < IN_PROGRESS_MS) throw conflict("MESSAGE_IN_PROGRESS", "Pesan sedang diproses. Coba lagi sebentar.");
       const thread = await ownThread(userId, threadId);
@@ -293,7 +451,17 @@ export const conversationService = {
     try {
       userMsg = await prisma.$transaction(async (tx) => {
         const t = await tx.conversationThread.update({ where: { id: thread.id }, data: { messageCount: { increment: 1 }, lastMessageAt: new Date() } });
-        return tx.conversationMessage.create({ data: { threadId: thread.id, userId, seq: t.messageCount, role: "USER", clientMessageId: input.clientMessageId, text: input.text } });
+        return tx.conversationMessage.create({
+          data: {
+            threadId: thread.id,
+            userId,
+            seq: t.messageCount,
+            role: "USER",
+            clientMessageId: input.clientMessageId,
+            text: input.text,
+            ...(input.photo ? { parts: [{ type: "photo", items: input.photo.items }] as unknown as Prisma.InputJsonArray } : {}),
+          },
+        });
       });
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") throw conflict("MESSAGE_IN_PROGRESS", "Pesan sedang diproses. Coba lagi sebentar.");
@@ -312,6 +480,7 @@ export const conversationService = {
         await tx.agentRun.updateMany({ where: { id: { in: runIds }, userId, status: "WAITING_FOR_USER" }, data: { status: "CANCELLED", version: { increment: 1 } } });
         await tx.agentRun.updateMany({ where: { id: { in: runIds }, userId }, data: { inputText: REDACTED } });
       }
+      await tx.mealDraft.updateMany({ where: { threadId: t.id, userId, status: "PROPOSED" }, data: { status: "DISCARDED", resolvedAt: new Date(), version: { increment: 1 } } });
       await tx.conversationThread.delete({ where: { id: t.id } });
       await recordAudit(tx, { userId, eventType: "conversation_deleted", metadata: { threadId: t.id, messages: t.messageCount, runs: runIds.length } });
       return t.messageCount;

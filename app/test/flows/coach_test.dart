@@ -6,6 +6,10 @@ import 'package:app/core/storage/token_storage.dart';
 import 'package:app/features/coach/application/coach_controller.dart';
 import 'package:app/features/coach/data/coach_repository.dart';
 import 'package:app/features/coach/presentation/coach_screen.dart';
+import 'package:app/features/nutrition/application/nutrition_controller.dart';
+import 'package:app/features/nutrition/data/nutrition_repository.dart';
+import 'package:app/features/nutrition/presentation/scan/food_image_source.dart';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -111,37 +115,106 @@ Future<(Widget, List<http.Request>)> _app(
   final tokens = MemoryTokenStorage();
   await tokens.write('t');
   final seen = <http.Request>[];
-  final repo = CoachRepository(
-    ApiClient(
-      tokens: tokens,
-      baseUrl: 'http://test',
-      client: MockClient((r) async {
-        seen.add(r);
-        final res = handler(r);
-        if (res != null) return res;
-        if (r.url.path == '/api/me/conversations' && r.method == 'GET') {
-          return _json({'items': <dynamic>[]});
-        }
-        if (r.url.path == '/api/me/planned-meals' ||
-            r.url.path == '/api/me/activity-plans') {
-          return _json({'items': <dynamic>[]});
-        }
-        return _json({}, 404);
-      }),
-    ),
-    isCurrentAccount: () => true,
+  final api = ApiClient(
+    tokens: tokens,
+    baseUrl: 'http://test',
+    client: MockClient((r) async {
+      seen.add(r);
+      final res = handler(r);
+      if (res != null) return res;
+      if (r.url.path == '/api/me/conversations' && r.method == 'GET') {
+        return _json({'items': <dynamic>[]});
+      }
+      if (r.url.path == '/api/me/planned-meals' ||
+          r.url.path == '/api/me/activity-plans') {
+        return _json({'items': <dynamic>[]});
+      }
+      return _json({}, 404);
+    }),
   );
+  final repo = CoachRepository(api, isCurrentAccount: () => true);
   return (
     ProviderScope(
       overrides: [
         coachRepositoryProvider.overrideWithValue(repo),
         tokenStorageProvider.overrideWithValue(MemoryTokenStorage()),
+        nutritionRepositoryProvider.overrideWithValue(
+          NutritionRepository(api, isCurrentAccount: () => true),
+        ),
+        foodImagePickerProvider.overrideWithValue(_FakePicker()),
       ],
       child: const MaterialApp(home: Scaffold(body: CoachScreen())),
     ),
     seen,
   );
 }
+
+class _FakePicker implements FoodImagePicker {
+  @override
+  Future<Uint8List?> capture({required bool camera}) async =>
+      Uint8List.fromList([1, 2, 3]);
+}
+
+Map<String, dynamic> _draft({String status = 'PROPOSED'}) => {
+  'id': 'd1',
+  'status': status,
+  'source': 'TEXT',
+  'category': 'lunch',
+  'consumedAt': '2026-11-10T05:30:00.000Z',
+  'localDate': '2026-11-10',
+  'localTime': '12:30',
+  'items': [
+    {
+      'index': 0,
+      'text': 'nasi satu piring',
+      'name': 'nasi',
+      'quantity': 1,
+      'unit': 'portion',
+      'unitLabel': 'piring',
+      'quantityStated': true,
+      'grams': null,
+      'gramsBasis': null,
+      'photoConfidence': null,
+      'candidates': [
+        {
+          'key': 'tkpi:A1',
+          'kind': 'TKPI',
+          'name': 'Nasi',
+          'source': 'Tabel Komposisi Pangan Indonesia',
+          'sourceVersion': 'A1',
+          'per100g': {
+            'calories': 180,
+            'carbohydrates': 39.8,
+            'protein': 3,
+            'fat': 0.3,
+            'fiber': null,
+          },
+          'completeness': 'PARTIAL',
+          'match': 'EXACT',
+          'preference': 'NO_MATCH_FOUND',
+        },
+      ],
+      'selected': 'tkpi:A1',
+    },
+    {
+      'index': 1,
+      'text': 'lalapan',
+      'name': 'lalapan',
+      'quantity': 1,
+      'unit': 'portion',
+      'unitLabel': null,
+      'quantityStated': false,
+      'grams': null,
+      'gramsBasis': null,
+      'photoConfidence': null,
+      'candidates': <dynamic>[],
+      'selected': null,
+    },
+  ],
+  'mealId': status == 'SAVED' ? 'd1' : null,
+  'version': status == 'SAVED' ? 2 : 1,
+  'expiresAt': '2026-11-12T00:00:00.000Z',
+};
 
 void _tall(WidgetTester tester) {
   tester.view.physicalSize = const Size(800, 2400);
@@ -591,6 +664,343 @@ void main() {
       final del = seen.where((r) => r.method == 'DELETE').toList();
       expect(del, hasLength(1));
       expect(del.single.url.path, '/api/me/conversations/th9');
+    },
+  );
+
+  testWidgets(
+    'A meal sentence becomes an editable draft; nothing is saved until "Simpan ke catatan makan", which sends the chosen food, weight and version',
+    (tester) async {
+      _tall(tester);
+      var saved = false;
+      Map<String, dynamic>? confirmBody;
+      final (app, seen) = await _app((r) {
+        if (_isSend(r)) {
+          return _json(
+            _exchange(r.url.pathSegments[3], 'x', [
+              {'type': 'text', 'text': 'Ini draf catatan makanmu.'},
+              {'type': 'meal_draft', 'draftId': 'd1', 'draft': _draft()},
+            ]),
+            201,
+          );
+        }
+        if (r.url.path == '/api/me/meal-drafts/d1/confirm') {
+          confirmBody = jsonDecode(r.body) as Map<String, dynamic>;
+          saved = true;
+          return _json({
+            'replayed': false,
+            'mealId': 'd1',
+            'draft': _draft(status: 'SAVED'),
+          }, 201);
+        }
+        if (r.method == 'GET' &&
+            r.url.pathSegments.length == 4 &&
+            r.url.pathSegments[2] == 'conversations') {
+          return _json({
+            'thread': _thread(r.url.pathSegments[3]),
+            'messages': [
+              _msg('u1', 1, 'USER', text: 'x'),
+              _msg(
+                'a1',
+                2,
+                'ASSISTANT',
+                parts: [
+                  {
+                    'type': 'meal_draft',
+                    'draftId': 'd1',
+                    'draft': _draft(status: saved ? 'SAVED' : 'PROPOSED'),
+                  },
+                ],
+              ),
+            ],
+          });
+        }
+        return null;
+      });
+      await tester.pumpWidget(app);
+      await tester.pumpAndSettle();
+      await _type(tester, 'tadi siang makan nasi satu piring dan lalapan');
+      expect(find.text('Draf makan siang'), findsOneWidget);
+      expect(find.text('1 piring · Nasi (TKPI)'), findsOneWidget);
+      expect(find.text('Berat belum diisi'), findsOneWidget);
+      expect(find.text('Belum ditemukan, dicatat tanpa gizi'), findsOneWidget);
+      expect(seen.where((r) => r.url.path.contains('/confirm')), isEmpty);
+
+      await tester.tap(find.text('Periksa & simpan'));
+      await tester.pumpAndSettle();
+      expect(find.text('Periksa catatan makan'), findsOneWidget);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Berat (opsional)').first,
+        '150',
+      );
+      await tester.tap(find.text('Simpan ke catatan makan'));
+      await tester.pumpAndSettle();
+      expect(confirmBody, isNotNull);
+      expect(confirmBody!['expectedVersion'], 1);
+      expect(confirmBody!['category'], 'lunch');
+      final items = confirmBody!['items'] as List;
+      expect(items[0], {
+        'index': 0,
+        'candidateKey': 'tkpi:A1',
+        'name': 'nasi',
+        'quantity': 1.0,
+        'unit': 'portion',
+        'grams': 150.0,
+      });
+      expect(items[1]['candidateKey'], isNull);
+      expect(items[1]['grams'], isNull);
+      expect(find.text('Tersimpan di catatan makan'), findsOneWidget);
+      expect(find.text('Periksa & simpan'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'A memory is only proposed; "Ingat" confirms it, and the answer basis shows which memories were used',
+    (tester) async {
+      _tall(tester);
+      var confirmed = false;
+      Map<String, dynamic> memory() => {
+        'id': 'm1',
+        'content': 'Lebih suka beraktivitas pagi hari',
+        'kindLabel': 'Waktu aktivitas',
+        'status': confirmed ? 'ACTIVE' : 'PROPOSED',
+      };
+      final basis = {
+        'sources': [
+          {
+            'kind': 'ACTIVITY_HISTORY',
+            'label': 'Riwayat aktivitas 28 hari (4 sesi)',
+          },
+        ],
+        'memories': [
+          {
+            'id': 'm2',
+            'content': 'Punya waktu sekitar 15 menit untuk aktivitas',
+          },
+        ],
+      };
+      final (app, seen) = await _app((r) {
+        if (_isSend(r)) {
+          final ex = _exchange(r.url.pathSegments[3], 'x', [
+            {'type': 'text', 'text': 'Ini pilihan aktivitas.'},
+            {'type': 'memory_proposal', 'memoryId': 'm1', 'memory': memory()},
+          ]);
+          (ex['assistantMessage'] as Map<String, dynamic>)['basis'] = basis;
+          return _json(ex, 201);
+        }
+        if (r.url.path == '/api/me/memories/m1/confirm') {
+          confirmed = true;
+          return _json(memory());
+        }
+        if (r.method == 'GET' &&
+            r.url.pathSegments.length == 4 &&
+            r.url.pathSegments[2] == 'conversations') {
+          final a = _msg(
+            'a1',
+            2,
+            'ASSISTANT',
+            parts: [
+              {'type': 'memory_proposal', 'memoryId': 'm1', 'memory': memory()},
+            ],
+          )..['basis'] = basis;
+          return _json({
+            'thread': _thread(r.url.pathSegments[3]),
+            'messages': [_msg('u1', 1, 'USER', text: 'x'), a],
+          });
+        }
+        return null;
+      });
+      await tester.pumpWidget(app);
+      await tester.pumpAndSettle();
+      await _type(tester, 'aku lebih suka olahraga pagi');
+      expect(find.text('Ingat ini untuk saran berikutnya?'), findsOneWidget);
+      expect(seen.where((r) => r.url.path.contains('/memories/')), isEmpty);
+      await tester.tap(find.text('Ingat'));
+      await tester.pumpAndSettle();
+      expect(
+        seen.where((r) => r.url.path == '/api/me/memories/m1/confirm'),
+        hasLength(1),
+      );
+      expect(find.text('Diingat untuk saran berikutnya'), findsOneWidget);
+      expect(find.text('Ingat'), findsNothing);
+
+      await tester.tap(find.text('Dasar jawaban · memakai ingatan'));
+      await tester.pumpAndSettle();
+      expect(find.text('Dasar jawaban ini'), findsOneWidget);
+      expect(find.text('Riwayat aktivitas 28 hari (4 sesi)'), findsOneWidget);
+      expect(
+        find.text('Punya waktu sekitar 15 menit untuk aktivitas'),
+        findsOneWidget,
+      );
+      expect(find.text('Kelola ingatan'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'A food photo is sent only after the upload consent; the conversation receives names, never the image',
+    (tester) async {
+      _tall(tester);
+      Map<String, dynamic>? sent;
+      final (app, seen) = await _app((r) {
+        if (r.url.path == '/api/me/foods/scan/photo') {
+          return _json({
+            'status': 'IDENTIFIED',
+            'items': [
+              {
+                'name': 'Nasi goreng',
+                'confidence': 'medium',
+                'matches': <dynamic>[],
+                'reference': <dynamic>[],
+              },
+            ],
+          });
+        }
+        if (_isSend(r)) {
+          sent = jsonDecode(r.body) as Map<String, dynamic>;
+          final ex = _exchange(r.url.pathSegments[3], 'Foto makanan', [
+            {'type': 'text', 'text': 'Dari foto, ini dugaan makanannya.'},
+          ]);
+          (ex['userMessage'] as Map<String, dynamic>)['parts'] = [
+            {
+              'type': 'photo',
+              'items': [
+                {'name': 'Nasi goreng', 'confidence': 'medium'},
+              ],
+            },
+          ];
+          return _json(ex, 201);
+        }
+        return null;
+      });
+      await tester.pumpWidget(app);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Foto makanan'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Pilih dari galeri'));
+      await tester.pumpAndSettle();
+      expect(find.text('Kirim foto untuk dibaca?'), findsOneWidget);
+      expect(seen.where((r) => r.url.path.contains('/scan/photo')), isEmpty);
+      await tester.tap(find.text('Kirim foto'));
+      await tester.pumpAndSettle();
+      expect(
+        seen.where((r) => r.url.path == '/api/me/foods/scan/photo'),
+        hasLength(1),
+      );
+      expect(sent!['text'], 'Foto makanan');
+      expect(sent!['photo'], {
+        'items': [
+          {'name': 'Nasi goreng', 'confidence': 'medium'},
+        ],
+      });
+      expect(find.text('Nasi goreng'), findsOneWidget);
+      expect(find.text('Dari foto, ini dugaan makanannya.'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'A food missing from the references can be searched on the web only after consent; web values are labelled unverified and must be chosen',
+    (tester) async {
+      _tall(tester);
+      var searched = false;
+      Map<String, dynamic> draft() {
+        final d = _draft();
+        if (searched) {
+          final lalapan = (d['items'] as List)[1] as Map<String, dynamic>;
+          lalapan['webSearch'] = {
+            'status': 'FOUND',
+            'at': '2026-11-10T00:00:00Z',
+          };
+          lalapan['candidates'] = [
+            {
+              'key': 'web:abc',
+              'kind': 'WEB',
+              'url': 'https://gizi.example.id/lalapan',
+              'host': 'gizi.example.id',
+              'name': 'Lalapan',
+              'source': 'Web: gizi.example.id',
+              'sourceVersion': null,
+              'per100g': {
+                'calories': 33,
+                'carbohydrates': 5.2,
+                'protein': 2.1,
+                'fat': 0.4,
+                'fiber': 2.4,
+              },
+              'completeness': 'COMPLETE',
+              'match': 'EXACT',
+              'preference': 'NO_MATCH_FOUND',
+            },
+          ];
+        }
+        return d;
+      }
+
+      final (app, seen) = await _app((r) {
+        if (_isSend(r)) {
+          return _json(
+            _exchange(r.url.pathSegments[3], 'x', [
+              {'type': 'meal_draft', 'draftId': 'd1', 'draft': draft()},
+            ]),
+            201,
+          );
+        }
+        if (r.url.path == '/api/me/meal-drafts/d1/items/1/web-search') {
+          searched = true;
+          return _json({'status': 'FOUND', 'draft': draft()});
+        }
+        if (r.method == 'GET' &&
+            r.url.pathSegments.length == 4 &&
+            r.url.pathSegments[2] == 'conversations') {
+          return _json({
+            'thread': _thread(r.url.pathSegments[3]),
+            'messages': [
+              _msg('u1', 1, 'USER', text: 'x'),
+              _msg(
+                'a1',
+                2,
+                'ASSISTANT',
+                parts: [
+                  {'type': 'meal_draft', 'draftId': 'd1', 'draft': draft()},
+                ],
+              ),
+            ],
+          });
+        }
+        return null;
+      });
+      await tester.pumpWidget(app);
+      await tester.pumpAndSettle();
+      await _type(tester, 'tadi siang makan nasi dan lalapan');
+      expect(find.text('Cari di web'), findsOneWidget);
+      await tester.tap(find.text('Cari di web'));
+      await tester.pumpAndSettle();
+      expect(find.text('Cari di web?'), findsOneWidget);
+      expect(seen.where((r) => r.url.path.contains('web-search')), isEmpty);
+      await tester.tap(find.text('Cari'));
+      await tester.pumpAndSettle();
+      expect(
+        seen.where((r) => r.url.path.contains('web-search')),
+        hasLength(1),
+      );
+      expect(
+        find.text('Ada 1 hasil web, pilih di Periksa & simpan'),
+        findsOneWidget,
+      );
+      expect(find.text('Cari di web'), findsNothing);
+
+      await tester.tap(find.text('Periksa & simpan'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Tanpa referensi (gizi tidak dihitung)'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.textContaining('Web gizi.example.id · belum diverifikasi').last,
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          'Angka dari gizi.example.id, belum diverifikasi beOkay. Periksa sebelum menyimpan.',
+        ),
+        findsOneWidget,
+      );
     },
   );
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../core/format/formatters.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/async_body.dart';
@@ -119,7 +120,7 @@ class _GlucoseHistoryScreenState extends ConsumerState<GlucoseHistoryScreen> {
                         title: const Text('Metode dan sumber'),
                         children: [
                           Text(
-                            'Cakupan: ${day.eligibleCount} pengukuran glukometer manual; ringkasan hanya menggambarkan catatan yang tersedia.\nRata-rata aritmetika pengukuran darah kapiler yang dilaporkan sendiri. Konversi: 18.016 mg/dL per mmol/L.\n${day.computationVersion}\nDihitung: ${day.computedAt}',
+                            'Dari ${day.eligibleCount} pengukuran glukometer manual yang kamu catat. Rata-rata biasa dari nilai yang dilaporkan; konversi 18,016 mg/dL per mmol/L.\n${updatedAtLabel(day.computedAt)}',
                           ),
                         ],
                       ),

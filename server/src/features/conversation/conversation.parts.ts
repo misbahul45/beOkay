@@ -12,7 +12,13 @@ export type Part =
   | { type: "notice"; tone: "info" | "warning" | "error"; text: string }
   | { type: "consent_required"; purpose: string; text: string }
   | { type: "suggestions"; items: Suggestion[] }
-  | { type: "link"; label: string; target: LinkTarget };
+  | { type: "link"; label: string; target: LinkTarget }
+  | { type: "meal_draft"; draftId: string }
+  | { type: "memory_proposal"; memoryId: string }
+  | { type: "photo"; items: { name: string; confidence: "high" | "medium" | "low" }[] };
+
+export type BasisSource = { kind: "STATISTICS" | "FOOD_REFERENCE" | "USER_CATALOG" | "FOOD_PREFERENCES" | "ACTIVITY_HISTORY" | "GOALS" | "SAFETY_POLICY" | "MESSAGE" | "PHOTO" | "PORTION_MEASURES"; label: string };
+export type Basis = { sources: BasisSource[]; memories: { id: string; content: string }[] };
 
 export type LinkTarget = "INSIGHTS" | "LOG" | "LOG_MEAL" | "CONSENT";
 

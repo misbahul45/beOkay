@@ -35,8 +35,8 @@ test("Router: makanan, aktivitas, dan klarifikasi", () => {
   expect(r("berapa kalori nasi goreng")).toEqual({ kind: "FOOD", query: "nasi goreng" });
   expect(r("Cari info nasi goreng")).toEqual({ kind: "FOOD", query: "nasi goreng" });
   expect(r("alternatif pengganti nasi goreng dong")).toEqual({ kind: "FOOD", query: "nasi goreng" });
-  expect(r("Ide olahraga ringan 15 menit")).toEqual({ kind: "ACTIVITY_PLAN" });
-  expect(r("aku mau olahraga 15 menit")).toEqual({ kind: "ACTIVITY_PLAN" });
+  expect(r("Ide olahraga ringan 15 menit")).toEqual({ kind: "ACTIVITY_PLAN", maxMinutes: 15 });
+  expect(r("aku mau olahraga 15 menit")).toEqual({ kind: "ACTIVITY_PLAN", maxMinutes: 15 });
   expect(r("makan apa ya hari ini")).toEqual({ kind: "CLARIFY_FOOD" });
   expect(r("rekomendasi menu dong")).toEqual({ kind: "CLARIFY_FOOD" });
 });

@@ -46,6 +46,8 @@ export const EXPORTED_TABLES = [
   "ml_inference_runs",
   "conversation_threads",
   "conversation_messages",
+  "meal_drafts",
+  "memory_items",
   "audit_events",
 ] as const;
 
@@ -82,7 +84,7 @@ export const exportService = {
       user, profile, healthProfile, settings, onboarding, consents, foods, portionMeasures, meals, glucose, activities, regimens, goals, revisions,
       foodPreferences, reminders, pushDevices, pushDeliveries, agentRuns, recommendations, plannedMeals, activityPlans, personalization,
       personalizationEvents, communityMemberships, challengeParticipants, challengeCheckins, scoreEvents, interventionPreference, interventionDecisions,
-      mlInferenceRuns, conversationThreads, audit,
+      mlInferenceRuns, conversationThreads, mealDrafts, memoryItems, audit,
     ] = await prisma.$transaction(
       [
         prisma.users.findUniqueOrThrow({ where: { id: userId }, select: { id: true, name: true, email: true, emailVerified: true, createdAt: true } }),
@@ -118,9 +120,11 @@ export const exportService = {
         prisma.mlInferenceRun.findMany({ where: own, select: { id: true, mode: true, status: true, topLabel: true, topProbability: true, createdAt: true }, orderBy: asc }),
         prisma.conversationThread.findMany({
           where: own,
-          select: { id: true, title: true, messageCount: true, lastMessageAt: true, createdAt: true, messages: { select: { id: true, seq: true, role: true, text: true, parts: true, route: true, routerVersion: true, runId: true, replyToId: true, createdAt: true }, orderBy: { seq: "asc" } } },
+          select: { id: true, title: true, messageCount: true, lastMessageAt: true, createdAt: true, messages: { select: { id: true, seq: true, role: true, text: true, parts: true, route: true, routerVersion: true, basis: true, runId: true, replyToId: true, createdAt: true }, orderBy: { seq: "asc" } } },
           orderBy: asc,
         }),
+        prisma.mealDraft.findMany({ where: own, orderBy: asc }),
+        prisma.memoryItem.findMany({ where: own, orderBy: asc }),
         prisma.auditEvent.findMany({ where: own, orderBy: { occurredAt: "asc" } }),
       ],
       { isolationLevel: "RepeatableRead" },
@@ -159,6 +163,8 @@ export const exportService = {
       interventionDecisions,
       modelInferenceRuns: mlInferenceRuns,
       conversations: conversationThreads,
+      mealDrafts,
+      memories: memoryItems,
       auditEvents: audit,
     });
     const counts = Object.fromEntries(Object.entries(data).map(([k, v]) => [k, Array.isArray(v) ? v.length : v ? 1 : 0]));

@@ -39,7 +39,7 @@ app/lib/
     └── presentation/         layar & widget
 ```
 
-Modul fitur (jumlah berkas Dart): `nutrition` 17 (termasuk `scan/`), `insights` 11, `activity` 10, `auth` 8, `glucose` 7, `consent` 6, `medication` 5, `onboarding` 5, `preferences` 5, `profile` 5, `community` 4, `goals` 4, `health_profile` 4, `timeline` 4, `today` 4, `coach` 7, `food_preferences` 3, `home` 3, `interventions` 3, `push` 3, `reminders` 3, `export` 2, `settings` 2, `sync` 2, `quick_record` 1.
+Modul fitur (jumlah berkas Dart): `nutrition` 17 (termasuk `scan/`), `insights` 14, `activity` 10, `auth` 8, `glucose` 7, `consent` 6, `medication` 5, `onboarding` 5, `preferences` 5, `profile` 5, `community` 4, `goals` 4, `health_profile` 4, `timeline` 4, `today` 4, `coach` 7, `food_preferences` 3, `home` 3, `interventions` 3, `push` 3, `reminders` 3, `export` 2, `settings` 2, `sync` 2, `quick_record` 1.
 
 ## 3. Autentikasi dan perlindungan rute
 
@@ -72,6 +72,7 @@ Sejak beOkay 3.0 Fase 1: shell dengan empat tujuan, yaitu **Beranda** (`/home`),
 | Catatan harian | form makan/glukosa/aktivitas/obat/tujuan dengan `newRecordId()`; koreksi memakai `expectedVersion` + alasan (`record_reason_dialog`) |
 | Pemindaian | hub → barcode (`mobile_scanner`) / label (OCR) / foto; dialog persetujuan unggah foto; hasil harus diperiksa pengguna (`scan_widgets.dart`) |
 | Asisten (`coach`) | sejak 3.0 Fase 3: percakapan (`/api/me/conversations`). `ConversationController` memegang thread aktif, pesan tertunda (kirim ulang memakai `clientMessageId` yang sama), dan saran yang sedang diputuskan (`operationId` dipakai ulang saat mengulang). Bagian balasan dirender per tipe di `chat_parts.dart`: gelembung teks, kartu statistik, kartu hasil ringkas (satu utama, sisanya di balik "Lihat N pilihan lain") + lembar detail, kartu tidak ketemu, kartu keselamatan, consent, chip saran (hanya pada balasan terakhir) dan tautan. Riwayat thread dan rencana makan/aktivitas ada di lembar "Riwayat & rencana". Thread terakhir (< 24 jam) dipulihkan saat aplikasi dibuka |
+| Wawasan (`insights`) | sejak redesign UI/UX: tiga bagian **Ringkasan · Tren · Harian** (`insightsSectionProvider`). Ringkasan memakai `insight_presentation.dart` (prioritas insight deterministik, satu aksi per kartu, kartu metrik ringkas, perbandingan hanya bila datanya cukup) dan lembar detail bertingkat (konteks → "Tentang data"). Versi analisis tidak pernah tampil. Tren memakai `TrendsBody` (juga di `/trends`). Harian: navigator tanggal + ringkasan empat domain, termasuk obat untuk tanggal terpilih. Lihat [redesign](../reports/beokay-3.0-uiux-redesign.md) |
 | Komunitas | direktori provinsi → gabung dengan alias → tantangan → check-in → skor/papan peringkat (ditekan bila kohort kecil) |
 | Pengingat | server menyimpan aturan; klien menjadwalkan ≤ 60 notifikasi lokal dengan teks layar kunci generik; mode alarm *inexact* |
 | Push | `PushController` mendaftarkan token FCM bila `google-services.json` ada; bila tidak, aplikasi tetap berjalan dan melaporkan push "tidak tersedia" |

@@ -60,6 +60,8 @@ model Users {
   personalization PersonalizationProfile?
   conversationThreads ConversationThread[]
   conversationMessages ConversationMessage[]
+  mealDrafts MealDraft[]
+  memoryItems MemoryItem[]
 
   @@unique([email])
   @@map("users")
@@ -147,6 +149,7 @@ model UserSettings {
   glucoseUnit  String   @default("mg/dL") @map("glucose_unit")
   textSize     String   @default("system") @map("text_size")
   reduceMotion Boolean  @default(false) @map("reduce_motion")
+  memoryEnabled Boolean @default(true) @map("memory_enabled")
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
   user         Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -228,6 +231,7 @@ model MealLog {
   user        Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
   items       MealItem[]
   revisions   RecordRevision[]
+  draft       MealDraft?
   @@index([userId, consumedAt(sort: Desc), id(sort: Desc)])
   @@map("meal_logs")
 }
@@ -994,11 +998,13 @@ model ConversationThread {
   lastRunId     String?   @map("last_run_id") @db.Uuid
   messageCount  Int       @default(0) @map("message_count")
   lastMessageAt DateTime? @map("last_message_at") @db.Timestamptz(6)
+  context       Json      @default("{}")
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   user          Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
   lastRun       AgentRun? @relation(fields: [lastRunId], references: [id], onDelete: SetNull)
   messages      ConversationMessage[]
+  mealDrafts    MealDraft[]
   @@index([userId, lastMessageAt(sort: Desc)])
   @@index([lastRunId])
   @@map("conversation_threads")
@@ -1016,6 +1022,7 @@ model ConversationMessage {
   parts           Json                 @default("[]")
   route           String?
   routerVersion   String?              @map("router_version")
+  basis           Json?
   runId           String?              @map("run_id") @db.Uuid
   createdAt       DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
   thread          ConversationThread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
@@ -1027,4 +1034,50 @@ model ConversationMessage {
   @@unique([threadId, seq])
   @@index([runId])
   @@map("conversation_messages")
+}
+
+model MealDraft {
+  id         String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String              @map("user_id") @db.Uuid
+  threadId   String?             @map("thread_id") @db.Uuid
+  source     String
+  status     String              @default("PROPOSED")
+  category   String
+  consumedAt DateTime            @map("consumed_at") @db.Timestamptz(6)
+  inputText  String?             @map("input_text")
+  items      Json                @default("[]")
+  mealId     String?             @unique @map("meal_id") @db.Uuid
+  version    Int                 @default(1)
+  expiresAt  DateTime            @map("expires_at") @db.Timestamptz(6)
+  resolvedAt DateTime?           @map("resolved_at") @db.Timestamptz(6)
+  createdAt  DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user       Users               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thread     ConversationThread? @relation(fields: [threadId], references: [id], onDelete: SetNull)
+  meal       MealLog?            @relation(fields: [mealId], references: [id], onDelete: SetNull)
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([threadId])
+  @@map("meal_drafts")
+}
+
+model MemoryItem {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  category    String
+  kind        String
+  key         String
+  content     String
+  status      String    @default("PROPOSED")
+  sourceType  String    @map("source_type")
+  sourceId    String?   @map("source_id") @db.Uuid
+  confidence  String    @default("STATED")
+  sensitivity String    @default("LOW")
+  retention   String    @default("UNTIL_DELETED")
+  version     Int       @default(1)
+  confirmedAt DateTime? @map("confirmed_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user        Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, status])
+  @@map("memory_items")
 }

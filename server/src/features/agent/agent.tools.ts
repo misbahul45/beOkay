@@ -6,8 +6,12 @@ import type { ConsentPurpose } from "../consent/consent.policy.ts";
 import { consentService } from "../consent/consent.service.ts";
 import { foodPreferencesService } from "../food-preferences/food-preferences.service.ts";
 import { referenceService } from "../food-reference/reference.service.ts";
+import { env } from "../../config/env.ts";
+import { createFirecrawlClient } from "../food-discovery/firecrawl.client.ts";
+import { foodNameFromTitle, parseNutritionPer100g } from "../food-discovery/web-nutrition.parser.ts";
 import { goalsService } from "../goals/goals.service.ts";
 import { nutritionService } from "../nutrition/nutrition.service.ts";
+import { identityTokens } from "./food-identity.ts";
 import { personalization } from "./personalization.ts";
 
 /**
@@ -29,6 +33,11 @@ type Tool<I, O> = {
 };
 
 const food = z.object({ query: z.string().trim().min(2).max(80), limit: z.number().int().min(1).max(12).default(8) }).strict();
+const webFood = z.object({ query: z.string().trim().min(2).max(80), limit: z.number().int().min(1).max(5).default(4) }).strict();
+
+export const webSearchRef: { current: Pick<ReturnType<typeof createFirecrawlClient>, "configured" | "search"> } = { current: createFirecrawlClient(env.FIRECRAWL_API_KEY) };
+
+export type WebNutritionResult = { title: string; name: string; url: string; host: string; per100g: ReturnType<typeof parseNutritionPer100g> };
 
 const tools = {
   get_food_preferences: {
@@ -101,6 +110,21 @@ const tools = {
     maxResultBytes: 30_000,
     run: async (userId: string) => ((await goalsService.list(userId, { status: "active", limit: 20 })).items as any[]).map((g) => ({ id: g.id, title: g.title, goalType: g.goalType, target: g.targetValue, period: g.period })),
   } satisfies Tool<{}, unknown>,
+  search_web_nutrition: {
+    name: "search_web_nutrition",
+    version: "1",
+    purpose: "Pencarian web (Firecrawl) untuk nilai gizi per 100 g bila referensi lokal tidak memuat makanannya. Hanya angka yang lolos parser deterministik yang dikembalikan; hasil belum diverifikasi.",
+    input: webFood,
+    allowedIntents: ["MEAL_DRAFT_ENRICHMENT"],
+    requiredPermissions: ["health_data_processing"],
+    timeoutMs: 25_000,
+    maxResultBytes: 20_000,
+    run: async (_userId: string, a: z.infer<typeof webFood>): Promise<WebNutritionResult[]> => {
+      const pages = await webSearchRef.current.search(`${a.query} kandungan gizi per 100 gram`, a.limit);
+      const anchor = identityTokens(a.query)[0];
+      return pages.map((p) => ({ title: p.title, name: foodNameFromTitle(p.title), url: p.url, host: p.host, per100g: parseNutritionPer100g(p.markdown, anchor) }));
+    },
+  } satisfies Tool<z.infer<typeof webFood>, unknown>,
 } as const;
 
 export type ToolName = keyof typeof tools;

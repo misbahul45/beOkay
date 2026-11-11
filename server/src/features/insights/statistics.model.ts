@@ -364,7 +364,7 @@ export function weekdayPattern(cur: StatDay[]) {
 
 const fmt = (v: number | null, unit: string | null) => (v === null ? "tidak tersedia" : `${String(v).replace(".", ",")}${unit ? " " + unit : ""}`);
 
-export function buildInsightCards(stats: Statistic[], cur: StatDay[], limit = 3): InsightCard[] {
+export function buildInsightCards(stats: Statistic[], cur: StatDay[], limit = 5): InsightCard[] {
   const by = (id: string) => stats.find((s) => s.id === id)!;
   const cards: InsightCard[] = [];
   const n = cur.length;

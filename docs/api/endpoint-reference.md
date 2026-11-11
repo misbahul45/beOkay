@@ -92,7 +92,7 @@ Catatan khusus:
 | GET | `/api/me/summaries/weekly` | `date?` |
 | GET | `/api/me/insights/contextual` | — |
 | GET | `/api/me/trends` | `days ∈ {7,14,30,90}` (default 14) |
-| GET | `/api/me/insights/statistics` | `days ∈ {7,14,30,90}` (default 14). Statistik bermetadata (`stats-v1`), kartu insight (`insight-rules-v1`), dan seri harian makronutrien/aktivitas/glukosa/obat. Lihat `docs/reports/beokay-3.0-phase-0-2.md` §5 |
+| GET | `/api/me/insights/statistics` | `days ∈ {7,14,30,90}` (default 14). Statistik bermetadata (`stats-v1`), kartu insight (`insight-rules-v1`, semua kandidat hingga 5; urutan tampil ditentukan klien), dan seri harian makronutrien/aktivitas/glukosa/obat. Lihat `docs/reports/beokay-3.0-phase-0-2.md` §5 |
 
 ## 7. Pencarian makanan dan pemindaian (Consent H)
 

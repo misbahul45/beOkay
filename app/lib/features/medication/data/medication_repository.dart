@@ -77,9 +77,12 @@ class MedicationRepository extends AccountScopedRepository {
       ((await api.get('/api/me/medications?limit=50')).object['items'] as List)
           .map((v) => Regimen.fromJson(v as Map<String, dynamic>))
           .toList();
-  Future<MedicationToday> today() async => MedicationToday.fromJson(
-    (await api.get('/api/me/medications/today')).object,
-  );
+  Future<MedicationToday> today({String? date}) async =>
+      MedicationToday.fromJson(
+        (await api.get(
+          '/api/me/medications/today${date == null ? '' : '?date=$date'}',
+        )).object,
+      );
   Future<void> createRegimen(Map<String, dynamic> body) async =>
       write('POST', '/api/me/medications', body);
   Future<void> updateRegimen(String id, Map<String, dynamic> body) async =>

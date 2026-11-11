@@ -50,6 +50,10 @@ const schema = z.object({
     .string()
     .optional()
     .transform((value) => (value && value.trim() ? value.trim() : undefined)),
+  FIRECRAWL_API_KEY: z
+    .string()
+    .optional()
+    .transform((value) => (value && value.trim() ? value.trim() : undefined)),
   // Opsional: tanpa keduanya, push (FCM) nonaktif dan pengingat hanya berjalan sebagai notifikasi lokal di perangkat.
   FCM_PROJECT_ID: z
     .string()

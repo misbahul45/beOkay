@@ -1,5 +1,6 @@
 import { classifyFollowUp, classifyIntent, extractQuery } from "../agent/agent.intent.ts";
 import { screenRequest } from "../agent/agent.safety.ts";
+import { isMealLogStatement } from "../meal-drafts/meal-text.parser.ts";
 
 export const ROUTER_VERSION = "router-v1";
 
@@ -15,7 +16,9 @@ export type Route =
   | { kind: "STATS"; domain: StatsDomain; days: StatsDays }
   | { kind: "FOLLOW_UP"; follow: "WHY" | "MORE" }
   | { kind: "NO_CONTEXT" }
-  | { kind: "ACTIVITY_PLAN" }
+  | { kind: "ACTIVITY_PLAN"; maxMinutes?: number; busy?: boolean }
+  | { kind: "MEAL_LOG" }
+  | { kind: "APPROVAL_HINT" }
   | { kind: "FOOD"; query: string }
   | { kind: "CLARIFY_FOOD" }
   | { kind: "UNKNOWN"; probe: string | null };
@@ -86,7 +89,20 @@ function statsRoute(t: string): Route | null {
   return null;
 }
 
-export function routeMessage(text: string, ctx: { hasPreviousRun: boolean }): Route {
+const MORE_ACTIVE = /(lebih aktif|pengen aktif|pingin aktif|mau aktif|ingin aktif|biar aktif|mulai bergerak|mulai gerak|pengen gerak|mau gerak)/;
+const BUSY_NOW = /\b(sibuk|nggak sempat|tidak sempat|ga sempat|gak sempat|repot|capek kerja)\b/;
+const MINUTES = /(\d{1,3})\s*menit/;
+const APPROVAL = /^(oke+|ok|okay|okey|sip|siap|boleh|setuju|mau|ambil|masukin|masukkan|jadwalkan|catat|simpan|yang (itu|pertama|kedua|ketiga))\b/;
+
+export type RouteContext = { hasPreviousRun: boolean; lastRoute?: string | null };
+
+function minutesOf(t: string): number | undefined {
+  const m = t.match(MINUTES);
+  const n = m ? Number(m[1]) : NaN;
+  return Number.isFinite(n) && n >= 5 && n <= 180 ? n : undefined;
+}
+
+export function routeMessage(text: string, ctx: RouteContext): Route {
   const t = norm(text);
   if (SELF_HARM.test(t)) return { kind: "SAFETY", code: "SELF_HARM", message: SELF_HARM_MESSAGE, urgent: true };
   const screen = screenRequest(text);
@@ -101,13 +117,23 @@ export function routeMessage(text: string, ctx: { hasPreviousRun: boolean }): Ro
   }
   const words = body.split(" ").filter(Boolean);
   if (THANKS.test(body) && words.length <= 6) return { kind: "THANKS" };
+  if (isMealLogStatement(body)) return { kind: "MEAL_LOG" };
+  const activityContext = ctx.lastRoute === "ACTIVITY_PLAN";
+  if (ctx.hasPreviousRun && APPROVAL.test(body) && words.length <= 8 && ["FOOD", "ACTIVITY_PLAN", "FOLLOW_UP"].includes(ctx.lastRoute ?? "")) {
+    return { kind: "APPROVAL_HINT" };
+  }
+  if (activityContext && BUSY_NOW.test(body)) return { kind: "ACTIVITY_PLAN", busy: true, maxMinutes: minutesOf(body) ?? 10 };
+  if (activityContext && MINUTES.test(body) && words.length <= 8 && minutesOf(body)) return { kind: "ACTIVITY_PLAN", maxMinutes: minutesOf(body) };
   if (SUPPORT.test(body)) return { kind: "SUPPORT" };
   if (HELP.test(body)) return { kind: "HELP" };
   const follow = classifyFollowUp(body);
   if (follow) return ctx.hasPreviousRun ? { kind: "FOLLOW_UP", follow } : { kind: "NO_CONTEXT" };
   const stats = statsRoute(body);
   if (stats) return stats;
-  if (classifyIntent(body) === "ACTIVITY_PLAN") return { kind: "ACTIVITY_PLAN" };
+  if (MORE_ACTIVE.test(body) || classifyIntent(body) === "ACTIVITY_PLAN") {
+    const maxMinutes = minutesOf(body);
+    return maxMinutes ? { kind: "ACTIVITY_PLAN", maxMinutes } : { kind: "ACTIVITY_PLAN" };
+  }
   if (FOOD_CUE.test(body)) {
     const query = foodQuery(body);
     return query ? { kind: "FOOD", query } : { kind: "CLARIFY_FOOD" };

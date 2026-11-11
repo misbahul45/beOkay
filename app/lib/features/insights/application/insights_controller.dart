@@ -3,19 +3,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../consent/application/consent_controller.dart';
+import '../../medication/application/medication_controller.dart';
+import '../../medication/data/medication_repository.dart';
 import '../../preferences/application/preferences_controller.dart';
 import '../data/contextual_insights.dart';
 import '../data/daily_insights.dart';
 import '../data/statistics.dart';
 import '../data/insights_repository.dart';
 import '../data/trends.dart';
-import '../data/weekly_insights.dart';
 
 final insightsRepositoryProvider = Provider<InsightsRepository>(
   (ref) => InsightsRepository(ref.watch(apiClientProvider)),
 );
 
-/// Selected day for the Insights tab; null means "today in the user's timezone" (server default).
 final insightsDateProvider =
     NotifierProvider.autoDispose<InsightsDateNotifier, String?>(
       InsightsDateNotifier.new,
@@ -40,20 +40,6 @@ final dailyInsightsProvider = FutureProvider.autoDispose<DailyInsights?>((
   return ref.watch(insightsRepositoryProvider).daily(date: date);
 });
 
-/// Ringkasan mingguan lintas domain untuk hari yang sedang dilihat.
-final weeklyInsightsProvider = FutureProvider.autoDispose<WeeklyInsights?>((
-  ref,
-) async {
-  if (ref.watch(authControllerProvider) is! AuthAuthenticated) return null;
-  final date = ref.watch(insightsDateProvider);
-  await Future.wait([
-    ref.watch(consentControllerProvider.future),
-    ref.watch(preferencesControllerProvider.future),
-  ]);
-  return ref.watch(insightsRepositoryProvider).weekly(date: date);
-});
-
-/// Rentang tren (hari): 7, 14, 30, atau 90. Satu pilihan untuk semua grafik.
 final trendRangeProvider = NotifierProvider<TrendRangeNotifier, int>(
   TrendRangeNotifier.new,
 );
@@ -86,7 +72,6 @@ final statisticsProvider = FutureProvider.autoDispose.family<Statistics?, int>((
   return ref.watch(insightsRepositoryProvider).statistics(days: days);
 });
 
-/// Opsional: bila gagal atau persetujuan belum ada, kartu disembunyikan (tanpa pesan galat).
 final contextualInsightsProvider =
     FutureProvider.autoDispose<ContextualInsights?>((ref) async {
       if (ref.watch(authControllerProvider) is! AuthAuthenticated) return null;
@@ -100,3 +85,28 @@ final contextualInsightsProvider =
         return null;
       }
     });
+
+enum InsightsSection { summary, trends, daily }
+
+final insightsSectionProvider =
+    NotifierProvider<InsightsSectionNotifier, InsightsSection>(
+      InsightsSectionNotifier.new,
+    );
+
+class InsightsSectionNotifier extends Notifier<InsightsSection> {
+  @override
+  InsightsSection build() => InsightsSection.summary;
+  void set(InsightsSection s) => state = s;
+}
+
+final dailyMedicationProvider = FutureProvider.autoDispose<MedicationToday?>((
+  ref,
+) async {
+  if (ref.watch(authControllerProvider) is! AuthAuthenticated) return null;
+  final date = ref.watch(insightsDateProvider);
+  await Future.wait([
+    ref.watch(consentControllerProvider.future),
+    ref.watch(preferencesControllerProvider.future),
+  ]);
+  return ref.watch(medicationRepositoryProvider).today(date: date);
+});

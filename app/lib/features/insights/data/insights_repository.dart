@@ -3,7 +3,6 @@ import 'contextual_insights.dart';
 import 'daily_insights.dart';
 import 'statistics.dart';
 import 'trends.dart';
-import 'weekly_insights.dart';
 
 class InsightsRepository {
   const InsightsRepository(this.api);
@@ -15,14 +14,6 @@ class InsightsRepository {
       queryParameters: {'date': ?date},
     ).toString();
     return DailyInsights.fromJson((await api.get(path)).object);
-  }
-
-  Future<WeeklyInsights> weekly({String? date}) async {
-    final path = Uri(
-      path: '/api/me/summaries/weekly',
-      queryParameters: {'date': ?date},
-    ).toString();
-    return WeeklyInsights.fromJson((await api.get(path)).object);
   }
 
   Future<ContextualInsights> contextual() async => ContextualInsights.fromJson(

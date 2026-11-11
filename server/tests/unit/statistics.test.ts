@@ -163,7 +163,7 @@ describe("insight cards", () => {
     all[0] = day(0, { activityMinutes: 200, activitySessions: 1 });
     const r = buildStatistics(all, { glucoseUnit: "mg/dL", computedAt: at });
     expect(buildInsightCards(r.statistics, all.slice(7), 1)).toHaveLength(1);
-    expect(r.insights.length).toBeLessThanOrEqual(3);
+    expect(r.insights.length).toBeLessThanOrEqual(5);
   });
 
   it("median handles even and odd counts", () => {

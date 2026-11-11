@@ -1,6 +1,7 @@
 import 'package:app/features/insights/application/insights_controller.dart';
 import 'package:app/features/insights/data/statistics.dart';
-import 'package:app/features/insights/presentation/statistics_section.dart';
+import 'package:app/features/insights/presentation/insight_presentation.dart';
+import 'package:app/features/insights/presentation/summary_tab.dart';
 import 'package:app/features/nutrition/data/nutrition_models.dart';
 import 'package:app/features/today/presentation/today_extras.dart';
 import 'package:flutter/material.dart';
@@ -78,6 +79,27 @@ Map<String, dynamic> _json(int days, {bool ready = true, bool cards = true}) {
             : null,
       ),
       _stat(
+        'activity.active_days',
+        'activity',
+        'Hari aktif tercatat',
+        ready ? 3 : 0,
+        'hari',
+      ),
+      _stat(
+        'glucose.readings',
+        'glucose',
+        'Pengukuran glukosa tercatat',
+        ready ? 2 : 0,
+        'pengukuran',
+      ),
+      _stat(
+        'nutrition.logged_days',
+        'nutrition',
+        'Hari dengan catatan makan',
+        ready ? 4 : 0,
+        'hari',
+      ),
+      _stat(
         'logging.recorded_days',
         'logging',
         'Hari dengan catatan',
@@ -139,6 +161,32 @@ Map<String, dynamic> _json(int days, {bool ready = true, bool cards = true}) {
               'actions': ['OPEN_TRENDS', 'CREATE_GOAL', 'ASK_COACH'],
               'rulesVersion': 'insight-rules-v1',
             },
+            {
+              'code': 'NUTRITION_LOGGING_COVERAGE',
+              'domain': 'nutrition',
+              'title': 'Catatan makan ada di 4 dari 14 hari.',
+              'body': 'Rata-rata gizi hanya mewakili hari yang tercatat.',
+              'evidence': [
+                {'label': 'Hari dengan catatan makan', 'value': '4 dari 14'},
+              ],
+              'statisticIds': ['nutrition.logged_days'],
+              'coverage': {'daysWithData': 4, 'totalDays': 14},
+              'actions': ['LOG_MEAL'],
+              'rulesVersion': 'insight-rules-v1',
+            },
+            {
+              'code': 'MEDICATION_UNCONFIRMED',
+              'domain': 'medication',
+              'title': '5 jadwal obat belum dikonfirmasi pada periode ini.',
+              'body': 'Belum dikonfirmasi tidak berarti terlewat.',
+              'evidence': [
+                {'label': 'Dikonfirmasi', 'value': '2 dari 7 jadwal'},
+              ],
+              'statisticIds': ['medication.confirmed'],
+              'coverage': {'daysWithData': 7, 'totalDays': 7},
+              'actions': ['OPEN_MEDICATION'],
+              'rulesVersion': 'insight-rules-v1',
+            },
           ]
         : [],
     'series': [
@@ -170,13 +218,15 @@ Map<String, dynamic> _json(int days, {bool ready = true, bool cards = true}) {
   };
 }
 
-Future<List<int>> _pump(
+Future<(List<int>, ProviderContainer Function())> _pump(
   WidgetTester tester, {
   bool ready = true,
   bool cards = true,
+  double textScale = 1,
+  Size size = const Size(390, 2600),
 }) async {
   await initializeDateFormatting('id_ID');
-  tester.view.physicalSize = const Size(390, 2600) * 3;
+  tester.view.physicalSize = size * 3;
   tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
   final requested = <int>[];
@@ -184,13 +234,17 @@ Future<List<int>> _pump(
     routes: [
       GoRoute(
         path: '/',
-        builder: (_, _) => const Scaffold(
-          body: SingleChildScrollView(child: StatisticsSection()),
+        builder: (_, _) => Scaffold(
+          body: MediaQuery.withClampedTextScaling(
+            minScaleFactor: textScale,
+            maxScaleFactor: textScale,
+            child: const SingleChildScrollView(child: SummaryTab()),
+          ),
         ),
       ),
       GoRoute(
-        path: '/trends',
-        builder: (_, _) => const Scaffold(body: Text('Halaman tren')),
+        path: '/medications',
+        builder: (_, _) => const Scaffold(body: Text('Halaman obat')),
       ),
     ],
   );
@@ -207,65 +261,107 @@ Future<List<int>> _pump(
   );
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 900));
-  return requested;
+  return (
+    requested,
+    () => ProviderScope.containerOf(tester.element(find.byType(SummaryTab))),
+  );
+}
+
+Statistics _stats({bool cards = true, int activeDays = 3}) {
+  final j = _json(14, cards: cards);
+  for (final st in j['statistics'] as List) {
+    if ((st as Map)['id'] == 'activity.total_minutes') {
+      (st['coverage'] as Map)['daysWithData'] = activeDays;
+    }
+  }
+  return Statistics.fromJson(j);
 }
 
 void main() {
   testWidgets(
-    'Statistics: insight card shows evidence, coverage and actions; tiles separate data from insufficient data',
+    'Ringkasan: one page-level coverage line, top two insights with one action each, compact metrics, no analysis metadata',
     (tester) async {
       await _pump(tester);
+      expect(find.text('Ada catatan di 6 dari 14 hari'), findsOneWidget);
+      expect(find.textContaining('ada data'), findsNothing);
+      expect(find.textContaining('stats-v1'), findsNothing);
+      expect(find.textContaining('Dihitung dari catatanmu'), findsNothing);
+      expect(find.text('5 jadwal belum dikonfirmasi'), findsOneWidget);
+      expect(find.text('80 menit tercatat'), findsOneWidget);
       expect(
-        find.text(
-          'Durasi aktivitas tercatat lebih rendah dari 7 hari sebelumnya.',
-        ),
+        find.text('25 menit lebih sedikit dari catatan 14 hari sebelumnya.'),
         findsOneWidget,
       );
-      expect(find.text('80 menit · 3 hari aktif'), findsOneWidget);
-      expect(find.text('Cakupan: 3 dari 7 hari ada data'), findsOneWidget);
-      expect(find.text('Lihat detail'), findsOneWidget);
-      expect(find.text('Buat target'), findsOneWidget);
-      expect(find.text('Tanya beOkay'), findsOneWidget);
-      expect(find.text('−25 menit dari periode sebelumnya'), findsOneWidget);
-      expect(find.text('2/7'), findsOneWidget);
-      expect(find.text('Perlu minimal 3 hari; ada 2.'), findsOneWidget);
-      expect(find.text('Belum cukup data'), findsWidgets);
+      expect(find.text('Makan tercatat di 4 dari 14 hari'), findsNothing);
+      expect(find.text('Buka obat'), findsOneWidget);
+      expect(find.text('Lihat tren'), findsOneWidget);
+      expect(find.text('Buat target'), findsNothing);
+      expect(find.text('Tanya Asisten'), findsNothing);
+      await tester.tap(find.text('Lihat semua wawasan (3)'));
+      await tester.pumpAndSettle();
+      expect(find.text('Makan tercatat di 4 dari 14 hari'), findsOneWidget);
+      expect(find.text('80 menit', findRichText: true), findsOneWidget);
+      expect(find.text('3 hari tercatat'), findsOneWidget);
+      expect(find.text('2 dari 7'), findsOneWidget);
+      expect(find.text('Jadwal dikonfirmasi'), findsOneWidget);
+      expect(find.text('Median puasa belum cukup data'), findsOneWidget);
       expect(
         find.textContaining(RegExp('skor|kepatuhan', caseSensitive: false)),
         findsNothing,
       );
-      await tester.tap(find.text('Lihat detail'));
-      await tester.pumpAndSettle();
-      expect(find.text('Halaman tren'), findsOneWidget);
     },
   );
 
-  testWidgets('Tapping a tile explains how it was computed, with limitations', (
+  testWidgets('"Lihat tren" switches Wawasan to the Tren section', (
     tester,
   ) async {
-    await _pump(tester);
-    await tester.tap(find.text('Durasi aktivitas tercatat'));
-    await tester.pumpAndSettle();
-    expect(find.text('Cara dihitung'), findsOneWidget);
-    expect(find.text('Cara hitung activity.total_minutes.'), findsOneWidget);
-    expect(find.text('stats-v1'), findsOneWidget);
-    expect(find.text('Batasan'), findsOneWidget);
-    expect(
-      find.textContaining('Batasan activity.total_minutes.'),
-      findsOneWidget,
-    );
-    expect(find.text('Sesi manual dan impor perangkat'), findsOneWidget);
+    final (_, container) = await _pump(tester);
+    await tester.tap(find.text('Lihat tren'));
+    await tester.pump();
+    expect(container().read(insightsSectionProvider), InsightsSection.trends);
   });
 
   testWidgets(
-    'The period filter drives the request; the table marks missing days',
+    'Metric detail shows context first; methodology stays under "Tentang data" and never shows the version',
     (tester) async {
-      final requested = await _pump(tester);
-      expect(requested.last, 14);
-      await tester.tap(find.text('7 hari'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 900));
-      expect(requested.last, 7);
+      await _pump(tester);
+      await tester.ensureVisible(find.text('3 hari tercatat'));
+      await tester.tap(find.text('3 hari tercatat'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          '25 menit lebih sedikit dari catatan 14 hari sebelumnya (105 menit).',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Data ada untuk 3 dari 7 hari'), findsOneWidget);
+      expect(find.text('Cara hitung activity.total_minutes.'), findsNothing);
+      expect(find.text('Terakhir diperbarui'), findsNothing);
+      await tester.tap(find.text('Tentang data'));
+      await tester.pumpAndSettle();
+      expect(find.text('Cara hitung activity.total_minutes.'), findsOneWidget);
+      expect(find.text('Sesi manual dan impor perangkat'), findsOneWidget);
+      expect(
+        find.textContaining('Batasan activity.total_minutes.'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('stats-v1'), findsNothing);
+      expect(find.text('Terakhir diperbarui'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Nutrition detail shows macronutrient grams per day with a table, and missing days stay missing',
+    (tester) async {
+      await _pump(tester);
+      await tester.ensureVisible(find.text('Dengan catatan makan'));
+      await tester.tap(find.text('Dengan catatan makan'));
+      await tester.pumpAndSettle();
+      expect(find.text('Makronutrien tercatat'), findsOneWidget);
+      expect(
+        find.text('Gram per hari. Hari tanpa catatan ditandai –.'),
+        findsOneWidget,
+      );
       await tester.ensureVisible(find.text('Lihat sebagai tabel'));
       await tester.tap(find.text('Lihat sebagai tabel'));
       await tester.pumpAndSettle();
@@ -274,20 +370,93 @@ void main() {
     },
   );
 
-  testWidgets('No records: honest empty state instead of numbers or cards', (
+  testWidgets('The period selector drives the request', (tester) async {
+    final (requested, _) = await _pump(tester);
+    expect(requested.last, 14);
+    await tester.tap(find.text('7 hari'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 900));
+    expect(requested.last, 7);
+  });
+
+  testWidgets(
+    'At 2x text the period selector wraps into two rows and nothing overflows',
+    (tester) async {
+      await _pump(tester, textScale: 2, size: const Size(360, 3600));
+      expect(tester.takeException(), isNull);
+      final first = tester.getCenter(find.text('7 hari'));
+      final third = tester.getCenter(find.text('30 hari'));
+      expect(third.dy, greaterThan(first.dy));
+      expect(find.text('80 menit tercatat'), findsOneWidget);
+    },
+  );
+
+  testWidgets('No records: honest empty state with a way to start', (
     tester,
   ) async {
     await _pump(tester, ready: false);
     expect(find.text('Belum ada catatan di 14 hari terakhir'), findsOneWidget);
-    expect(find.text('Lihat detail'), findsNothing);
+    expect(find.text('Mulai mencatat'), findsOneWidget);
+    expect(find.text('Lihat tren'), findsNothing);
   });
 
-  testWidgets('Without strong patterns the section says so', (tester) async {
+  testWidgets('Without strong patterns the summary says so briefly', (
+    tester,
+  ) async {
     await _pump(tester, cards: false);
     expect(
-      find.textContaining('Belum ada pola yang cukup kuat'),
+      find.text('Belum ada pola yang cukup kuat untuk disebut.'),
       findsOneWidget,
     );
+    expect(find.text('Ikhtisar'), findsOneWidget);
+  });
+
+  test(
+    'Presentation: priority order, one card per domain first, honest copy',
+    () {
+      final ranked = prioritizeInsights(_stats());
+      expect(ranked.map((i) => i.code), [
+        'MEDICATION_UNCONFIRMED',
+        'ACTIVITY_PERIOD_CHANGE',
+        'NUTRITION_LOGGING_COVERAGE',
+      ]);
+      expect(
+        ranked.first.supporting,
+        'Belum dikonfirmasi tidak berarti terlewat.',
+      );
+      expect(ranked.every((i) => i.action != null), isTrue);
+      expect(
+        ranked.map((i) => i.headline).join(' '),
+        isNot(contains('stats-v1')),
+      );
+    },
+  );
+
+  test(
+    'Presentation: a comparison built on one recorded day is not claimed',
+    () {
+      final s = _stats(activeDays: 1);
+      final activity = prioritizeInsights(
+        s,
+      ).firstWhere((i) => i.code == 'ACTIVITY_PERIOD_CHANGE');
+      expect(activity.supporting, 'Data ada untuk 1 dari 14 hari.');
+      expect(
+        comparisonValidity(s.byId('activity.total_minutes')!),
+        ComparisonValidity.tooLittleData,
+      );
+    },
+  );
+
+  test('Presentation: missing data stays missing, never zero', () {
+    final s = Statistics.fromJson(_json(14, ready: false));
+    final metrics = overviewMetrics(s);
+    expect(metrics.every((m) => m.value == null), isTrue);
+    expect(metrics.map((m) => m.caption), [
+      'Belum ada sesi tercatat',
+      'Belum ada pengukuran',
+      'Belum ada catatan makan',
+      'Belum ada jadwal obat',
+    ]);
   });
 
   test('Today actions come only from real state', () {
@@ -390,7 +559,9 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
       expect(find.text('Sedikit wawasan hari ini'), findsOneWidget);
+      expect(find.text('80 menit tercatat'), findsOneWidget);
       expect(find.text('Lihat pola'), findsOneWidget);
+      expect(find.text('Tanya beOkay'), findsNothing);
       await pump(false);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));

@@ -40,6 +40,7 @@ abstract final class Routes {
   static const consentManagement = '/settings/consent';
   static const accountSecurity = '/settings/security';
   static const privacyData = '/settings/privacy';
+  static const memory = '/settings/memory';
   static const deleteAccount = '/settings/privacy/delete';
 
   static const publicRoutes = {

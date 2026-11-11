@@ -46,7 +46,7 @@ test("Akses: butuh login, dan consent personalized_ai + kesehatan; daftar alat d
   expect((await run(noAi.token, "alternatif zeltuk")).status).toBe(403);
   const ok = await actor();
   const tools = await J(await call("/api/me/agent/tools", ok.token));
-  expect(tools.items.map((t: any) => t.name).sort()).toEqual(["get_activity_context", "get_behavior_goals", "get_food_preferences", "get_personalization", "search_food_reference", "search_user_foods"]);
+  expect(tools.items.map((t: any) => t.name).sort()).toEqual(["get_activity_context", "get_behavior_goals", "get_food_preferences", "get_personalization", "search_food_reference", "search_user_foods", "search_web_nutrition"]);
   expect(JSON.stringify(tools)).not.toMatch(/sql|shell|fetch_url/i);
 });
 

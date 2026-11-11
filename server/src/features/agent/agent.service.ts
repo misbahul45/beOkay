@@ -7,7 +7,7 @@ import { checkFood } from "../food-preferences/food-preferences.model.ts";
 import { foodPreferencesService } from "../food-preferences/food-preferences.service.ts";
 import { SAFETY_POLICY_VERSION, screenRequest } from "./agent.safety.ts";
 import { buildRecommendation, queryTermsOf, runNutritionGraph, type RecommendationPayload } from "./agent.graph.ts";
-import { buildActivityRecommendation, runActivityGraph } from "./activity.graph.ts";
+import { buildActivityRecommendation, runActivityGraph, type ActivityConstraints } from "./activity.graph.ts";
 import { localRecordTime } from "../../shared/http/record-schema.ts";
 import { preferencesService } from "../preferences/preferences.service.ts";
 import type { ToolContext } from "./agent.tools.ts";
@@ -376,12 +376,12 @@ async function execute(userId: string, run: RunRow, input: RunCreate, parent: Ru
       exclude = await chainCandidateKeys(userId, parent!.id);
       parentQuery = ((parent!.state as Record<string, unknown>).query as string | undefined) ?? null;
     }
-    const intent = follow === "MORE" ? (parent!.intent as "NUTRITION_ALTERNATIVES" | "ACTIVITY_PLAN") : classifyIntent(input.message, input.query);
+    const intent = follow === "MORE" ? (parent!.intent as "NUTRITION_ALTERNATIVES" | "ACTIVITY_PLAN") : (input.intent ?? classifyIntent(input.message, input.query));
     if (intent === "UNSUPPORTED") {
       await setStatus(run.id, "COMPLETED", { intent, state: { message: "Saat ini saya baru bisa membantu mencari alternatif makanan. Coba tulis, misalnya: \"alternatif pengganti nasi goreng\"." } });
       return runView(userId, run.id);
     }
-    if (intent === "ACTIVITY_PLAN") return runActivity(userId, run.id, input.message, exclude);
+    if (intent === "ACTIVITY_PLAN") return runActivity(userId, run.id, input.message, exclude, input.activity ?? {});
     const query = follow === "MORE" ? parentQuery : (input.query ?? extractQuery(input.message));
     if (!query) {
       await setStatus(run.id, "COMPLETED", { intent, state: { outcome: "NEEDS_CLARIFICATION", message: "Makanan apa yang ingin dicari alternatifnya? Tulis nama makanannya." } });
@@ -413,11 +413,11 @@ async function execute(userId: string, run: RunRow, input: RunCreate, parent: Ru
     return runView(userId, run.id);
 }
 
-async function runActivity(userId: string, runId: string, message: string, exclude: ReadonlySet<string> = new Set()) {
+async function runActivity(userId: string, runId: string, message: string, exclude: ReadonlySet<string> = new Set(), constraints: ActivityConstraints = {}) {
   await setStatus(runId, "RUNNING", { intent: "ACTIVITY_PLAN" });
   const ctx: ToolContext = { userId, runId, intent: "ACTIVITY_PLAN", maxCalls: MAX_TOOL_CALLS, callsUsed: 0 };
   try {
-    const outcome = await runActivityGraph(ctx, exclude);
+    const outcome = await runActivityGraph(ctx, exclude, constraints);
     for (const e of outcome.events) await emit(runId, e.type, e.payload);
     const query = message.slice(0, 80);
     if (outcome.offered.length === 0) {

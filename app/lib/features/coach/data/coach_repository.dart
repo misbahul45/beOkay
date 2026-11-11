@@ -304,12 +304,51 @@ class CoachRepository extends AccountScopedRepository {
     String threadId, {
     required String clientMessageId,
     required String text,
+    List<({String name, String confidence})>? photo,
   }) async => Exchange.fromJson(
     (await write('POST', '/api/me/conversations/$threadId/messages', {
       'clientMessageId': clientMessageId,
       'text': text,
+      if (photo != null)
+        'photo': {
+          'items': [
+            for (final p in photo) {'name': p.name, 'confidence': p.confidence},
+          ],
+        },
     })).object,
   );
+
+  Future<String> confirmDraft(
+    MealDraft draft, {
+    required String category,
+    required DateTime consumedAt,
+    required List<Map<String, dynamic>> items,
+  }) async {
+    final r = await write('POST', '/api/me/meal-drafts/${draft.id}/confirm', {
+      'expectedVersion': draft.version,
+      'category': category,
+      'consumedAt': consumedAt.toUtc().toIso8601String(),
+      'items': items,
+    });
+    return r.object['mealId'] as String;
+  }
+
+  Future<String> webSearchDraftItem(String draftId, int index) async =>
+      (await write(
+            'POST',
+            '/api/me/meal-drafts/$draftId/items/$index/web-search',
+            {},
+          )).object['status']
+          as String;
+
+  Future<void> discardDraft(String id) async =>
+      write('POST', '/api/me/meal-drafts/$id/discard', {});
+
+  Future<void> confirmMemory(String id) async =>
+      write('POST', '/api/me/memories/$id/confirm', {});
+
+  Future<void> dismissMemory(String id) async =>
+      write('POST', '/api/me/memories/$id/dismiss', {});
 
   Future<void> deleteThread(String id) async =>
       write('DELETE', '/api/me/conversations/$id', {});

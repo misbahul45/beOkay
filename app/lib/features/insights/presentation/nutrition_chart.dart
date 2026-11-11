@@ -193,7 +193,7 @@ class NutritionStackChart extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
-          'Batang dimulai dari nol. "–" berarti tidak ada catatan makan, bukan nol. Hanya item dengan berat dan nilai gizi yang dijumlahkan.',
+          'Gram per hari. Hari tanpa catatan ditandai –.',
           style: AppTypography.caption,
         ),
         ChartTableToggle(

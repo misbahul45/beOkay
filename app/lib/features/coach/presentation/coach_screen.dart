@@ -11,6 +11,9 @@ import '../../../core/widgets/beokay_spark.dart';
 import '../../../core/widgets/info_card.dart';
 import '../../../core/widgets/pill_button.dart';
 import '../../../core/widgets/tab_root_header.dart';
+import '../../nutrition/application/nutrition_controller.dart';
+import '../../nutrition/presentation/scan/food_image_source.dart';
+import '../../nutrition/presentation/scan/scan_widgets.dart';
 import '../application/conversation_controller.dart';
 import '../data/conversation_models.dart';
 import 'chat_parts.dart';
@@ -109,6 +112,173 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     }
   }
 
+  final Set<String> _busy = {};
+
+  Future<void> _guard(
+    String id,
+    Future<void> Function() job, {
+    String? done,
+  }) async {
+    setState(() => _busy.add(id));
+    try {
+      await job();
+      if (mounted && done != null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(done)));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(messageFor(e))));
+      }
+    } finally {
+      if (mounted) setState(() => _busy.remove(id));
+    }
+  }
+
+  void _reviewDraft(MealDraft d) => showMealDraftEditor(
+    context,
+    draft: d,
+    onSave:
+        ({
+          required String category,
+          required DateTime consumedAt,
+          required List<Map<String, dynamic>> items,
+        }) async {
+          await _controller.confirmDraft(
+            d,
+            category: category,
+            consumedAt: consumedAt,
+            items: items,
+          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Tersimpan di catatan makan.')),
+            );
+          }
+        },
+  );
+
+  Future<void> _pickPhoto() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final camera = await showModalBottomSheet<bool>(
+      context: context,
+      useRootNavigator: true,
+      showDragHandle: true,
+      builder: (sheet) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Ambil foto'),
+              onTap: () => Navigator.of(sheet).pop(true),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Pilih dari galeri'),
+              onTap: () => Navigator.of(sheet).pop(false),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (camera == null || !mounted) return;
+    final bytes = await ref
+        .read(foodImagePickerProvider)
+        .capture(camera: camera);
+    if (bytes == null || !mounted) return;
+    if (!await confirmImageUpload(context, subject: 'makanan') || !mounted) {
+      return;
+    }
+    try {
+      final scan = await runWithProgress(
+        context,
+        'Mengenali makanan…',
+        () => ref.read(nutritionRepositoryProvider).scanPhoto(bytes),
+      );
+      if (!mounted) return;
+      if (scan.status == 'UNAVAILABLE' ||
+          scan.status == 'NOT_FOOD' ||
+          scan.items.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              scan.status == 'UNAVAILABLE'
+                  ? 'Pengenal foto sedang tidak tersedia. Tulis saja nama makanannya.'
+                  : 'Tidak ada makanan yang terlihat jelas. Coba foto dari atas dengan cahaya cukup, atau tulis namanya.',
+            ),
+          ),
+        );
+        return;
+      }
+      await _controller.sendPhoto([
+        for (final i in scan.items) (name: i.name, confidence: i.confidence),
+      ]);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(messageFor(e))));
+      }
+    }
+  }
+
+  Future<void> _webSearch(MealDraft d, DraftItem item) async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('Cari di web?'),
+        content: Text(
+          'Nama "${item.name}" dikirim ke layanan pencarian Firecrawl untuk mencari nilai gizinya. Hasilnya angka dari situs web dan belum diverifikasi beOkay.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialog).pop(false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialog).pop(true),
+            child: const Text('Cari'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    await _guard(d.id, () async {
+      final status = await _controller.webLookup(d.id, item.index);
+      if (!mounted) return;
+      final message = switch (status) {
+        'FOUND' => 'Ada hasil dari web. Pilih di "Periksa & simpan".',
+        'NONE' => 'Tidak ada nilai gizi per 100 g yang bisa dipakai dari web.',
+        'NOT_CONFIGURED' => 'Pencarian web belum aktif.',
+        _ => 'Pencarian web sedang tidak tersedia.',
+      };
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    });
+  }
+
+  ChatExtras get _extras => ChatExtras(
+    webSearch: _webSearch,
+    busy: _busy,
+    reviewDraft: _reviewDraft,
+    discardDraft: (id) => _guard(id, () => _controller.discardDraft(id)),
+    openMeal: (id) => context.push('${Routes.meals}/$id'),
+    answerMemory: (id, remember) => _guard(
+      id,
+      () => _controller.answerMemory(id, remember: remember),
+      done: remember
+          ? 'Diingat. Kamu bisa mengubahnya di Memori & personalisasi.'
+          : null,
+    ),
+    manageMemory: () => context.push(Routes.memory),
+  );
+
   void _openLink(String target) => switch (target) {
     'INSIGHTS' => context.go(Routes.insights),
     'LOG' => context.go(Routes.log),
@@ -165,6 +335,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
                       onLink: _openLink,
                       onRetry: _controller.retry,
                       onDiscard: _controller.discardPending,
+                      extras: _extras,
                     ),
             ),
             _Composer(
@@ -172,6 +343,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
               focus: focus,
               sending: s.sending,
               onSend: () => _send(),
+              onPhoto: _pickPhoto,
             ),
           ],
         ),
@@ -306,8 +478,34 @@ class _EmptyState extends StatelessWidget {
   );
 }
 
+Widget _userBubble(ChatMessage m) {
+  final photo = m.parts.whereType<PhotoPart>().firstOrNull;
+  return photo == null
+      ? UserBubble(text: m.text ?? '')
+      : PhotoBubble(items: photo.items);
+}
+
+class ChatExtras {
+  const ChatExtras({
+    required this.webSearch,
+    required this.busy,
+    required this.reviewDraft,
+    required this.discardDraft,
+    required this.openMeal,
+    required this.answerMemory,
+    required this.manageMemory,
+  });
+  final Set<String> busy;
+  final void Function(MealDraft draft, DraftItem item) webSearch;
+  final ValueChanged<MealDraft> reviewDraft;
+  final ValueChanged<String> discardDraft, openMeal;
+  final void Function(String id, bool remember) answerMemory;
+  final VoidCallback manageMemory;
+}
+
 class _Thread extends StatelessWidget {
   const _Thread({
+    required this.extras,
     required this.state,
     required this.scroll,
     required this.onSend,
@@ -318,6 +516,7 @@ class _Thread extends StatelessWidget {
     required this.onDiscard,
   });
 
+  final ChatExtras extras;
   final ChatState state;
   final ScrollController scroll;
   final ValueChanged<String> onSend, onEdit, onLink;
@@ -350,8 +549,9 @@ class _Thread extends StatelessWidget {
         return Padding(
           padding: const EdgeInsets.only(bottom: AppSpacing.sm),
           child: m.isUser
-              ? UserBubble(text: m.text ?? '')
+              ? _userBubble(m)
               : _AssistantTurn(
+                  extras: extras,
                   message: m,
                   isLast: i == msgs.length - 1 && p == null,
                   busy: state.busyRecommendations,
@@ -368,6 +568,7 @@ class _Thread extends StatelessWidget {
 
 class _AssistantTurn extends StatelessWidget {
   const _AssistantTurn({
+    required this.extras,
     required this.message,
     required this.isLast,
     required this.busy,
@@ -377,6 +578,7 @@ class _AssistantTurn extends StatelessWidget {
     required this.onLink,
   });
 
+  final ChatExtras extras;
   final ChatMessage message;
   final bool isLast;
   final Set<String> busy;
@@ -419,6 +621,26 @@ class _AssistantTurn extends StatelessWidget {
         ),
         SuggestionsPart() => null,
         LinkPart() => null,
+        PhotoPart() => null,
+        MealDraftPart(:final draft) =>
+          draft == null
+              ? null
+              : MealDraftCard(
+                  draft: draft,
+                  busy: extras.busy.contains(draft.id),
+                  onReview: () => extras.reviewDraft(draft),
+                  onDiscard: () => extras.discardDraft(draft.id),
+                  onOpenMeal: () => extras.openMeal(draft.mealId ?? draft.id),
+                  onWebSearch: (item) => extras.webSearch(draft, item),
+                ),
+        MemoryProposalPart(:final memory) =>
+          memory == null
+              ? null
+              : MemoryProposalCard(
+                  proposal: memory,
+                  busy: extras.busy.contains(memory.id),
+                  onAnswer: (r) => extras.answerMemory(memory.id, r),
+                ),
       };
       if (w != null) children.add(w);
     }
@@ -442,6 +664,10 @@ class _AssistantTurn extends StatelessWidget {
           ],
         ),
       );
+    }
+    final basis = message.basis;
+    if (basis != null && !basis.isEmpty) {
+      children.add(BasisLink(basis: basis, onManage: extras.manageMemory));
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -468,7 +694,10 @@ class _PendingTurn extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      UserBubble(text: pending.text, faded: !pending.failed),
+      if (pending.photo case final photo?)
+        PhotoBubble(items: photo, faded: !pending.failed)
+      else
+        UserBubble(text: pending.text, faded: !pending.failed),
       const SizedBox(height: AppSpacing.xs),
       if (pending.failed)
         Column(
@@ -521,11 +750,12 @@ class _Composer extends StatelessWidget {
     required this.focus,
     required this.sending,
     required this.onSend,
+    required this.onPhoto,
   });
   final TextEditingController controller;
   final FocusNode focus;
   final bool sending;
-  final VoidCallback onSend;
+  final VoidCallback onSend, onPhoto;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -538,6 +768,17 @@ class _Composer extends StatelessWidget {
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
+        IconButton(
+          tooltip: 'Foto makanan',
+          onPressed: sending ? null : onPhoto,
+          style: IconButton.styleFrom(
+            backgroundColor: AppColors.surface,
+            side: BorderSide(color: AppColors.border),
+            fixedSize: const Size(48, 48),
+          ),
+          icon: Icon(Icons.photo_camera_outlined, color: AppColors.brand),
+        ),
+        const SizedBox(width: AppSpacing.xs),
         Expanded(
           child: TextField(
             controller: controller,

@@ -74,6 +74,7 @@ services:
       # Opsional; kosong = fitur terkait nonaktif (lihat .env.prod.example). Rahasia lewat env/secret, bukan berkas.
       USDA_API_KEY: ${USDA_API_KEY:-}
       BRAVE_API_KEY: ${BRAVE_API_KEY:-}
+      FIRECRAWL_API_KEY: ${FIRECRAWL_API_KEY:-}
       MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
       MISTRAL_EMBEDDING_MODEL: ${MISTRAL_EMBEDDING_MODEL:-}
       MISTRAL_VISION_MODEL: ${MISTRAL_VISION_MODEL:-}

@@ -49,7 +49,29 @@ export function buildActivityCandidates(sessions: SessionLite[]): { candidates: 
   return { coverage: sessions.length >= 4 ? "OK" : "SPARSE", candidates: out.slice(0, 3) };
 }
 
-export async function runActivityGraph(ctx: ToolContext, excludeKeys: ReadonlySet<string> = new Set()): Promise<ActivityOutcome> {
+export type ActivityConstraints = { maxMinutes?: number; avoidTypes?: string[] };
+
+export function applyActivityConstraints(candidates: ActivityCandidate[], c: ActivityConstraints = {}): ActivityCandidate[] {
+  const avoid = new Set(c.avoidTypes ?? []);
+  let out = candidates.filter((x) => !avoid.has(x.type));
+  const cap = c.maxMinutes ? Math.max(5, Math.floor(c.maxMinutes / 5) * 5) : null;
+  if (cap !== null) {
+    out = out.map((x) =>
+      x.minutes <= cap
+        ? x
+        : { ...x, key: `${x.key}:cap${cap}`, minutes: cap, title: `${LABEL[x.type] ?? x.type} ${cap} menit`, basis: `${x.basis} Dipersingkat menjadi ${cap} menit sesuai waktumu.` },
+    );
+  }
+  const seen = new Set<string>();
+  out = out.filter((x) => (seen.has(`${x.type}:${x.minutes}`) ? false : (seen.add(`${x.type}:${x.minutes}`), true)));
+  if (out.length === 0 && !avoid.has("walking")) {
+    const minutes = Math.min(10, cap ?? 10);
+    out = [{ key: `fit:walking:${minutes}`, type: "walking", minutes, title: `${LABEL.walking} ${minutes} menit`, basis: "Pilihan singkat karena pilihan lain tidak cocok dengan preferensimu.", rank: 1 }];
+  }
+  return out;
+}
+
+export async function runActivityGraph(ctx: ToolContext, excludeKeys: ReadonlySet<string> = new Set(), constraints: ActivityConstraints = {}): Promise<ActivityOutcome> {
   const events: ActivityOutcome["events"] = [];
   const step = (type: string, payload: Record<string, unknown> = {}) => events.push({ type, payload });
   step("NODE_ENTER", { node: "gather_context" });
@@ -59,9 +81,9 @@ export async function runActivityGraph(ctx: ToolContext, excludeKeys: ReadonlySe
   step("CONTEXT_READY", { sessions: history.sessions.length, deviceSessions: history.deviceSessions, goals: goals.length, profileVersion: profile.version });
   step("NODE_ENTER", { node: "build_candidates" });
   const built = buildActivityCandidates(history.sessions);
-  const candidates = built.candidates.filter((c) => !excludeKeys.has(c.key));
+  const candidates = applyActivityConstraints(built.candidates, constraints).filter((c) => !excludeKeys.has(c.key));
   const coverage = built.coverage;
-  step("CANDIDATES_BUILT", { count: candidates.length, coverage, alreadyOffered: built.candidates.length - candidates.length });
+  step("CANDIDATES_BUILT", { count: candidates.length, coverage, alreadyOffered: built.candidates.length - candidates.length, constraints });
   return { events, offered: candidates, coverage, sessions: history.sessions.length, deviceSessions: history.deviceSessions, goals: goals.map((g) => ({ title: g.title, goalType: g.goalType })), profileVersion: profile.version };
 }
 

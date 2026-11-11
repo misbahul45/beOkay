@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/format/formatters.dart';
 import '../../../core/network/error_messages.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/theme/app_typography.dart';
@@ -116,9 +117,13 @@ class _GlucoseDetailScreenState extends ConsumerState<GlucoseDetailScreen> {
                     ),
                     Text('Konteks: ${glucoseContexts[record.mealContext]}'),
                     Text(record.qualityLabel),
-                    Text(
-                      'Versi ${record.version}${record.archived ? ' · diarsipkan' : ''}',
-                    ),
+                    if (record.version > 1 || record.archived)
+                      Text(
+                        revisionLabel(
+                          record.version,
+                          archived: record.archived,
+                        ),
+                      ),
                     if (record.notes != null) Text(record.notes!),
                     ExpansionTile(
                       title: const Text('Provenansi pengukuran'),

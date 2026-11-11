@@ -1,12 +1,23 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/ids/record_id.dart';
+import '../../insights/application/insights_controller.dart';
+import '../../memory/application/memory_controller.dart';
+import '../../today/application/today_controller.dart';
 import '../data/conversation_models.dart';
 import 'coach_controller.dart';
 
+typedef PhotoItem = ({String name, String confidence});
+
 class PendingMessage {
-  const PendingMessage({required this.id, required this.text, this.failure});
+  const PendingMessage({
+    required this.id,
+    required this.text,
+    this.photo,
+    this.failure,
+  });
   final String id, text;
+  final List<PhotoItem>? photo;
   final Object? failure;
   bool get failed => failure != null;
 }
@@ -88,7 +99,14 @@ class ConversationController extends Notifier<ChatState> {
   Future<void> retry() async {
     final p = state.pending;
     if (p == null || !p.failed) return;
-    await _deliver(PendingMessage(id: p.id, text: p.text));
+    await _deliver(PendingMessage(id: p.id, text: p.text, photo: p.photo));
+  }
+
+  Future<void> sendPhoto(List<PhotoItem> items) async {
+    if (items.isEmpty || state.sending) return;
+    await _deliver(
+      PendingMessage(id: newRecordId(), text: 'Foto makanan', photo: items),
+    );
   }
 
   void discardPending() => state = state.copyWith(clearPending: true);
@@ -99,7 +117,7 @@ class ConversationController extends Notifier<ChatState> {
     try {
       final ex = await ref
           .read(coachRepositoryProvider)
-          .send(threadId, clientMessageId: p.id, text: p.text);
+          .send(threadId, clientMessageId: p.id, text: p.text, photo: p.photo);
       if (!ref.mounted || state.threadId != threadId) return;
       final known = {for (final m in state.messages) m.id};
       state = state.copyWith(
@@ -116,7 +134,12 @@ class ConversationController extends Notifier<ChatState> {
     } catch (e) {
       if (!ref.mounted || state.threadId != threadId) return;
       state = state.copyWith(
-        pending: PendingMessage(id: p.id, text: p.text, failure: e),
+        pending: PendingMessage(
+          id: p.id,
+          text: p.text,
+          photo: p.photo,
+          failure: e,
+        ),
       );
     }
   }
@@ -167,6 +190,50 @@ class ConversationController extends Notifier<ChatState> {
         );
       }
     }
+  }
+
+  Future<String> confirmDraft(
+    MealDraft draft, {
+    required String category,
+    required DateTime consumedAt,
+    required List<Map<String, dynamic>> items,
+  }) async {
+    final mealId = await ref
+        .read(coachRepositoryProvider)
+        .confirmDraft(
+          draft,
+          category: category,
+          consumedAt: consumedAt,
+          items: items,
+        );
+    ref.invalidate(todayProvider);
+    ref.invalidate(dailyInsightsProvider);
+    await refresh();
+    return mealId;
+  }
+
+  Future<String> webLookup(String draftId, int index) async {
+    final status = await ref
+        .read(coachRepositoryProvider)
+        .webSearchDraftItem(draftId, index);
+    await refresh();
+    return status;
+  }
+
+  Future<void> discardDraft(String id) async {
+    await ref.read(coachRepositoryProvider).discardDraft(id);
+    await refresh();
+  }
+
+  Future<void> answerMemory(String id, {required bool remember}) async {
+    final repo = ref.read(coachRepositoryProvider);
+    if (remember) {
+      await repo.confirmMemory(id);
+    } else {
+      await repo.dismissMemory(id);
+    }
+    ref.invalidate(memoryOverviewProvider);
+    await refresh();
   }
 }
 
