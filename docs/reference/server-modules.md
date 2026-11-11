@@ -20,7 +20,7 @@
 | goals | `behavior_goals`, `goal_checkins` | H | `goals` | `medication-goals` |
 | timeline | (query lintas tabel) | H | — | — |
 | today | (komposisi) | H, S | `today` | `summaries` |
-| insights | `summary_projections` | H, S | `daily`, `weekly`, `trends`, `contextual` | `summaries`, `trends` |
+| insights | `summary_projections` | H, S | `daily`, `weekly`, `trends`, `contextual`, `statistics` | `summaries`, `trends`, `statistics` |
 | sync | `sync_operations` | H | — | `sync` |
 | food-discovery | — (egress ke OFF/USDA/Brave) | H | `food-discovery*`, `web-search` | — |
 | food-reference | `food_reference` | H | `food-reference`, `tkpi-parser` | `food-reference` |
@@ -30,6 +30,7 @@
 | push | `push_devices`, `push_deliveries` | H | `fcm` | `push` |
 | export | (baca semua milik sendiri) | tidak ada | — | `export` |
 | agent | `agent_runs/events/tool_calls`, `recommendations`, `recommendation_*`, `planned_meals`, `activity_plans`, `personalization_*`, `recommendation_outcomes` | H + A | `agent-safety`, `activity-graph`, `llm-text` | `agent`, `agent-activity`, `p2-closed-loop` |
+| conversation | `conversation_threads`, `conversation_messages` | H (+ A/S per rute) | `conversation` | `conversation` |
 | community | `regions`, `communities`, `community_memberships`, `challenges`, `challenge_*`, `score_events` | tujuan komunitas | `scoring` | `community` |
 | ml | `model_versions`, `ml_inference_runs` | `model_inference` | `modal-client` | `ml` |
 | interventions | `intervention_decisions`, `intervention_preferences` | H + A | `intervention-policy` | `interventions` |
@@ -85,6 +86,7 @@ Komposisi `nutrition.daily + glucose.daily + activity.daily + 5 item timeline` u
 - **daily** (`daily-cross-domain-v1`): cakupan harian 0/1–2/3 domain → `UNKNOWN/PARTIAL/COMPLETE`; di-upsert ke `summary_projections` (cache).
 - **weekly** (`summarizeWeek`): deskriptif; tidak ada korelasi, rata-rata glukosa, atau "kepatuhan obat"; hari tanpa catatan = tidak tercatat, bukan nol.
 - **trends** (`trends-v1`): `days ∈ {7, 14, 30, 90}` (default 14) + periode pembanding sama panjang; hanya data `user_reported`/layak.
+- **statistics** (`stats-v1`, `insight-rules-v1`; Fase 2 beOkay 3.0): `statistics.model.ts` murni + `statistics.service.ts`. Setiap statistik membawa nilai, satuan, rentang, sumber, jumlah sampel + minimum, cakupan, cara hitung, pembanding periode sebelumnya (hanya bila keduanya punya data), batasan, versi, dan waktu hitung; data di bawah minimum menjadi `INSUFFICIENT_DATA`. Median glukosa hanya per konteks puasa; tidak ada TIR/GMI/HbA1c; obat "belum dikonfirmasi" bukan "terlewat".
 - **contextual** (`contextual-rules-v1`): maks 3 insight dari aturan tetap (jadwal obat belum dikonfirmasi, belum ada catatan makan setelah pukul 14, tujuan < 50% mulai Kamis, jeda catatan glukosa ≥ 3 hari, rangkaian ≥ 3 hari mencatat, perbandingan hari aktif pekan lalu). Tiap insight membawa `code` dan `evidence`.
 
 ## Sinkronisasi
@@ -108,7 +110,7 @@ Lihat [overview §7.2](../architecture/system-overview.md). Kode: `sync.service.
 
 ## Agen (P2)
 
-Berkas utama: `agent.service.ts` (siklus run), `agent.graph.ts` (nutrisi), `activity.graph.ts` (aktivitas), `agent.tools.ts` (registri alat), `agent.safety.ts`, `personalization.ts`, `outcomes.ts`, `llm-text.ts`, `agent.stream.ts` (SSE), `agent-worker.ts`.
+Berkas utama: `agent.service.ts` (siklus run), `agent.intent.ts` (maksud & query, murni), `food-identity.ts` (gerbang identitas makanan), `agent.graph.ts` (nutrisi), `activity.graph.ts` (aktivitas), `agent.tools.ts` (registri alat), `agent.safety.ts`, `personalization.ts`, `outcomes.ts`, `llm-text.ts`, `agent.stream.ts` (SSE), `agent-worker.ts`.
 
 Registri alat (deny-by-default, `executeTool` satu-satunya jalur; semua penolakan dicatat di `agent_tool_calls`; anggaran 8 panggilan/run; batas waktu dan ukuran hasil per alat):
 
@@ -121,11 +123,15 @@ Registri alat (deny-by-default, `executeTool` satu-satunya jalur; semua penolaka
 | `get_activity_context` | ACTIVITY_PLAN | sesi 28 hari terakhir |
 | `get_behavior_goals` | ACTIVITY_PLAN | tujuan aktif |
 
-`userId` untuk alat selalu dari run milik sesi, bukan argumen. Catatan: bidang `requiredPermissions` pada kontrak alat hanya metadata; consent diperiksa saat `createRun`, bukan di `executeTool` (audit F-10).
+`userId` untuk alat selalu dari run milik sesi, bukan argumen. `requiredPermissions` ditegakkan di `executeTool` sejak 3.0 Fase 3 (tanpa consent → `PERMISSION_DENIED`, dicatat `DENIED`; audit F-10 ditutup).
 
-Peringkat deterministik (graf nutrisi): `skor = 1/(posisi+1) + 0,1·jumlah_kecocokan [+0,15 bila dari katalog pengguna] + bonus_kelengkapan{COMPLETE 0,3; PARTIAL 0,1} − penalti_penolakan + bonus_dimakan`, ambil 3 teratas. Kandidat yang sudah ditawarkan pada giliran sebelumnya dikecualikan.
+Sebelum peringkat, kandidat harus lolos gerbang identitas: kata pertama pencarian ada di nama (`EXACT` bila semua kata ada, `CLOSE` bila ≥ separuh; selain itu dibuang dan dihitung `weakMatchesDropped`). Peringkat deterministik (graf nutrisi): `skor = 1/(posisi+1) + 0,1·jumlah_kecocokan [+0,15 bila dari katalog pengguna] + bonus_kelengkapan{COMPLETE 0,3; PARTIAL 0,1} + bonus_identitas{EXACT 0,5} − penalti_penolakan + bonus_dimakan`, ambil 3 teratas. Kandidat yang sudah ditawarkan pada giliran sebelumnya dikecualikan.
 
 Teks: templat deterministik; bila ada kunci Mistral + consent `ai_text_generation`, model hanya **menulis ulang** penjelasan dari fakta tervalidasi, melalui `gateLlmText`, batas waktu 8 dtk, fallback ke templat dengan alasan dicatat di peristiwa `LLM_TEXT`.
+
+## Percakapan (3.0 Fase 3)
+
+Berkas: `conversation.router.ts` (router deterministik `router-v1`, murni), `conversation.parts.ts` (tipe bagian balasan, balasan tetap, ringkasan dari `stats-v1`), `conversation.service.ts` (thread, idempotensi `clientMessageId`, penyusunan balasan, hapus), `conversation.routes.ts`. Tabel `conversation_threads`, `conversation_messages`; consent H untuk semua endpoint, A/S dijawab sebagai bagian `consent_required`. Makanan, aktivitas, dan lanjutan diteruskan ke `agentService.createRun` dengan kunci idempotensi `conv-<clientMessageId>`; ringkasan memanggil `statisticsService.get`. Tes: `tests/unit/conversation.test.ts`, `tests/integration/conversation.test.ts`.
 
 ## Komunitas
 Lihat [overview §7.8](../architecture/system-overview.md). Aturan tambahan: check-in hanya hari ini atau ≤ 2 hari ke belakang (`MAX_BACKFILL_DAYS`), tidak di masa depan, dan dalam jendela tantangan; join tantangan memerlukan keanggotaan komunitas aktif; `memberCount` disembunyikan (`kurang dari 5`) bila kohort < 5. **Tidak ada kode untuk membuat/menutup tantangan** — hanya seed migrasi (audit F-04).

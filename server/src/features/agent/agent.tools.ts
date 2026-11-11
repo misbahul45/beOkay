@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { prisma } from "../../infrastructure/database/prisma.ts";
 import { ACTIVITY_COUNTED_QUALITY } from "../activity/activity.model.ts";
+import type { ConsentPurpose } from "../consent/consent.policy.ts";
+import { consentService } from "../consent/consent.service.ts";
 import { foodPreferencesService } from "../food-preferences/food-preferences.service.ts";
 import { referenceService } from "../food-reference/reference.service.ts";
 import { goalsService } from "../goals/goals.service.ts";
@@ -20,7 +22,7 @@ type Tool<I, O> = {
   purpose: string;
   input: z.ZodType<I>;
   allowedIntents: string[];
-  requiredPermissions: string[];
+  requiredPermissions: ConsentPurpose[];
   timeoutMs: number;
   maxResultBytes: number;
   run(userId: string, args: I): Promise<O>;
@@ -105,7 +107,7 @@ export type ToolName = keyof typeof tools;
 export const TOOL_CONTRACTS = Object.values(tools).map((t) => ({ name: t.name, version: t.version, purpose: t.purpose, allowedIntents: t.allowedIntents, requiredPermissions: t.requiredPermissions, timeoutMs: t.timeoutMs, maxResultBytes: t.maxResultBytes }));
 
 export class ToolError extends Error {
-  constructor(readonly code: "UNKNOWN_TOOL" | "INTENT_NOT_ALLOWED" | "BUDGET_EXCEEDED" | "INVALID_ARGUMENTS" | "TIMEOUT" | "RESULT_TOO_LARGE" | "TOOL_FAILED", message: string) {
+  constructor(readonly code: "UNKNOWN_TOOL" | "INTENT_NOT_ALLOWED" | "PERMISSION_DENIED" | "BUDGET_EXCEEDED" | "INVALID_ARGUMENTS" | "TIMEOUT" | "RESULT_TOO_LARGE" | "TOOL_FAILED", message: string) {
     super(message);
   }
 }
@@ -127,6 +129,14 @@ export async function executeTool<T = unknown>(ctx: ToolContext, name: string, r
   if (!tool.allowedIntents.includes(ctx.intent)) {
     await record(ctx, name, tool.version, rawArgs, "DENIED", started, "INTENT_NOT_ALLOWED");
     throw new ToolError("INTENT_NOT_ALLOWED", "Alat tidak diizinkan untuk maksud ini.");
+  }
+  for (const purpose of tool.requiredPermissions) {
+    try {
+      await consentService.requireConsent(ctx.userId, purpose);
+    } catch {
+      await record(ctx, name, tool.version, rawArgs, "DENIED", started, "PERMISSION_DENIED");
+      throw new ToolError("PERMISSION_DENIED", "Persetujuan untuk alat ini belum diberikan.");
+    }
   }
   if (ctx.callsUsed >= ctx.maxCalls) {
     await record(ctx, name, tool.version, rawArgs, "DENIED", started, "BUDGET_EXCEEDED");

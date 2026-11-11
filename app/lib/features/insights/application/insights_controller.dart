@@ -6,6 +6,7 @@ import '../../consent/application/consent_controller.dart';
 import '../../preferences/application/preferences_controller.dart';
 import '../data/contextual_insights.dart';
 import '../data/daily_insights.dart';
+import '../data/statistics.dart';
 import '../data/insights_repository.dart';
 import '../data/trends.dart';
 import '../data/weekly_insights.dart';
@@ -71,6 +72,18 @@ final trendsProvider = FutureProvider.autoDispose<Trends?>((ref) async {
     ref.watch(preferencesControllerProvider.future),
   ]);
   return ref.watch(insightsRepositoryProvider).trends(days: days);
+});
+
+final statisticsProvider = FutureProvider.autoDispose.family<Statistics?, int>((
+  ref,
+  days,
+) async {
+  if (ref.watch(authControllerProvider) is! AuthAuthenticated) return null;
+  await Future.wait([
+    ref.watch(consentControllerProvider.future),
+    ref.watch(preferencesControllerProvider.future),
+  ]);
+  return ref.watch(insightsRepositoryProvider).statistics(days: days);
 });
 
 /// Opsional: bila gagal atau persetujuan belum ada, kartu disembunyikan (tanpa pesan galat).

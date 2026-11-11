@@ -65,6 +65,14 @@ class AuthRepository {
 
   Future<void> clearLocalSession() => tokens.clear();
 
+  Future<void> deleteAccount(String password) async {
+    await api.post(
+      '/api/me/account/delete',
+      body: {'password': password, 'confirm': 'HAPUS'},
+    );
+    await tokens.clear();
+  }
+
   Future<void> resendVerification(String email) async {
     await api.post(
       '/api/auth/send-verification-email',

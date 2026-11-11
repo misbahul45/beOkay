@@ -35,7 +35,7 @@ class PillButton extends StatelessWidget {
       PillButtonKind.secondary => (
         AppColors.surface,
         AppColors.textPrimary,
-        const BorderSide(color: AppColors.border),
+        BorderSide(color: AppColors.border),
       ),
       PillButtonKind.ghost => (
         Colors.transparent,

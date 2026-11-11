@@ -96,7 +96,7 @@ class DayChart extends StatefulWidget {
     this.hint = 'Geser atau ketuk untuk melihat tiap hari',
     this.height = 150,
     this.leftInset = 0,
-    this.accent = AppColors.brand,
+    this.accent,
     this.dimmed = false,
   });
 
@@ -110,7 +110,7 @@ class DayChart extends StatefulWidget {
   final String? Function(int i) xLabel;
   final String summary, hint;
   final double height, leftInset;
-  final Color accent;
+  final Color? accent;
 
   /// Data lama masih tampil saat data baru dimuat.
   final bool dimmed;
@@ -208,7 +208,7 @@ class _DayChartState extends State<DayChart>
                           Text(
                             r.value,
                             style: AppTypography.title.copyWith(
-                              color: widget.accent,
+                              color: widget.accent ?? AppColors.brand,
                             ),
                           ),
                           Text(

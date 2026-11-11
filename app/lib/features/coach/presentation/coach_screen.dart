@@ -2,31 +2,30 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/ids/record_id.dart';
-import '../../../core/network/api_exception.dart';
 import '../../../core/network/error_messages.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
-import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/beokay_spark.dart';
 import '../../../core/widgets/info_card.dart';
-import '../../../core/widgets/page_scaffold.dart';
 import '../../../core/widgets/pill_button.dart';
 import '../../../core/widgets/tab_root_header.dart';
-import '../application/coach_controller.dart';
-import '../data/coach_repository.dart';
+import '../application/conversation_controller.dart';
+import '../data/conversation_models.dart';
+import 'chat_parts.dart';
+import 'coach_history_sheet.dart';
 
-const _nutrientLabels = {
-  'calories': 'Energi (kkal)',
-  'carbohydrates': 'Karbohidrat (g)',
-  'protein': 'Protein (g)',
-  'fat': 'Lemak (g)',
-  'fiber': 'Serat (g)',
-};
+const starters = [
+  Suggestion(
+    'Bagaimana aktivitasku minggu ini?',
+    'Bagaimana aktivitasku minggu ini?',
+  ),
+  Suggestion('Cari info nasi goreng', 'Cari info nasi goreng'),
+  Suggestion('Ide olahraga 15 menit', 'Ide olahraga ringan 15 menit'),
+  Suggestion('Aku susah konsisten', 'Aku susah konsisten'),
+];
 
-/// Asisten pencari alternatif makanan. Semua saran menunggu persetujuanmu; menawarkan tidak mengubah catatan apa pun.
 class CoachScreen extends ConsumerStatefulWidget {
   const CoachScreen({super.key});
   @override
@@ -35,630 +34,555 @@ class CoachScreen extends ConsumerStatefulWidget {
 
 class _CoachScreenState extends ConsumerState<CoachScreen> {
   final input = TextEditingController();
-
-  /// Percakapan: satu atau lebih giliran. Saran dari semua giliran tetap tampil sampai diputuskan.
-  final List<CoachRun> runs = [];
-  CoachRun? get run => runs.isEmpty ? null : runs.last;
-  String? progress;
-  bool busy = false;
-  Object? error;
-  bool consentRequired = false;
-  // Satu operationId per niat per saran; dipakai ulang bila pengguna mengulang setelah gagal jaringan.
-  final Map<String, String> _ops = {};
+  final focus = FocusNode();
+  final scroll = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _restore();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _jumpToEnd(2));
   }
 
-  /// Setelah aplikasi dimulai ulang, saran yang masih menunggu di server tampil lagi (server adalah sumber kebenaran).
-  Future<void> _restore() async {
-    try {
-      final pending = await ref.read(coachRepositoryProvider).pendingRuns();
-      if (mounted && runs.isEmpty && pending.isNotEmpty) {
-        setState(() => runs.addAll(pending));
-      }
-    } catch (_) {
-      // pemulihan bersifat tambahan; kegagalan tidak mengganggu layar
-    }
+  void _jumpToEnd(int passes) {
+    if (!mounted || passes == 0) return;
+    if (scroll.hasClients) scroll.jumpTo(scroll.position.maxScrollExtent);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _jumpToEnd(passes - 1));
   }
 
   @override
   void dispose() {
     input.dispose();
+    focus.dispose();
+    scroll.dispose();
     super.dispose();
   }
 
-  Future<void> ask() async {
-    final text = input.text.trim();
-    if (text.length < 2) {
-      setState(() => error = 'Tulis makanan yang ingin dicari alternatifnya.');
-      return;
-    }
-    await _start(text, previous: null);
-  }
+  ConversationController get _controller =>
+      ref.read(conversationControllerProvider.notifier);
 
-  /// Giliran lanjutan pada percakapan yang sama ("pilihan lain", "kenapa").
-  Future<void> followUp(String message) => _start(message, previous: run);
-
-  Future<void> _start(String text, {required CoachRun? previous}) async {
-    setState(() {
-      busy = true;
-      error = null;
-      consentRequired = false;
-      progress = null;
-    });
-    try {
-      final repo = ref.read(coachRepositoryProvider);
-      var r = await repo.createRun(
-        idempotencyKey: newRecordId(),
-        message: text,
-        previousRunId: previous?.id,
-        background: true,
+  void _toBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!scroll.hasClients) return;
+      scroll.animateTo(
+        scroll.position.maxScrollExtent,
+        duration: MediaQuery.of(context).disableAnimations
+            ? Duration.zero
+            : const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
       );
-      if (!r.settled) r = await _follow(repo, r);
-      if (mounted) {
-        setState(() {
-          if (previous == null) runs.clear();
-          runs.add(r);
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          consentRequired = e is ApiException && e.code == 'CONSENT_REQUIRED';
-          error = consentRequired ? null : e;
-        });
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          busy = false;
-          progress = null;
-        });
-      }
-    }
-  }
-
-  /// Ikuti kemajuan lewat SSE; bila aliran gagal, beralih ke polling sederhana. Hasil akhir selalu dari server.
-  Future<CoachRun> _follow(CoachRepository repo, CoachRun started) async {
-    try {
-      await for (final u in repo.watchRun(started.id)) {
-        if (u.run != null) return u.run!;
-        final l = u.label;
-        if (l != null && mounted) setState(() => progress = l);
-      }
-    } catch (_) {
-      // jatuh ke polling di bawah
-    }
-    var latest = started;
-    for (var i = 0; i < 20 && !latest.settled; i++) {
-      await Future<void>.delayed(const Duration(seconds: 1));
-      latest = await repo.getRun(started.id);
-    }
-    return latest;
-  }
-
-  Future<void> decide(Recommendation r, bool accept) async {
-    final op = _ops.putIfAbsent('${r.id}:${accept ? 'a' : 'r'}', newRecordId);
-    setState(() {
-      busy = true;
-      error = null;
     });
+  }
+
+  Future<void> _send([String? preset]) async {
+    final text = (preset ?? input.text).trim();
+    if (text.isEmpty) return;
+    if (preset == null) input.clear();
+    await _controller.send(text);
+  }
+
+  void _edit(String query) {
+    input.text = query;
+    input.selection = TextSelection.collapsed(offset: query.length);
+    focus.requestFocus();
+  }
+
+  Future<void> _decide(ChatRecommendation r, {required bool accept}) async {
     try {
-      await ref
-          .read(coachRepositoryProvider)
-          .decide(r, accept: accept, operationId: op);
-      final idx = runs.indexWhere((x) => x.id == r.runId);
-      final fresh = await ref
-          .read(coachRepositoryProvider)
-          .getRun(idx >= 0 ? runs[idx].id : run!.id);
-      ref.invalidate(plannedMealsProvider);
-      ref.invalidate(activityPlansProvider);
-      if (mounted) {
-        setState(() => runs[idx >= 0 ? idx : runs.length - 1] = fresh);
+      await _controller.decide(r, accept: accept);
+      if (mounted && accept) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              r.isActivity
+                  ? 'Masuk rencana aktivitas. Catat sesinya saat sudah kamu lakukan.'
+                  : 'Masuk rencana makan. Ini belum dicatat sebagai makanan yang dimakan.',
+            ),
+          ),
+        );
       }
     } catch (e) {
-      if (mounted) setState(() => error = e);
-    } finally {
-      if (mounted) setState(() => busy = false);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(messageFor(e))));
+      }
     }
   }
 
-  Future<void> cancel() async {
-    setState(() => busy = true);
-    try {
-      final r = await ref.read(coachRepositoryProvider).cancel(run!.id);
-      if (mounted) setState(() => runs[runs.length - 1] = r);
-    } catch (e) {
-      if (mounted) setState(() => error = e);
-    } finally {
-      if (mounted) setState(() => busy = false);
-    }
-  }
+  void _openLink(String target) => switch (target) {
+    'INSIGHTS' => context.go(Routes.insights),
+    'LOG' => context.go(Routes.log),
+    'LOG_MEAL' => context.push(Routes.addMeal),
+    'CONSENT' => context.push(Routes.consentManagement),
+    _ => null,
+  };
 
-  SparkState get _sparkState {
-    if (busy) {
-      return progress == null ? SparkState.thinking : SparkState.searching;
-    }
-    if (error != null) return SparkState.error;
-    if (consentRequired ||
-        (run?.consentRequired ?? false) ||
-        run?.status == 'BLOCKED') {
+  SparkState _spark(ChatState s) {
+    if (s.sending) return SparkState.thinking;
+    if (s.pending?.failed ?? false) return SparkState.error;
+    final last = s.messages.isEmpty ? null : s.messages.last;
+    if (last == null || last.isUser) return SparkState.idle;
+    if (last.parts.any((p) => p is SafetyPart || p is ConsentPart)) {
       return SparkState.neutral;
     }
-    if (run != null && run!.waiting) return SparkState.responding;
+    if (last.parts.any(
+      (p) => p is RecommendationsPart && p.items.any((i) => i.offered),
+    )) {
+      return SparkState.responding;
+    }
     return SparkState.idle;
   }
 
   @override
   Widget build(BuildContext context) {
-    final planned = ref.watch(plannedMealsProvider);
-    return PageScaffold(
-      showBack: false,
-      children: [
-        const TabRootHeader(title: 'Asisten'),
-        const SizedBox(height: AppSpacing.sm),
-        _CompanionHeader(state: _sparkState, progress: progress),
-        const SizedBox(height: AppSpacing.md),
-        AppTextField(
-          label: 'Tanya asisten',
-          hint: 'mis. alternatif pengganti nasi goreng, atau olahraga ringan',
-          controller: input,
-          maxLength: 200,
-          onSubmitted: (_) => ask(),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        PillButton(
-          label: 'Cari pilihan',
-          icon: Icons.search_rounded,
-          loading: busy,
-          onPressed: ask,
-        ),
-        if (consentRequired) ...[
-          const SizedBox(height: AppSpacing.md),
-          InfoCard(
-            tone: InfoTone.warning,
-            title: 'Persetujuan diperlukan',
-            text:
-                'Aktifkan "Saran personal dari asisten beOkay" di Persetujuan data untuk memakai fitur ini.',
-            action: PillButton(
-              label: 'Buka persetujuan',
-              kind: PillButtonKind.secondary,
-              expand: false,
-              onPressed: () => context.push(Routes.consentManagement),
+    final s = ref.watch(conversationControllerProvider);
+    ref.listen(conversationControllerProvider, (prev, next) {
+      if (prev?.messages.length != next.messages.length ||
+          prev?.pending?.id != next.pending?.id ||
+          prev?.threadId != next.threadId) {
+        _toBottom();
+      }
+    });
+    return ColoredBox(
+      color: AppColors.background,
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            _Header(
+              state: _spark(s),
+              onHistory: () => showCoachHistory(context),
             ),
-          ),
-        ],
-        if (error != null) ...[
-          const SizedBox(height: AppSpacing.sm),
-          ErrorBanner(error is String ? error.toString() : messageFor(error!)),
-        ],
-        if (run != null) ...[
-          const SizedBox(height: AppSpacing.md),
-          if (run!.consentRequired)
-            const InfoCard(
-              tone: InfoTone.warning,
-              text:
-                  'Persetujuan dicabut, jadi saran ini tidak dapat dilanjutkan.',
-            )
-          else if (run!.message != null && !run!.waiting)
-            InfoCard(
-              tone: run!.status == 'BLOCKED'
-                  ? InfoTone.warning
-                  : InfoTone.neutral,
-              text: run!.message!,
-            ),
-          for (final r in runs.expand((x) => x.recommendations)) ...[
-            const SizedBox(height: AppSpacing.sm),
-            _RecommendationCard(
-              rec: r,
-              busy: busy,
-              onAccept: () => decide(r, true),
-              onReject: () => decide(r, false),
-            ),
-          ],
-          if (runs.any((x) => x.recommendations.isNotEmpty) &&
-              run!.status != 'BLOCKED') ...[
-            const SizedBox(height: AppSpacing.xs),
-            Row(
-              children: [
-                Expanded(
-                  child: PillButton(
-                    label: 'Pilihan lain',
-                    kind: PillButtonKind.secondary,
-                    onPressed: busy
-                        ? null
-                        : () => followUp('ada pilihan lain?'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: PillButton(
-                    label: 'Kenapa ini?',
-                    kind: PillButtonKind.secondary,
-                    onPressed: busy
-                        ? null
-                        : () => followUp('kenapa ini disarankan?'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-          if (run!.waiting) ...[
-            const SizedBox(height: AppSpacing.xs),
-            PillButton(
-              label: 'Batalkan pencarian',
-              kind: PillButtonKind.ghost,
-              onPressed: busy ? null : cancel,
-            ),
-          ],
-        ],
-        const SizedBox(height: AppSpacing.lg),
-        Semantics(
-          header: true,
-          child: Text('Rencana aktivitas', style: AppTypography.title),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        ref
-            .watch(activityPlansProvider)
-            .when(
-              loading: () => const Padding(
-                padding: EdgeInsets.all(8),
-                child: LinearProgressIndicator(),
-              ),
-              error: (_, _) => Text(
-                'Rencana tidak dapat dimuat.',
-                style: AppTypography.secondary,
-              ),
-              data: (items) => items.isEmpty
-                  ? Text(
-                      'Belum ada. Rencana bukan catatan aktivitas; catat sesi sebenarnya di Aktivitas.',
-                      style: AppTypography.secondary,
-                    )
-                  : Column(
-                      children: [
-                        for (final p in items) _ActivityPlanTile(plan: p),
-                      ],
+            Expanded(
+              child: s.isEmpty
+                  ? _EmptyState(restoring: s.restoring, onPick: (m) => _send(m))
+                  : _Thread(
+                      state: s,
+                      scroll: scroll,
+                      onSend: (m) => _send(m),
+                      onEdit: _edit,
+                      onDecide: _decide,
+                      onLink: _openLink,
+                      onRetry: _controller.retry,
+                      onDiscard: _controller.discardPending,
                     ),
             ),
-        const SizedBox(height: AppSpacing.lg),
-        Semantics(
-          header: true,
-          child: Text('Rencana makan', style: AppTypography.title),
+            _Composer(
+              controller: input,
+              focus: focus,
+              sending: s.sending,
+              onSend: () => _send(),
+            ),
+          ],
         ),
-        const SizedBox(height: AppSpacing.xs),
-        planned.when(
-          loading: () => const Padding(
-            padding: EdgeInsets.all(8),
-            child: LinearProgressIndicator(),
+      ),
+    );
+  }
+}
+
+class _Header extends StatelessWidget {
+  const _Header({required this.state, required this.onHistory});
+  final SparkState state;
+  final VoidCallback onHistory;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(
+      AppSpacing.page,
+      AppSpacing.xs,
+      AppSpacing.xs,
+      AppSpacing.xxs,
+    ),
+    child: Row(
+      children: [
+        BeOkaySpark(size: 40, state: state),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Semantics(
+                header: true,
+                child: Text('Asisten', style: AppTypography.heading),
+              ),
+              Text(
+                'Saran selalu menunggu persetujuanmu',
+                style: AppTypography.caption,
+              ),
+            ],
           ),
-          error: (_, _) => Text(
-            'Rencana tidak dapat dimuat.',
-            style: AppTypography.secondary,
+        ),
+        IconButton(
+          tooltip: 'Riwayat & rencana',
+          onPressed: onHistory,
+          icon: Icon(Icons.history_rounded, color: AppColors.brand),
+          style: IconButton.styleFrom(
+            backgroundColor: AppColors.surface,
+            side: BorderSide(color: AppColors.border),
           ),
-          data: (items) => items.isEmpty
-              ? Text(
-                  'Belum ada. Rencana bukan catatan makan; catat konsumsi sebenarnya di Catatan.',
-                  style: AppTypography.secondary,
-                )
-              : Column(
-                  children: [for (final p in items) _PlannedTile(meal: p)],
+        ),
+        const ProfileAction(),
+      ],
+    ),
+  );
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({required this.restoring, required this.onPick});
+  final bool restoring;
+  final ValueChanged<String> onPick;
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(AppSpacing.page),
+    children: [
+      Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.cream,
+          borderRadius: BorderRadius.circular(AppRadius.hero),
+        ),
+        child: Column(
+          children: [
+            const BeOkaySpark(size: 72),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Mau mulai dari mana?',
+              style: AppTypography.title,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Tanya soal catatanmu, cari makanan, atau minta ide aktivitas.',
+              style: AppTypography.secondary,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+      if (restoring)
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+          child: LinearProgressIndicator(),
+        ),
+      const SizedBox(height: AppSpacing.sm),
+      for (final s in starters)
+        Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+          child: Material(
+            color: AppColors.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              side: BorderSide(color: AppColors.border),
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              onTap: () => onPick(s.message),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minHeight: AppSpacing.minTouchTarget,
                 ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(child: Text(s.label, style: AppTypography.body)),
+                      Icon(
+                        Icons.north_east_rounded,
+                        size: 18,
+                        color: AppColors.brand,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
+    ],
+  );
+}
+
+class _Thread extends StatelessWidget {
+  const _Thread({
+    required this.state,
+    required this.scroll,
+    required this.onSend,
+    required this.onEdit,
+    required this.onDecide,
+    required this.onLink,
+    required this.onRetry,
+    required this.onDiscard,
+  });
+
+  final ChatState state;
+  final ScrollController scroll;
+  final ValueChanged<String> onSend, onEdit, onLink;
+  final DecideCallback onDecide;
+  final VoidCallback onRetry, onDiscard;
+
+  @override
+  Widget build(BuildContext context) {
+    final msgs = state.messages;
+    final p = state.pending;
+    return ListView.builder(
+      controller: scroll,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.page,
+        AppSpacing.xs,
+        AppSpacing.page,
+        AppSpacing.md,
+      ),
+      itemCount: msgs.length + (p == null ? 0 : 1),
+      itemBuilder: (context, i) {
+        if (i == msgs.length) {
+          return _PendingTurn(
+            pending: p!,
+            onRetry: onRetry,
+            onDiscard: onDiscard,
+          );
+        }
+        final m = msgs[i];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+          child: m.isUser
+              ? UserBubble(text: m.text ?? '')
+              : _AssistantTurn(
+                  message: m,
+                  isLast: i == msgs.length - 1 && p == null,
+                  busy: state.busyRecommendations,
+                  onSend: onSend,
+                  onEdit: onEdit,
+                  onDecide: onDecide,
+                  onLink: onLink,
+                ),
+        );
+      },
+    );
+  }
+}
+
+class _AssistantTurn extends StatelessWidget {
+  const _AssistantTurn({
+    required this.message,
+    required this.isLast,
+    required this.busy,
+    required this.onSend,
+    required this.onEdit,
+    required this.onDecide,
+    required this.onLink,
+  });
+
+  final ChatMessage message;
+  final bool isLast;
+  final Set<String> busy;
+  final ValueChanged<String> onSend, onEdit, onLink;
+  final DecideCallback onDecide;
+
+  @override
+  Widget build(BuildContext context) {
+    final links = message.parts.whereType<LinkPart>().toList();
+    final children = <Widget>[];
+    for (final part in message.parts) {
+      final w = switch (part) {
+        TextPart(:final text) => AssistantBubble(text: text),
+        StatisticPart() => StatisticCard(part: part),
+        RecommendationsPart() => RecommendationGroup(
+          part: part,
+          busy: busy,
+          onDecide: onDecide,
+        ),
+        NoMatchPart() => NoMatchCard(part: part, onEdit: onEdit),
+        SafetyPart() => SafetyCard(part: part),
+        NoticePart(:final tone, :final text) => InfoCard(
+          tone: switch (tone) {
+            'error' => InfoTone.error,
+            'warning' => InfoTone.warning,
+            _ => InfoTone.info,
+          },
+          text: text,
+        ),
+        ConsentPart(:final text) => InfoCard(
+          tone: InfoTone.warning,
+          title: 'Persetujuan diperlukan',
+          text: text,
+          action: PillButton(
+            label: 'Buka persetujuan',
+            kind: PillButtonKind.secondary,
+            expand: false,
+            onPressed: () => context.push(Routes.consentManagement),
+          ),
+        ),
+        SuggestionsPart() => null,
+        LinkPart() => null,
+      };
+      if (w != null) children.add(w);
+    }
+    final suggestions = isLast
+        ? message.parts.whereType<SuggestionsPart>().expand((p) => p.items)
+        : const <Suggestion>[];
+    if (suggestions.isNotEmpty || links.isNotEmpty) {
+      children.add(
+        Wrap(
+          spacing: AppSpacing.xs,
+          runSpacing: AppSpacing.xs,
+          children: [
+            for (final s in suggestions)
+              ChatChip(label: s.label, onTap: () => onSend(s.message)),
+            for (final l in links)
+              ChatChip(
+                label: l.label,
+                icon: Icons.chevron_right_rounded,
+                onTap: () => onLink(l.target),
+              ),
+          ],
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < children.length; i++) ...[
+          if (i > 0) const SizedBox(height: AppSpacing.xs),
+          children[i],
+        ],
       ],
     );
   }
 }
 
-class _RecommendationCard extends StatelessWidget {
-  const _RecommendationCard({
-    required this.rec,
-    required this.busy,
-    required this.onAccept,
-    required this.onReject,
+class _PendingTurn extends StatelessWidget {
+  const _PendingTurn({
+    required this.pending,
+    required this.onRetry,
+    required this.onDiscard,
   });
-  final Recommendation rec;
-  final bool busy;
-  final VoidCallback onAccept, onReject;
+  final PendingMessage pending;
+  final VoidCallback onRetry, onDiscard;
 
   @override
-  Widget build(BuildContext context) => Material(
-    color: AppColors.surface,
-    borderRadius: AppRadius.cardRadius,
-    child: Padding(
-      padding: const EdgeInsets.all(AppSpacing.cardPadding),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(rec.title, style: AppTypography.title),
-          const SizedBox(height: 4),
-          Text(rec.explanation, style: AppTypography.body),
-          if (rec.writtenByModel)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                'Ditulis dengan bantuan AI.',
-                style: AppTypography.caption,
-              ),
-            ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            '${rec.isActivity ? 'Aktivitas' : 'Per 100 g'} · data ${rec.dataCoverage == 'COMPLETE'
-                ? 'lengkap'
-                : rec.dataCoverage == 'PARTIAL'
-                ? 'sebagian'
-                : 'kosong'}',
-            style: AppTypography.caption,
-          ),
-          if (!rec.isActivity)
-            for (final e in _nutrientLabels.entries)
-              Text(
-                '${e.value}: ${rec.per100g[e.key] ?? 'tidak tersedia'}',
-                style: AppTypography.secondary,
-              ),
-          if (rec.isActivity)
-            Text(
-              'Durasi: ${rec.activityMinutes} menit',
-              style: AppTypography.secondary,
-            ),
-          const SizedBox(height: AppSpacing.xs),
-          Text('Sumber: ${rec.source}', style: AppTypography.caption),
-          ExpansionTile(
-            tilePadding: EdgeInsets.zero,
-            title: Text(
-              'Kenapa ini muncul',
-              style: AppTypography.secondaryStrong,
-            ),
-            children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(rec.rankingReason, style: AppTypography.caption),
-              ),
-              for (final l in rec.limitations)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text('• $l', style: AppTypography.caption),
-                  ),
-                ),
-            ],
-          ),
-          if (rec.offered)
-            Row(
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      UserBubble(text: pending.text, faded: !pending.failed),
+      const SizedBox(height: AppSpacing.xs),
+      if (pending.failed)
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ErrorBanner(messageFor(pending.failure!)),
+            const SizedBox(height: AppSpacing.xs),
+            Wrap(
+              spacing: AppSpacing.xs,
               children: [
-                Expanded(
-                  child: PillButton(
-                    label: 'Tolak',
-                    kind: PillButtonKind.secondary,
-                    onPressed: busy ? null : onReject,
-                  ),
+                PillButton(
+                  label: 'Coba lagi',
+                  icon: Icons.refresh_rounded,
+                  expand: false,
+                  onPressed: onRetry,
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: PillButton(
-                    label: 'Simpan ke rencana',
-                    onPressed: busy ? null : onAccept,
-                  ),
+                PillButton(
+                  label: 'Batalkan',
+                  kind: PillButtonKind.ghost,
+                  expand: false,
+                  onPressed: onDiscard,
                 ),
               ],
-            )
-          else
-            StatusBadge(
-              label: switch (rec.status) {
-                'ACCEPTED' => 'Masuk rencana',
-                'REJECTED' => 'Ditolak',
-                'EXPIRED' => 'Kedaluwarsa',
-                _ => 'Tidak berlaku',
-              },
-              tone: rec.status == 'ACCEPTED' ? InfoTone.info : InfoTone.neutral,
             ),
-        ],
-      ),
-    ),
-  );
-}
-
-class _PlannedTile extends ConsumerWidget {
-  const _PlannedTile({required this.meal});
-  final PlannedMeal meal;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Material(
-      color: AppColors.surface,
-      borderRadius: AppRadius.cardRadius,
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.cardPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(meal.name, style: AppTypography.bodyStrong),
-            Text(
-              '${meal.statusLabel} · ${meal.source}',
-              style: AppTypography.caption,
-            ),
-            if (meal.measuredKind != null)
-              Text(
-                'Terbukti: makanan serupa tercatat di catatan makanmu.',
-                style: AppTypography.caption,
-              ),
-            if (meal.status == 'PLANNED')
-              Row(
-                children: [
-                  TextButton(
-                    onPressed: () => _fb(context, ref, true),
-                    child: const Text('Sudah dimakan'),
-                  ),
-                  TextButton(
-                    onPressed: () => _fb(context, ref, false),
-                    child: const Text('Tidak jadi'),
-                  ),
-                ],
-              ),
           ],
+        )
+      else
+        Semantics(
+          liveRegion: true,
+          child: Row(
+            children: [
+              const BeOkaySpark(size: 28, state: SparkState.thinking),
+              const SizedBox(width: AppSpacing.xs),
+              Flexible(
+                child: Text(
+                  'Sedang menyiapkan jawaban…',
+                  style: AppTypography.secondary,
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-    ),
+    ],
   );
-
-  Future<void> _fb(BuildContext context, WidgetRef ref, bool consumed) async {
-    try {
-      await ref
-          .read(coachRepositoryProvider)
-          .feedback(
-            meal.recommendationId,
-            consumed: consumed,
-            operationId: newRecordId(),
-          );
-      ref.invalidate(plannedMealsProvider);
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(messageFor(e))));
-      }
-    }
-  }
 }
 
-class _ActivityPlanTile extends ConsumerWidget {
-  const _ActivityPlanTile({required this.plan});
-  final ActivityPlan plan;
+class _Composer extends StatelessWidget {
+  const _Composer({
+    required this.controller,
+    required this.focus,
+    required this.sending,
+    required this.onSend,
+  });
+  final TextEditingController controller;
+  final FocusNode focus;
+  final bool sending;
+  final VoidCallback onSend;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Material(
-      color: AppColors.surface,
-      borderRadius: AppRadius.cardRadius,
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.cardPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${plan.label} ${plan.minutes} menit',
-              style: AppTypography.bodyStrong,
-            ),
-            Text(
-              '${plan.statusLabel} · ${plan.plannedFor}',
-              style: AppTypography.caption,
-            ),
-            if (plan.measuredKind != null)
-              Text(
-                'Terbukti: sesi sejenis tercatat di Aktivitas.',
-                style: AppTypography.caption,
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(
+      AppSpacing.sm,
+      AppSpacing.xs,
+      AppSpacing.sm,
+      AppSpacing.xs,
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: TextField(
+            controller: controller,
+            focusNode: focus,
+            minLines: 1,
+            maxLines: 4,
+            maxLength: 1000,
+            textInputAction: TextInputAction.send,
+            onSubmitted: (_) => onSend(),
+            decoration: InputDecoration(
+              hintText: 'Tulis pesan…',
+              counterText: '',
+              filled: true,
+              fillColor: AppColors.surface,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
               ),
-            if (plan.status == 'CONFIRMED')
-              Row(
-                children: [
-                  TextButton(
-                    onPressed: () => _fb(context, ref, true),
-                    child: const Text('Selesai'),
-                  ),
-                  TextButton(
-                    onPressed: () => _fb(context, ref, false),
-                    child: const Text('Dilewati'),
-                  ),
-                ],
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(22),
+                borderSide: BorderSide(color: AppColors.border),
               ),
-          ],
-        ),
-      ),
-    ),
-  );
-
-  Future<void> _fb(BuildContext context, WidgetRef ref, bool completed) async {
-    try {
-      await ref
-          .read(coachRepositoryProvider)
-          .activityFeedback(
-            plan.recommendationId,
-            completed: completed,
-            operationId: newRecordId(),
-          );
-      ref.invalidate(activityPlansProvider);
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(messageFor(e))));
-      }
-    }
-  }
-}
-
-class _CompanionHeader extends StatelessWidget {
-  const _CompanionHeader({required this.state, this.progress});
-
-  final SparkState state;
-  final String? progress;
-
-  ({String title, String detail}) get _copy => switch (state) {
-    SparkState.thinking => (
-      title: 'Sedang memahami permintaanmu',
-      detail: 'Sebentar, ya.',
-    ),
-    SparkState.searching => (
-      title: progress ?? 'Sedang mencari pilihan',
-      detail: 'Hanya dari sumber yang tercatat.',
-    ),
-    SparkState.responding => (
-      title: 'Ini pilihan untukmu',
-      detail: 'Tidak ada yang tersimpan sampai kamu menyetujuinya.',
-    ),
-    SparkState.neutral => (
-      title: 'Aku tetap di sini',
-      detail: 'Baca keterangannya di bawah.',
-    ),
-    SparkState.error => (
-      title: 'Ada kendala',
-      detail: 'Catatanmu tidak terpengaruh. Coba lagi sebentar lagi.',
-    ),
-    _ => (
-      title: 'Aku siap membantu',
-      detail:
-          'Tanya soal pilihan makan atau rencana aktivitas. Semua saran menunggu persetujuanmu.',
-    ),
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    final copy = _copy;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.sm,
-        AppSpacing.md,
-        AppSpacing.md,
-        AppSpacing.md,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.cream,
-        borderRadius: BorderRadius.circular(AppRadius.hero),
-      ),
-      child: Row(
-        children: [
-          BeOkaySpark(size: 64, state: state),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Semantics(
-              liveRegion: true,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(copy.title, style: AppTypography.title),
-                  const SizedBox(height: 2),
-                  Text(copy.detail, style: AppTypography.secondary),
-                ],
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(22),
+                borderSide: BorderSide(color: AppColors.border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(22),
+                borderSide: BorderSide(color: AppColors.focus, width: 2),
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        IconButton.filled(
+          tooltip: 'Kirim',
+          onPressed: sending ? null : onSend,
+          style: IconButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: AppColors.onPrimary,
+            fixedSize: const Size(48, 48),
+          ),
+          icon: const Icon(Icons.arrow_upward_rounded),
+        ),
+      ],
+    ),
+  );
 }

@@ -3,7 +3,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { bearer } from "better-auth/plugins/bearer";
 import { env } from "../../config/env.ts";
 import { prisma } from "../../infrastructure/database/prisma.ts";
-import { passwordResetEmail, verificationEmail } from "../../infrastructure/email/email-templates.ts";
+import { accountDeletedEmail, passwordResetEmail, verificationEmail } from "../../infrastructure/email/email-templates.ts";
 import { smtpEmailSender } from "../../infrastructure/email/smtp-email-sender.ts";
 import type { EmailMessage } from "../../infrastructure/email/email-sender.ts";
 import { logEvent } from "../../shared/http/logger.ts";
@@ -23,7 +23,13 @@ export const auth = betterAuth({
     database: { generateId: "uuid" },
     ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
   },
-  user: { modelName: "users" },
+  user: {
+    modelName: "users",
+    deleteUser: {
+      enabled: true,
+      afterDelete: async (user) => dispatchEmail("account_deleted", { to: user.email, ...accountDeletedEmail() }),
+    },
+  },
   session: {
     modelName: "sessions",
     expiresIn: 60 * 60 * 24 * 7,

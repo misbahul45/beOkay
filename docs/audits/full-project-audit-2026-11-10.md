@@ -3,7 +3,16 @@
 > Cakupan: seluruh repositori (`server/`, `app/`, `ml/`, `docs/`, compose, konfigurasi). Metode: membaca kode sumber dan migrasi, menjalankan typecheck/analisis/tes, memindai berkas ter-track, dan mencocokkan klaim dokumen dengan kode. Dokumentasi hasil audit: [system-overview](../architecture/system-overview.md), [server-modules](../reference/server-modules.md), [schema-reference](../database/schema-reference.md), [endpoint-reference](../api/endpoint-reference.md), [mobile-app](../architecture/mobile-app.md), [runbook](../operations/runbook.md).
 > Audit ini **tidak mengubah kode**. Satu-satunya berkas yang ditambahkan adalah dokumentasi di `docs/`. Tidak ada `git add/commit/push`.
 
-## 1. Ringkasan eksekutif
+## 0. Pembaruan status (10 Nov 2026, setelah audit)
+
+| Temuan | Status | Bukti |
+|---|---|---|
+| F-01 Hapus akun/data | **DITUTUP** | `POST /api/me/account/delete`, layar Pengaturan → Privasi & data; `tests/integration/account.test.ts` memeriksa setiap tabel ber-`user_id` kosong setelah hapus; `identity_flows_test.dart` (N) |
+| F-02 Ekspor tidak lengkap | **DITUTUP** | `beokay-export-v2`; tes membandingkan semua tabel ber-`user_id` dengan daftar ekspor + pengecualian beralasan |
+| F-10 `requiredPermissions` alat | **DITUTUP** | `executeTool` memeriksa consent setiap alat; tanpa consent → `PERMISSION_DENIED` dan tercatat `DENIED` (`tests/integration/conversation.test.ts`) |
+| F-03 Rilis Android | **SEBAGIAN DITUTUP** | `id.beokay.app`, `INTERNET` di manifes utama, penandatanganan via `key.properties`, guard `API_BASE_URL=https://` — terverifikasi pada APK rilis. Tersisa: kunci rilis milik pemilik dan pendaftaran Firebase |
+
+
 
 beOkay adalah basis kode yang **disiplin dan konsisten pada prinsip keselamatan datanya**: nilai tak diketahui tidak dijadikan nol, saran tidak mengubah catatan kesehatan, consent diperiksa per tujuan di lapisan service, penulisan bersifat idempoten dan berversi, dan seluruh keluaran model bahasa melewati gerbang deterministik. Suite otomatis hijau (backend 238/238, Flutter 157/157, typecheck dan analisis bersih).
 

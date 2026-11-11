@@ -34,7 +34,7 @@ class DomainStyle {
   String detailRoute(String recordId) =>
       listOnly ? listRoute : '$listRoute/$recordId';
 
-  static const meal = DomainStyle(
+  static DomainStyle get meal => DomainStyle(
     key: 'meal',
     label: 'Makanan',
     icon: Icons.restaurant_outlined,
@@ -43,7 +43,7 @@ class DomainStyle {
     tint: AppColors.mealTint,
     ink: AppColors.mealInk,
   );
-  static const glucose = DomainStyle(
+  static DomainStyle get glucose => DomainStyle(
     key: 'glucose',
     label: 'Glukosa',
     icon: Icons.water_drop_outlined,
@@ -52,7 +52,7 @@ class DomainStyle {
     tint: AppColors.glucoseTint,
     ink: AppColors.glucoseInk,
   );
-  static const activity = DomainStyle(
+  static DomainStyle get activity => DomainStyle(
     key: 'activity',
     label: 'Aktivitas',
     icon: Icons.directions_walk_rounded,
@@ -61,7 +61,7 @@ class DomainStyle {
     tint: AppColors.activityTint,
     ink: AppColors.activityInk,
   );
-  static const medication = DomainStyle(
+  static DomainStyle get medication => DomainStyle(
     key: 'medication',
     label: 'Obat',
     icon: Icons.medication_outlined,
@@ -71,7 +71,7 @@ class DomainStyle {
     ink: AppColors.medicationInk,
     listOnly: true,
   );
-  static const goal = DomainStyle(
+  static DomainStyle get goal => DomainStyle(
     key: 'goal',
     label: 'Tujuan',
     icon: Icons.flag_outlined,
@@ -82,7 +82,13 @@ class DomainStyle {
     listOnly: true,
   );
 
-  static const all = [meal, glucose, activity, medication, goal];
+  static List<DomainStyle> get all => [
+    meal,
+    glucose,
+    activity,
+    medication,
+    goal,
+  ];
 
   static DomainStyle of(String domain) =>
       all.firstWhere((style) => style.key == domain, orElse: () => meal);

@@ -12,7 +12,7 @@ class AdaptiveHeroCard extends StatelessWidget {
     this.kicker,
     this.detail,
     this.sparkState = SparkState.idle,
-    this.background = AppColors.brandTint,
+    this.background,
     this.action,
   });
 
@@ -20,7 +20,7 @@ class AdaptiveHeroCard extends StatelessWidget {
   final String? kicker;
   final String? detail;
   final SparkState sparkState;
-  final Color background;
+  final Color? background;
   final Widget? action;
 
   @override
@@ -33,7 +33,7 @@ class AdaptiveHeroCard extends StatelessWidget {
         AppSpacing.md,
       ),
       decoration: BoxDecoration(
-        color: background,
+        color: background ?? AppColors.brandTint,
         borderRadius: BorderRadius.circular(AppRadius.hero),
       ),
       child: Column(

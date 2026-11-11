@@ -8,7 +8,7 @@ abstract final class AppTypography {
   // UI Refresh v2 (design/beOkay-ui.figcraft, page "16 — UI Refresh v2").
   // Smaller than v1 (38/30/24/17/16/14/12.5/11.5) but never below 11sp.
   /// Auth hero only.
-  static const TextStyle display = TextStyle(
+  static TextStyle get display => TextStyle(
     fontFamily: family,
     fontSize: 30,
     height: 1.2,
@@ -18,7 +18,7 @@ abstract final class AppTypography {
   );
 
   /// Tab titles and the Beranda greeting.
-  static const TextStyle headline = TextStyle(
+  static TextStyle get headline => TextStyle(
     fontFamily: family,
     fontSize: 24,
     height: 1.25,
@@ -28,7 +28,7 @@ abstract final class AppTypography {
   );
 
   /// Section headings.
-  static const TextStyle heading = TextStyle(
+  static TextStyle get heading => TextStyle(
     fontFamily: family,
     fontSize: 18,
     height: 1.35,
@@ -38,42 +38,42 @@ abstract final class AppTypography {
   );
 
   /// Card and row titles.
-  static const TextStyle title = TextStyle(
+  static TextStyle get title => TextStyle(
     fontFamily: family,
     fontSize: 16,
     height: 1.35,
     fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
   );
-  static const TextStyle body = TextStyle(
+  static TextStyle get body => TextStyle(
     fontFamily: family,
     fontSize: 15,
     height: 1.4,
     fontWeight: FontWeight.w400,
     color: AppColors.textPrimary,
   );
-  static const TextStyle bodyStrong = TextStyle(
+  static TextStyle get bodyStrong => TextStyle(
     fontFamily: family,
     fontSize: 15,
     height: 1.4,
     fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
   );
-  static const TextStyle secondary = TextStyle(
+  static TextStyle get secondary => TextStyle(
     fontFamily: family,
     fontSize: 13,
     height: 1.45,
     fontWeight: FontWeight.w400,
     color: AppColors.textSecondary,
   );
-  static const TextStyle secondaryStrong = TextStyle(
+  static TextStyle get secondaryStrong => TextStyle(
     fontFamily: family,
     fontSize: 13,
     height: 1.4,
     fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
   );
-  static const TextStyle caption = TextStyle(
+  static TextStyle get caption => TextStyle(
     fontFamily: family,
     fontSize: 12,
     height: 1.35,
@@ -82,7 +82,7 @@ abstract final class AppTypography {
   );
 
   /// Section labels (uppercase); +0.8 tracking because Inter has a single optical size.
-  static const TextStyle overline = TextStyle(
+  static TextStyle get overline => TextStyle(
     fontFamily: family,
     fontSize: 11,
     height: 1.3,
@@ -91,7 +91,7 @@ abstract final class AppTypography {
     color: AppColors.textSecondary,
   );
 
-  static const TextStyle metricLarge = TextStyle(
+  static TextStyle get metricLarge => TextStyle(
     fontFamily: family,
     fontSize: 30,
     height: 1.15,
@@ -101,7 +101,7 @@ abstract final class AppTypography {
     fontFeatures: [FontFeature.tabularFigures()],
   );
 
-  static const TextStyle metric = TextStyle(
+  static TextStyle get metric => TextStyle(
     fontFamily: family,
     fontSize: 18,
     height: 1.3,

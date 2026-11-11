@@ -1,11 +1,30 @@
+import java.io.FileInputStream
+import java.util.Base64
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val keystoreProperties = Properties().apply {
+    val file = rootProject.file("key.properties")
+    if (file.exists()) FileInputStream(file).use { load(it) }
+}
+val hasReleaseKey = keystoreProperties.getProperty("storeFile") != null
+
+fun dartDefines(): Map<String, String> =
+    (project.findProperty("dart-defines") as String?)
+        .orEmpty()
+        .split(",")
+        .filter { it.isNotBlank() }
+        .map { String(Base64.getDecoder().decode(it)) }
+        .mapNotNull { entry -> entry.split("=", limit = 2).takeIf { it.size == 2 }?.let { it[0] to it[1] } }
+        .toMap()
+
 android {
-    namespace = "com.example.app"
+    namespace = "id.beokay.app"
     // Plugin notifikasi dan androidx terbaru membutuhkan compileSdk tinggi; ambil yang terbesar.
     compileSdk = maxOf(flutter.compileSdkVersion, 37)
     ndkVersion = flutter.ndkVersion
@@ -17,8 +36,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.app"
+        applicationId = "id.beokay.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         // Health Connect (paket health) membutuhkan minSdk 26.
@@ -28,11 +46,40 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (hasReleaseKey) {
+            create("release") {
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (hasReleaseKey) signingConfigs.getByName("release") else null
+        }
+    }
+}
+
+gradle.taskGraph.whenReady {
+    val releaseTasks = allTasks.filter {
+        it.project == project && it.name.contains("Release") &&
+            (it.name.startsWith("assemble") || it.name.startsWith("bundle"))
+    }
+    if (releaseTasks.isNotEmpty()) {
+        if (!hasReleaseKey) {
+            throw GradleException(
+                "Rilis butuh kunci penandatanganan: buat android/key.properties (storeFile, storePassword, keyAlias, keyPassword). Lihat docs/operations/runbook.md.",
+            )
+        }
+        val api = dartDefines()["API_BASE_URL"]
+        if (api == null || !api.startsWith("https://")) {
+            throw GradleException(
+                "Rilis butuh --dart-define=API_BASE_URL=https://... (sekarang: ${api ?: "tidak diisi"}).",
+            )
         }
     }
 }

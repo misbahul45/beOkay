@@ -121,10 +121,7 @@ class _Option extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  color: AppColors.decorative,
-                ),
+                Icon(Icons.chevron_right_rounded, color: AppColors.decorative),
               ],
             ),
           ),

@@ -4,6 +4,7 @@ import { dailyService } from "./daily.service.ts";
 import { contextualService } from "./contextual.service.ts";
 import { weeklyService } from "./weekly.service.ts";
 import { trendsService } from "./trends.service.ts";
+import { STATISTICS_PERIODS, statisticsService } from "./statistics.service.ts";
 export const insightsRoutes = {
   "/api/me/summaries/daily": {
     GET: authenticated(async ({ req, session }) => {
@@ -24,6 +25,16 @@ export const insightsRoutes = {
   },
   "/api/me/insights/contextual": {
     GET: authenticated(async ({ session }) => ({ body: await contextualService.get(session.userId) })),
+  },
+  "/api/me/insights/statistics": {
+    GET: authenticated(async ({ req, session }) => {
+      const days = z.coerce
+        .number()
+        .pipe(z.union(STATISTICS_PERIODS.map((p) => z.literal(p)) as [z.ZodLiteral<7>, z.ZodLiteral<14>, z.ZodLiteral<30>, z.ZodLiteral<90>]))
+        .default(14)
+        .parse(new URL(req.url).searchParams.get("days") ?? undefined);
+      return { body: await statisticsService.get(session.userId, days) };
+    }),
   },
   "/api/me/trends": {
     GET: authenticated(async ({ req, session }) => {

@@ -1,5 +1,7 @@
 import 'package:flutter/painting.dart';
 
+import 'app_colors.dart';
+
 abstract final class AppSpacing {
   static const double xxs = 4;
   static const double xs = 8;
@@ -36,7 +38,11 @@ abstract final class AppRadius {
 }
 
 abstract final class AppShadows {
-  static const List<BoxShadow> soft = [
-    BoxShadow(color: Color(0x1018252A), blurRadius: 20, offset: Offset(0, 6)),
+  static List<BoxShadow> get soft => [
+    BoxShadow(
+      color: AppColors.shadow,
+      blurRadius: 20,
+      offset: const Offset(0, 6),
+    ),
   ];
 }

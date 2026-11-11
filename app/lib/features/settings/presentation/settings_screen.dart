@@ -171,6 +171,11 @@ class SettingsScreen extends ConsumerWidget {
               title: 'Keamanan akun',
               onTap: () => context.push(Routes.accountSecurity),
             ),
+            SettingsRow(
+              icon: Icons.folder_shared_outlined,
+              title: 'Privasi & data',
+              onTap: () => context.push(Routes.privacyData),
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.md),

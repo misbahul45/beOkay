@@ -55,7 +55,7 @@ class ConsentPurposeCard extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(top: 7, right: 8),
                     child: Icon(
                       Icons.circle,

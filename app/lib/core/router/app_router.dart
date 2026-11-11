@@ -1,3 +1,4 @@
+import '../theme/app_brightness.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -22,6 +23,7 @@ import '../../features/onboarding/presentation/intro_screen.dart';
 import '../../features/preferences/presentation/preferences_setup_screen.dart';
 import '../../features/profile/presentation/personal_profile_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
+import '../../features/settings/presentation/privacy_data_screen.dart';
 import '../../features/settings/presentation/account_security_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/nutrition/presentation/meal_history_screen.dart';
@@ -52,14 +54,17 @@ import '../../features/community/presentation/community_screen.dart';
 import 'redirect.dart';
 import 'routes.dart';
 
+String? _lastLocation;
+
 final routerProvider = Provider<GoRouter>((ref) {
+  ref.watch(appBrightnessProvider);
   final refresh = ValueNotifier<int>(0);
   ref.listen(authControllerProvider, (_, _) => refresh.value++);
   ref.listen(onboardingControllerProvider, (_, _) => refresh.value++);
   ref.onDispose(refresh.dispose);
 
   final router = GoRouter(
-    initialLocation: Routes.splash,
+    initialLocation: _lastLocation ?? Routes.splash,
     refreshListenable: refresh,
     redirect: (context, state) {
       final onboarding = ref.read(onboardingControllerProvider);
@@ -254,8 +259,19 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.accountSecurity,
         builder: (_, _) => const AccountSecurityScreen(),
       ),
+      GoRoute(
+        path: Routes.privacyData,
+        builder: (_, _) => const PrivacyDataScreen(),
+      ),
+      GoRoute(
+        path: Routes.deleteAccount,
+        builder: (_, _) => const DeleteAccountScreen(),
+      ),
     ],
   );
-  ref.onDispose(router.dispose);
+  ref.onDispose(() {
+    _lastLocation = router.routeInformationProvider.value.uri.toString();
+    router.dispose();
+  });
   return router;
 });

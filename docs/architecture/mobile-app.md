@@ -1,7 +1,7 @@
 # Aplikasi Mobile (Flutter)
 
 > Diaudit 10 November 2026. Lokasi: `app/`. Target: **Android saja** (keputusan pemilik; tidak ada iOS/HealthKit). Folder `ios/`, `macos/`, `linux/`, `windows/`, `web/` ada karena `flutter create`, tetapi tidak dipakai.
-> Status: `flutter analyze` → *No issues found*; `flutter test` → **157 tes lulus** (dijalankan pada audit ini).
+> Status: `flutter analyze` → *No issues found*; `flutter test` → **175 tes lulus** (setelah beOkay 3.0 Fase 2).
 
 ## 1. Ringkasan teknis
 
@@ -12,7 +12,7 @@
 | Navigasi | `go_router ^18` dengan `redirect` terpusat |
 | HTTP | paket `http` lewat `ApiClient` sendiri (tanpa Dio) |
 | Penyimpanan | `flutter_secure_storage` (token sesi, antrean offline, status push) — Keystore Android |
-| Tampilan | satu tema terang, font Inter (400/600/700), bahasa tunggal `id_ID`; **tidak ada tema gelap** |
+| Tampilan | tema terang dan gelap mengikuti sistem (`AppPalette.light/dark`, token diambil lewat getter `AppColors`; router dibuat ulang saat tema berganti), font Inter (400/600/700), bahasa tunggal `id_ID` |
 | Perangkat | kamera + `mobile_scanner` (barcode), `image_picker`, `share_plus` + `path_provider` (ekspor), `health` (Health Connect), `flutter_local_notifications`, `firebase_messaging` |
 | Konfigurasi | `AppConfig.apiBaseUrl` dari `--dart-define=API_BASE_URL=…`, **default `http://localhost:3000`**; `requestTimeout` 20 dtk (unggah foto 40 dtk) |
 
@@ -39,7 +39,7 @@ app/lib/
     └── presentation/         layar & widget
 ```
 
-Modul fitur (jumlah berkas Dart): `nutrition` 17 (termasuk `scan/`), `insights` 11, `activity` 10, `auth` 8, `glucose` 7, `consent` 6, `medication` 5, `onboarding` 5, `preferences` 5, `profile` 5, `community` 4, `goals` 4, `health_profile` 4, `timeline` 4, `today` 4, `coach` 3, `food_preferences` 3, `home` 3, `interventions` 3, `push` 3, `reminders` 3, `export` 2, `settings` 2, `sync` 2, `quick_record` 1.
+Modul fitur (jumlah berkas Dart): `nutrition` 17 (termasuk `scan/`), `insights` 11, `activity` 10, `auth` 8, `glucose` 7, `consent` 6, `medication` 5, `onboarding` 5, `preferences` 5, `profile` 5, `community` 4, `goals` 4, `health_profile` 4, `timeline` 4, `today` 4, `coach` 7, `food_preferences` 3, `home` 3, `interventions` 3, `push` 3, `reminders` 3, `export` 2, `settings` 2, `sync` 2, `quick_record` 1.
 
 ## 3. Autentikasi dan perlindungan rute
 
@@ -54,7 +54,7 @@ Modul fitur (jumlah berkas Dart): `nutrition` 17 (termasuk `scan/`), `insights` 
 
 ## 4. Navigasi
 
-Shell dengan empat tab — **Beranda** (`/home`), **Catatan** (`/log`), **Wawasan** (`/insights`), **Profil** (`/profile`) — ditambah tombol tengah **Catat** yang membuka lembar pencatatan cepat (`quick_record_sheet.dart`), bukan tujuan. Rute lain berada di luar shell: `/meals`, `/glucose`, `/activities` (+ `/new`, `/:id`, `/:id/edit`, `/weekly`), `/medications` (+ edit/riwayat), `/goals`, `/trends`, `/sync`, `/reminders`, `/profile/food-preferences`, `/coach`, `/community` (+ `/community/:id`, `/challenge/:id`), `/settings` (+ `/consent`, `/security`). Rute `/challenge/:id` memerlukan objek `extra` (`Challenge`); bila `null`, dialihkan ke `/community` (penjaga untuk akar masalah yang belum dijelaskan menurut catatan P2).
+Sejak beOkay 3.0 Fase 1: shell dengan empat tujuan, yaitu **Beranda** (`/home`), **Catatan** (`/log`), **Asisten** (`/coach`), dan **Wawasan** (`/insights`), ditambah tombol tengah **Catat** di dalam bar yang membuka lembar pencatatan cepat (`quick_record_sheet.dart`), bukan tujuan. **Profil** (`/profile`) tetap di dalam shell tetapi dibuka lewat avatar (`ProfileAction`) di kanan atas setiap akar tab; saat di Profil tidak ada tab yang tersorot. Path `/coach` tidak berubah, jadi tautan lama tetap bekerja. Label bar mengecil (`FittedBox`) alih-alih terpotong pada teks besar. Rute lain berada di luar shell: `/meals`, `/glucose`, `/activities` (+ `/new`, `/:id`, `/:id/edit`, `/weekly`), `/medications` (+ edit/riwayat), `/goals`, `/trends`, `/sync`, `/reminders`, `/profile/food-preferences`, `/community` (+ `/community/:id`, `/challenge/:id`), `/settings` (+ `/consent`, `/security`). Rute `/challenge/:id` memerlukan objek `extra` (`Challenge`); bila `null`, dialihkan ke `/community`.
 
 ## 5. Jaringan, akun, dan antrean offline
 
@@ -71,7 +71,7 @@ Shell dengan empat tab — **Beranda** (`/home`), **Catatan** (`/log`), **Wawasa
 | Consent | kartu per tujuan; teks dampak penarikan dari server; "Menarik persetujuan tidak menghapus data yang sudah tersimpan." |
 | Catatan harian | form makan/glukosa/aktivitas/obat/tujuan dengan `newRecordId()`; koreksi memakai `expectedVersion` + alasan (`record_reason_dialog`) |
 | Pemindaian | hub → barcode (`mobile_scanner`) / label (OCR) / foto; dialog persetujuan unggah foto; hasil harus diperiksa pengguna (`scan_widgets.dart`) |
-| Asisten (`coach`) | permintaan teks → kartu saran → Terima/Tolak → rencana; pulih setelah restart lewat `/agent/pending` |
+| Asisten (`coach`) | sejak 3.0 Fase 3: percakapan (`/api/me/conversations`). `ConversationController` memegang thread aktif, pesan tertunda (kirim ulang memakai `clientMessageId` yang sama), dan saran yang sedang diputuskan (`operationId` dipakai ulang saat mengulang). Bagian balasan dirender per tipe di `chat_parts.dart`: gelembung teks, kartu statistik, kartu hasil ringkas (satu utama, sisanya di balik "Lihat N pilihan lain") + lembar detail, kartu tidak ketemu, kartu keselamatan, consent, chip saran (hanya pada balasan terakhir) dan tautan. Riwayat thread dan rencana makan/aktivitas ada di lembar "Riwayat & rencana". Thread terakhir (< 24 jam) dipulihkan saat aplikasi dibuka |
 | Komunitas | direktori provinsi → gabung dengan alias → tantangan → check-in → skor/papan peringkat (ditekan bila kohort kecil) |
 | Pengingat | server menyimpan aturan; klien menjadwalkan ≤ 60 notifikasi lokal dengan teks layar kunci generik; mode alarm *inexact* |
 | Push | `PushController` mendaftarkan token FCM bila `google-services.json` ada; bila tidak, aplikasi tetap berjalan dan melaporkan push "tidak tersedia" |
@@ -81,17 +81,17 @@ Shell dengan empat tab — **Beranda** (`/home`), **Catatan** (`/log`), **Wawasa
 
 ## 7. Tema dan desain
 
-Warna dasar: `brand #0B4F5E` (teal), `emerald #0BA66B`, kanvas `#F1F8F6`. Satu hue per domain kesehatan, tidak pernah dipakai sendirian sebagai pembawa makna. Berkas desain FigCraft tidak ada di repo (folder `design/` dihapus pada commit `833bba5`). **Layar P1 dan sebagian P2/P3 dibangun tanpa desain FigCraft** karena MCP `figcraft` gagal tersambung; mereka memakai ulang komponen dan token yang ada (tercatat di `docs/audits/p1-readiness-audit.md`). Pada sesi audit ini `figcraft` juga gagal tersambung (`CONNECTION_CLOSED`).
+Sejak beOkay 3.0 Fase 1 (FigCraft halaman 20): brand `#16796F` (teal, putih di atasnya 5,25:1), mint `#DDF4E8`, kanvas `#F8F9F6`, teks sekunder `#5C6B73` (≥ 4,7:1 di atas semua tint). Tiap domain punya `tint`, `solid` (grafik), dan `ink` (teks/ikon, ≥ 4,5:1); warna tidak pernah dipakai sendirian sebagai pembawa makna. Pendamping **beOkay Spark** (`core/widgets/beokay_spark.dart`) punya 10 keadaan, gerak terbatas, dan diam saat *reduce motion*; ia mewakili aktivitas asisten, bukan nilai kesehatan. Mode gelap terpasang sejak 10 Nov 2026 dan mengikuti pengaturan sistem; kontras kedua palet diuji otomatis (`test/unit/palette_contrast_test.dart`). Berkas FigCraft ada di `design/beOkay-ui-v3.figcraft` (ekspor PNG di `design/exports/`). Sebagian layar P1–P3 lama dibangun tanpa desain FigCraft (tercatat di `docs/audits/p1-readiness-audit.md`).
 
 ## 8. Android
 
 | Hal | Nilai |
 |---|---|
-| `applicationId` | **`com.example.app`** (placeholder, ada `TODO` di `build.gradle.kts`) |
+| `applicationId` / namespace | `id.beokay.app` (sejak 10 Nov 2026) |
 | `minSdk` | `max(flutter.minSdkVersion, 26)` (Health Connect) · `compileSdk` `max(flutter, 37)` |
-| Penandatanganan rilis | memakai kunci **debug** (`signingConfigs.getByName("debug")`) |
+| Penandatanganan rilis | dari `android/key.properties` (gitignored); tanpa berkas itu, atau tanpa `API_BASE_URL=https://…`, build rilis gagal dengan pesan jelas |
 | Izin (manifes utama) | `CAMERA`, `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED`, `health.READ_EXERCISE/DISTANCE/STEPS` |
-| `INTERNET` | **tidak ada di manifes utama**; hanya di manifes `debug` dan `profile`. Manifes gabungan rilis **belum diverifikasi** (hanya build debug yang ada) — lihat audit F-03 |
+| `INTERNET` | di manifes utama; terverifikasi pada APK rilis (`aapt dump badging`) |
 | Firebase | plugin `google-services` diterapkan hanya bila `android/app/google-services.json` ada; berkas itu **tidak ada** di repo |
 | Ikon | dihasilkan `flutter_launcher_icons` dari `assets/icon/*` (bukan bagian bundel aset) |
 

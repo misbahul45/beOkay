@@ -1,6 +1,7 @@
 import { checkFood, normalizeTerm, type PreferenceLike } from "../food-preferences/food-preferences.model.ts";
 import { SAFETY_POLICY_VERSION, explanationIsSafe, validateCandidate } from "./agent.safety.ts";
 import { executeTool, type ToolContext } from "./agent.tools.ts";
+import { identityMatch, type IdentityMatch } from "./food-identity.ts";
 import { PERSONALIZATION_RULES_VERSION, boostFor, penaltyFor, tokensOf, type Profile } from "./personalization.ts";
 
 /**
@@ -20,13 +21,16 @@ export type Candidate = {
   matchedBy: string[];
 };
 
-export type RankedCandidate = Candidate & { score: number; penalty: number; penaltyTerms: string[]; boost: number; boostTerms: string[] };
+export type MatchedCandidate = Candidate & { match: IdentityMatch };
+
+export type RankedCandidate = MatchedCandidate & { score: number; penalty: number; penaltyTerms: string[]; boost: number; boostTerms: string[] };
 
 export type GraphOutcome = {
   events: { type: string; payload: Record<string, unknown> }[];
   offered: RankedCandidate[];
   excludedByConstraints: number;
   rejectedByValidation: number;
+  weakMatchesDropped: number;
   coverage: { reference: string; userCatalog: string };
   profileVersion: number;
   preferencesConsidered: number;
@@ -102,13 +106,19 @@ export async function runNutritionGraph(ctx: ToolContext, query: string, exclude
   step("NODE_ENTER", { node: "validate_and_filter" });
   let rejectedByValidation = 0;
   let excludedByConstraints = 0;
+  let weakMatchesDropped = 0;
   const seen = new Set<string>();
-  const eligible: Candidate[] = [];
+  const eligible: MatchedCandidate[] = [];
   for (const c of candidates) {
     if (excludeKeys.has(c.key)) continue; // sudah ditawarkan pada giliran sebelumnya dalam percakapan ini
     const v = validateCandidate(c);
     if (!v.ok) {
       rejectedByValidation++;
+      continue;
+    }
+    const match = identityMatch(query, c.name);
+    if (!match) {
+      weakMatchesDropped++;
       continue;
     }
     const nk = normalizeTerm(c.name);
@@ -118,29 +128,30 @@ export async function runNutritionGraph(ctx: ToolContext, query: string, exclude
       excludedByConstraints++;
       continue;
     }
-    eligible.push(c);
+    eligible.push({ ...c, match });
   }
-  step("FILTERED", { eligible: eligible.length, excludedByConstraints, rejectedByValidation });
+  step("FILTERED", { eligible: eligible.length, excludedByConstraints, rejectedByValidation, weakMatchesDropped });
 
   // 4. Peringkat deterministik: kecocokan + kelengkapan data + preferensi yang dipelajari. Skor tidak dapat memunculkan kembali yang sudah dikecualikan.
   step("NODE_ENTER", { node: "rank" });
   const bonus = { COMPLETE: 0.3, PARTIAL: 0.1, NONE: 0 } as const;
+  const matchBonus = { EXACT: 0.5, CLOSE: 0 } as const;
   const ranked: RankedCandidate[] = eligible
     .map((c) => {
       const p = penaltyFor(c.name, profile);
       const b = boostFor(c.name, profile);
-      return { ...c, penalty: p.penalty, penaltyTerms: p.matched, boost: b.boost, boostTerms: b.matched, score: Math.round((c.retrievalScore + bonus[c.completeness] - p.penalty + b.boost) * 1000) / 1000 };
+      return { ...c, penalty: p.penalty, penaltyTerms: p.matched, boost: b.boost, boostTerms: b.matched, score: Math.round((c.retrievalScore + bonus[c.completeness] + matchBonus[c.match] - p.penalty + b.boost) * 1000) / 1000 };
     })
     .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
   const offered = ranked.slice(0, MAX_OFFERED);
-  step("RANKED", { offered: offered.map((o) => ({ key: o.key, score: o.score, penalty: o.penalty })), rulesVersion: PERSONALIZATION_RULES_VERSION });
-  return { events, offered, excludedByConstraints, rejectedByValidation, coverage, profileVersion: profile.version, preferencesConsidered: prefs.length };
+  step("RANKED", { offered: offered.map((o) => ({ key: o.key, score: o.score, penalty: o.penalty, match: o.match })), rulesVersion: PERSONALIZATION_RULES_VERSION });
+  return { events, offered, excludedByConstraints, rejectedByValidation, weakMatchesDropped, coverage, profileVersion: profile.version, preferencesConsidered: prefs.length };
 }
 
 export type RecommendationPayload = {
   title: string;
   explanation: string;
-  candidate: { key: string; name: string; source: string; provenance: string; per100g: Record<string, number | null>; completeness: string; origin: string };
+  candidate: { key: string; name: string; source: string; provenance: string; per100g: Record<string, number | null>; completeness: string; origin: string; match?: IdentityMatch };
   evidenceRefs: Record<string, unknown>[];
   limitations: string[];
   dataCoverage: string;
@@ -154,7 +165,7 @@ export type RecommendationPayload = {
 
 /** Teks dibuat dari templat (bukan model) dan tetap melewati gerbang klaim terlarang. */
 export function buildRecommendation(c: RankedCandidate, o: GraphOutcome, query: string, strictConstraintsActive: boolean): RecommendationPayload {
-  const reasons: string[] = [`cocok dengan pencarianmu "${query}"`];
+  const reasons: string[] = [c.match === "EXACT" ? `cocok dengan pencarianmu "${query}"` : `mirip dengan pencarianmu "${query}"`];
   if (c.completeness === "COMPLETE") reasons.push("data gizinya lengkap");
   if (c.origin === "USER_CATALOG") reasons.push("sudah ada di daftar makananmu");
   if (c.boostTerms.length) reasons.push(`peringkatnya dinaikkan karena catatan makanmu menunjukkan kamu pernah memakan pilihan dengan kata: ${c.boostTerms.join(", ")}`);
@@ -171,7 +182,7 @@ export function buildRecommendation(c: RankedCandidate, o: GraphOutcome, query: 
   return {
     title: `Pertimbangkan: ${c.name}`,
     explanation,
-    candidate: { key: c.key, name: c.name, source: c.source, provenance: c.provenance, per100g: c.per100g, completeness: c.completeness, origin: c.origin },
+    candidate: { key: c.key, name: c.name, source: c.source, provenance: c.provenance, per100g: c.per100g, completeness: c.completeness, origin: c.origin, match: c.match },
     evidenceRefs: [c.evidence],
     limitations,
     dataCoverage: c.completeness,

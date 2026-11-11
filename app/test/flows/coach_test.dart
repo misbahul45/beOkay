@@ -5,13 +5,13 @@ import 'package:app/core/providers.dart';
 import 'package:app/core/storage/token_storage.dart';
 import 'package:app/features/coach/application/coach_controller.dart';
 import 'package:app/features/coach/data/coach_repository.dart';
-import 'package:app/core/widgets/info_card.dart';
 import 'package:app/features/coach/presentation/coach_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 http.Response _json(Object body, [int status = 200]) => http.Response(
   jsonEncode(body),
@@ -19,64 +19,94 @@ http.Response _json(Object body, [int status = 200]) => http.Response(
   headers: {'content-type': 'application/json'},
 );
 
-Map<String, dynamic> _rec(
+Map<String, dynamic> _item(
   String id,
   String name, {
   String status = 'OFFERED',
-  int version = 1,
+  String match = 'EXACT',
+  num? calories = 168,
+  bool llm = false,
 }) => {
   'id': id,
-  'runId': 'run1',
-  'type': 'NUTRITION',
+  'version': 1,
   'status': status,
-  'version': version,
-  'title': 'Pertimbangkan: $name',
-  'explanation':
-      'Pertimbangkan $name: cocok dengan pencarianmu "tempe". Nilai gizi per 100 g bersumber dari Tabel Komposisi Pangan Indonesia.',
-  'candidate': {
-    'key': 'tkpi:$id',
-    'name': name,
-    'source': 'Tabel Komposisi Pangan Indonesia',
-    'provenance': 'Tabel Komposisi Pangan Indonesia',
-    'completeness': 'PARTIAL',
-    'origin': 'TKPI',
-    'per100g': {
-      'calories': 200,
-      'carbohydrates': 10,
-      'protein': 20,
-      'fat': 8,
-      'fiber': null,
-    },
+  'type': 'NUTRITION',
+  'name': name,
+  'match': match,
+  'source': 'Tabel Komposisi Pangan Indonesia',
+  'provenance': 'Tabel Komposisi Pangan Indonesia',
+  'completeness': 'PARTIAL',
+  'per100g': {
+    'calories': calories,
+    'carbohydrates': 25.6,
+    'protein': 3.2,
+    'fat': 5.6,
+    'fiber': null,
   },
-  'evidenceRefs': [
-    {'kind': 'TKPI'},
-  ],
+  'activity': null,
+  'explanation': 'Pertimbangkan $name: cocok dengan pencarianmu.',
+  'rankingReason': 'Diurutkan dari yang paling cocok.',
   'limitations': [
-    'Pengecekan alergi hanya dari nama makanan; bahan lengkap tidak diketahui.',
+    'Alergi hanya dicek dari nama makanan, bukan bahan lengkapnya.',
   ],
-  'dataCoverage': 'PARTIAL',
-  'policyVersion': 'safety-policy-v1',
-  'rankingReason':
-      'Urut berdasarkan kecocokan nama, kelengkapan data, dan preferensimu (aturan tetap, bukan model).',
-  'requiresConfirmation': true,
-  'expiresAt': '2026-11-10T00:00:00.000Z',
+  'writtenByModel': llm,
+  'expiresAt': '2026-11-11T00:00:00.000Z',
 };
 
-Map<String, dynamic> _run(
-  String status,
-  List<Map<String, dynamic>> recs, {
-  String? message,
-  bool consent = false,
+Map<String, dynamic> _msg(
+  String id,
+  int seq,
+  String role, {
+  String? text,
+  List<Map<String, dynamic>> parts = const [],
 }) => {
-  'id': 'run1',
-  'status': status,
-  'message': message,
-  'consentRequired': consent,
-  'recommendations': recs,
+  'id': id,
+  'seq': seq,
+  'role': role,
+  'text': text,
+  'clientMessageId': role == 'USER' ? 'c$id' : null,
+  'route': role == 'USER' ? null : 'FOOD',
+  'parts': parts,
+  'createdAt': '2026-11-10T10:00:00.000Z',
 };
+
+Map<String, dynamic> _thread(String id, {DateTime? at, String? title}) => {
+  'id': id,
+  'title': title ?? 'Percakapan',
+  'messageCount': 2,
+  'lastMessageAt': (at ?? DateTime.now()).toUtc().toIso8601String(),
+  'createdAt': '2026-11-10T10:00:00.000Z',
+};
+
+Map<String, dynamic> _exchange(
+  String threadId,
+  String text,
+  List<Map<String, dynamic>> parts, {
+  String id = 'a1',
+}) => {
+  'replayed': false,
+  'thread': _thread(threadId),
+  'userMessage': _msg('u$id', 1, 'USER', text: text),
+  'assistantMessage': _msg(id, 2, 'ASSISTANT', parts: parts),
+};
+
+Map<String, dynamic> _recs(
+  List<Map<String, dynamic>> items, {
+  bool hidden = false,
+}) => {
+  'type': 'recommendations',
+  'runId': 'run1',
+  'kind': 'NUTRITION',
+  'recommendationIds': [for (final i in items) i['id']],
+  'hidden': hidden,
+  'items': items,
+};
+
+bool _isSend(http.Request r) =>
+    r.method == 'POST' && r.url.path.endsWith('/messages');
 
 Future<(Widget, List<http.Request>)> _app(
-  http.Response Function(http.Request) handler,
+  http.Response? Function(http.Request) handler,
 ) async {
   final tokens = MemoryTokenStorage();
   await tokens.write('t');
@@ -87,7 +117,16 @@ Future<(Widget, List<http.Request>)> _app(
       baseUrl: 'http://test',
       client: MockClient((r) async {
         seen.add(r);
-        return handler(r);
+        final res = handler(r);
+        if (res != null) return res;
+        if (r.url.path == '/api/me/conversations' && r.method == 'GET') {
+          return _json({'items': <dynamic>[]});
+        }
+        if (r.url.path == '/api/me/planned-meals' ||
+            r.url.path == '/api/me/activity-plans') {
+          return _json({'items': <dynamic>[]});
+        }
+        return _json({}, 404);
       }),
     ),
     isCurrentAccount: () => true,
@@ -98,210 +137,414 @@ Future<(Widget, List<http.Request>)> _app(
         coachRepositoryProvider.overrideWithValue(repo),
         tokenStorageProvider.overrideWithValue(MemoryTokenStorage()),
       ],
-      child: const MaterialApp(home: CoachScreen()),
+      child: const MaterialApp(home: Scaffold(body: CoachScreen())),
     ),
     seen,
   );
 }
 
-http.Response _planned(http.Request r) => _json({'items': <dynamic>[]});
-
-/// Layar tinggi agar seluruh kartu terbangun (ListView malas) tanpa menggulir.
 void _tall(WidgetTester tester) {
-  tester.view.physicalSize = const Size(800, 3600);
+  tester.view.physicalSize = const Size(800, 2400);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
 }
 
-/// Aliran SSE adalah I/O sungguhan: beri waktu nyata lalu gambar ulang, bukan hanya memajukan jam palsu.
-Future<void> _settleStream(WidgetTester tester, {int rounds = 15}) async {
-  for (var i = 0; i < rounds; i++) {
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 40)),
-    );
-    await tester.pump(const Duration(milliseconds: 50));
-  }
-}
-
-Future<void> _ask(WidgetTester tester, String text) async {
-  await tester.enterText(find.byType(TextField).first, text);
-  await tester.tap(find.text('Cari pilihan'));
+Future<void> _type(WidgetTester tester, String text) async {
+  await tester.enterText(find.byType(TextField), text);
+  await tester.tap(find.byTooltip('Kirim'));
   await tester.pumpAndSettle();
 }
 
 void main() {
+  setUpAll(() => initializeDateFormatting('id_ID'));
+
   testWidgets(
-    'Shows offered cards with source, nutrients (unknown stays "tidak tersedia"), limitations, and nothing is saved before consent',
+    'Empty state offers starters; tapping one sends a single message and renders the statistic answer without analysis metadata',
     (tester) async {
+      _tall(tester);
       final (app, seen) = await _app((r) {
-        if (r.url.path == '/api/me/agent/runs' && r.method == 'POST') {
+        if (_isSend(r)) {
+          final body = jsonDecode(r.body) as Map<String, dynamic>;
           return _json(
-            _run('WAITING_FOR_USER', [
-              _rec('r1', 'Tempe bacem'),
-            ], message: 'Pilih satu atau tolak.'),
+            _exchange(r.url.pathSegments[3], body['text'] as String, [
+              {
+                'type': 'text',
+                'text':
+                    'Dalam 7 hari terakhir kamu mencatat 80 menit aktivitas di 3 hari.',
+              },
+              {
+                'type': 'statistic',
+                'statisticId': 'activity.total_minutes',
+                'domain': 'activity',
+                'label': 'Aktivitas tercatat · 7 hari',
+                'value': 80,
+                'unit': 'menit',
+                'caption': '3 hari ada catatan',
+                'days': 7,
+              },
+              {'type': 'link', 'label': 'Lihat tren', 'target': 'INSIGHTS'},
+            ]),
             201,
           );
         }
-        if (r.url.path == '/api/me/planned-meals') return _planned(r);
-        return _json({}, 404);
+        return null;
       });
-      _tall(tester);
       await tester.pumpWidget(app);
-      await _ask(tester, 'alternatif pengganti nasi goreng');
-      expect(find.text('Pertimbangkan: Tempe bacem'), findsOneWidget);
-      expect(
-        find.textContaining('Tabel Komposisi Pangan Indonesia'),
-        findsWidgets,
-      );
-      expect(find.text('Serat (g): tidak tersedia'), findsOneWidget);
-      expect(find.text('Energi (kkal): 200'), findsOneWidget);
-      expect(seen.where((r) => r.url.path.contains('decision')), isEmpty);
-      final body =
-          jsonDecode(seen.firstWhere((r) => r.method == 'POST').body)
-              as Map<String, dynamic>;
-      expect(body['message'], 'alternatif pengganti nasi goreng');
-      expect(
-        (body['idempotencyKey'] as String).length,
-        greaterThanOrEqualTo(8),
-      );
-      expect(find.textContaining('aman'), findsNothing);
+      await tester.pumpAndSettle();
+      expect(find.text('Mau mulai dari mana?'), findsOneWidget);
+      await tester.tap(find.text('Bagaimana aktivitasku minggu ini?'));
+      await tester.pumpAndSettle();
+      final sends = seen.where(_isSend).toList();
+      expect(sends, hasLength(1));
+      final body = jsonDecode(sends.single.body) as Map<String, dynamic>;
+      expect(body['text'], 'Bagaimana aktivitasku minggu ini?');
+      expect(body['clientMessageId'], isNotEmpty);
+      expect(find.textContaining('80 menit aktivitas'), findsOneWidget);
+      expect(find.text('Aktivitas tercatat · 7 hari'), findsOneWidget);
+      expect(find.text('3 hari ada catatan'), findsOneWidget);
+      expect(find.text('Lihat tren'), findsOneWidget);
+      expect(find.textContaining('stats-v1'), findsNothing);
+      expect(find.text('Mau mulai dari mana?'), findsNothing);
     },
   );
 
   testWidgets(
-    'Accepting sends one decision with expectedVersion; a retry after a network failure reuses the same operationId',
+    'Food result is compact: one primary card, others behind "Lihat pilihan lain"; the detail sheet shows sourced values and unknowns; nothing is decided before the user acts',
     (tester) async {
-      var fail = true;
-      final ops = <String>[];
+      _tall(tester);
       final (app, seen) = await _app((r) {
-        if (r.url.path == '/api/me/agent/runs' && r.method == 'POST') {
+        if (_isSend(r)) {
           return _json(
-            _run('WAITING_FOR_USER', [_rec('r1', 'Tempe bacem')]),
+            _exchange(r.url.pathSegments[3], 'nasi goreng', [
+              {
+                'type': 'text',
+                'text': 'Ini yang paling sesuai dengan pencarianmu.',
+              },
+              _recs([
+                _item('r1', 'Nasi goreng'),
+                _item('r2', 'Nasi uduk', match: 'CLOSE', llm: true),
+                _item('r3', 'Nasi kuning', match: 'CLOSE', calories: null),
+              ]),
+            ]),
             201,
           );
         }
-        if (r.url.path == '/api/me/agent/recommendations/r1/decision') {
-          ops.add((jsonDecode(r.body) as Map)['operationId'] as String);
-          if (fail) {
-            fail = false;
-            throw http.ClientException('no route');
-          }
+        return null;
+      });
+      await tester.pumpWidget(app);
+      await tester.pumpAndSettle();
+      await _type(tester, 'nasi goreng');
+      expect(find.text('Nasi goreng'), findsOneWidget);
+      expect(find.text('Paling sesuai dengan pencarianmu'), findsOneWidget);
+      expect(find.text('Energi 168 kkal per 100 g'), findsOneWidget);
+      expect(find.text('Nasi uduk'), findsNothing);
+      await tester.tap(find.text('Lihat 2 pilihan lain'));
+      await tester.pumpAndSettle();
+      expect(find.text('Nasi uduk'), findsOneWidget);
+      expect(find.text('Mirip dengan pencarianmu'), findsNWidgets(2));
+      expect(find.text('Energi belum diketahui'), findsOneWidget);
+
+      await tester.tap(find.text('Lihat detail').first);
+      await tester.pumpAndSettle();
+      expect(find.text('Nilai per 100 g · data sebagian'), findsOneWidget);
+      expect(find.text('25,6 g'), findsOneWidget);
+      expect(find.text('tidak diketahui'), findsOneWidget);
+      expect(
+        find.text('Sumber: Tabel Komposisi Pangan Indonesia'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Alergi hanya dicek dari nama'),
+        findsOneWidget,
+      );
+      expect(find.text('Ditulis dengan bantuan AI.'), findsNothing);
+      expect(find.text('Lewati'), findsOneWidget);
+      expect(seen.where((r) => r.url.path.contains('/decision')), isEmpty);
+    },
+  );
+
+  testWidgets(
+    'Accepting sends one decision with expectedVersion; a retry after a network failure reuses the same operationId; the refreshed card shows it is in the plan',
+    (tester) async {
+      _tall(tester);
+      var decisions = 0;
+      var accepted = false;
+      const threadId = 'th1';
+      List<Map<String, dynamic>> parts() => [
+        _recs([
+          _item('r1', 'Tempe bacem', status: accepted ? 'ACCEPTED' : 'OFFERED'),
+        ]),
+      ];
+      final (app, seen) = await _app((r) {
+        if (r.url.path == '/api/me/conversations' && r.method == 'GET') {
           return _json({
-            'replayed': false,
-            'recommendation': _rec(
-              'r1',
-              'Tempe bacem',
-              status: 'ACCEPTED',
-              version: 2,
-            ),
-            'plannedMealId': 'pm1',
+            'items': [_thread(threadId)],
           });
         }
-        if (r.url.path == '/api/me/agent/runs/run1') {
+        if (r.url.path == '/api/me/conversations/$threadId') {
+          return _json({
+            'thread': _thread(threadId),
+            'messages': [
+              _msg('u1', 1, 'USER', text: 'tempe'),
+              _msg('a1', 2, 'ASSISTANT', parts: parts()),
+            ],
+          });
+        }
+        if (r.url.path.endsWith('/r1/decision')) {
+          decisions++;
+          if (decisions == 1) throw http.ClientException('offline');
+          accepted = true;
+          return _json({'replayed': false, 'recommendation': {}});
+        }
+        return null;
+      });
+      await tester.pumpWidget(app);
+      await tester.pumpAndSettle();
+      expect(find.text('Tempe bacem'), findsOneWidget);
+      await tester.tap(find.text('Tambahkan ke rencana'));
+      await tester.pumpAndSettle();
+      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.text('Masuk rencana'), findsNothing);
+      await tester.tap(find.text('Tambahkan ke rencana'));
+      await tester.pumpAndSettle();
+      final sent = seen
+          .where((r) => r.url.path.endsWith('/decision'))
+          .map((r) => jsonDecode(r.body) as Map<String, dynamic>)
+          .toList();
+      expect(sent, hasLength(2));
+      expect(sent[0]['operationId'], sent[1]['operationId']);
+      expect(sent[0]['decision'], 'ACCEPT');
+      expect(sent[0]['expectedVersion'], 1);
+      expect(find.text('Masuk rencana'), findsOneWidget);
+      expect(find.text('Tambahkan ke rencana'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'A failed send keeps the message with "Coba lagi"; retrying reuses the same clientMessageId',
+    (tester) async {
+      _tall(tester);
+      var attempts = 0;
+      final (app, seen) = await _app((r) {
+        if (_isSend(r)) {
+          attempts++;
+          if (attempts == 1) throw http.ClientException('offline');
           return _json(
-            _run('COMPLETED', [
-              _rec('r1', 'Tempe bacem', status: 'ACCEPTED', version: 2),
+            _exchange(r.url.pathSegments[3], 'halo', [
+              {'type': 'text', 'text': 'Halo! Mau mulai dari mana?'},
             ]),
+            201,
           );
         }
-        if (r.url.path == '/api/me/planned-meals') return _planned(r);
-        return _json({}, 404);
+        return null;
       });
-      _tall(tester);
       await tester.pumpWidget(app);
-      await _ask(tester, 'alternatif tempe');
-      await tester.tap(find.text('Simpan ke rencana'));
       await tester.pumpAndSettle();
-      expect(
-        find.text('Simpan ke rencana'),
-        findsOneWidget,
-      ); // gagal jaringan: kartu tetap bisa dicoba lagi
-      await tester.tap(find.text('Simpan ke rencana'));
+      await _type(tester, 'halo');
+      expect(find.text('Coba lagi'), findsOneWidget);
+      expect(find.text('halo'), findsOneWidget);
+      await tester.tap(find.text('Coba lagi'));
       await tester.pumpAndSettle();
-      expect(ops, hasLength(2));
-      expect(
-        ops[0],
-        ops[1],
-      ); // operationId sama → server tidak menulis dua kali
-      expect(
-        jsonDecode(
-          seen.firstWhere((r) => r.url.path.contains('decision')).body,
-        )['expectedVersion'],
-        1,
-      );
-      expect(find.text('Masuk rencana'), findsOneWidget);
+      final ids = seen
+          .where(_isSend)
+          .map((r) => (jsonDecode(r.body) as Map)['clientMessageId'])
+          .toList();
+      expect(ids, hasLength(2));
+      expect(ids[0], ids[1]);
+      expect(find.text('Halo! Mau mulai dari mana?'), findsOneWidget);
+      expect(find.text('Coba lagi'), findsNothing);
     },
   );
 
-  testWidgets('A safety-blocked run shows the policy message and no cards', (
-    tester,
-  ) async {
-    final (app, _) = await _app((r) {
-      if (r.url.path == '/api/me/agent/runs') {
-        return _json(
-          _run(
-            'BLOCKED',
-            [],
-            message:
-                'Saya tidak dapat menyarankan perubahan obat atau dosis. Bicarakan dengan dokter atau apotekermu.',
-          ),
-          201,
-        );
-      }
-      return _planned(r);
-    });
-    _tall(tester);
-    await tester.pumpWidget(app);
-    await _ask(tester, 'naikkan dosis metformin');
-    expect(
-      find.textContaining('tidak dapat menyarankan perubahan obat'),
-      findsOneWidget,
-    );
-    expect(find.text('Simpan ke rencana'), findsNothing);
-  });
-
   testWidgets(
-    'Missing AI consent shows an explanation with a way to open consent, not a generic error',
+    'Safety, consent, withdrawn-consent, and no-match answers render as their own cards without recommendation actions',
     (tester) async {
-      final (app, _) = await _app(
-        (r) => r.url.path == '/api/me/agent/runs'
-            ? _json({
-                'error': {'code': 'CONSENT_REQUIRED', 'message': 'x'},
-              }, 403)
-            : _planned(r),
-      );
       _tall(tester);
+      var n = 0;
+      final replies = [
+        [
+          {
+            'type': 'safety',
+            'code': 'MEDICATION_ADVICE',
+            'title': 'Perlu tenaga kesehatan',
+            'text': 'Saya tidak dapat menyarankan perubahan obat atau dosis.',
+            'urgent': false,
+          },
+        ],
+        [
+          {
+            'type': 'consent_required',
+            'purpose': 'personalized_ai',
+            'text':
+                'Untuk ini, aktifkan "Saran personal dari asisten beOkay" di Persetujuan data.',
+          },
+        ],
+        [
+          _recs([_item('r1', 'Tempe bacem')], hidden: true)
+            ..['items'] = <dynamic>[],
+        ],
+        [
+          {
+            'type': 'no_match',
+            'query': 'gendar goreng',
+            'text':
+                'Belum menemukan makanan yang cocok dengan "gendar goreng".',
+          },
+        ],
+      ];
+      final (app, _) = await _app((r) {
+        if (_isSend(r)) {
+          final i = n++;
+          return _json(
+            _exchange(r.url.pathSegments[3], 'x', replies[i].cast(), id: 'a$i'),
+            201,
+          );
+        }
+        return null;
+      });
       await tester.pumpWidget(app);
-      await _ask(tester, 'alternatif tempe');
+      await tester.pumpAndSettle();
+      await _type(tester, 'naikkan dosis');
+      expect(find.text('Perlu tenaga kesehatan'), findsOneWidget);
+      await _type(tester, 'cari tempe');
       expect(find.text('Persetujuan diperlukan'), findsOneWidget);
       expect(find.text('Buka persetujuan'), findsOneWidget);
-    },
-  );
-
-  testWidgets(
-    'Withdrawn consent hides stale cards; a too-short input is rejected locally without a request',
-    (tester) async {
-      final (app, seen) = await _app(
-        (r) => r.url.path == '/api/me/agent/runs'
-            ? _json(_run('BLOCKED', [], consent: true), 201)
-            : _planned(r),
+      await _type(tester, 'tempe lagi');
+      expect(
+        find.text(
+          'Persetujuan dicabut, jadi saran ini tidak dapat dilanjutkan.',
+        ),
+        findsOneWidget,
       );
-      _tall(tester);
-      await tester.pumpWidget(app);
-      await tester.enterText(find.byType(TextField).first, 'a');
-      await tester.tap(find.text('Cari pilihan'));
+      await _type(tester, 'gendar goreng');
+      expect(find.text('Makanan belum ditemukan'), findsOneWidget);
+      expect(find.text('Tambahkan ke rencana'), findsNothing);
+      await tester.tap(find.text('Ubah pencarian'));
       await tester.pumpAndSettle();
-      expect(find.textContaining('Tulis makanan'), findsOneWidget);
-      expect(seen.where((r) => r.url.path == '/api/me/agent/runs'), isEmpty);
-      await _ask(tester, 'alternatif tempe');
-      expect(find.textContaining('Persetujuan dicabut'), findsOneWidget);
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        'gendar goreng',
+      );
     },
   );
 
   testWidgets(
-    'Planned meals are listed as plans (not consumption) and feedback goes through the feedback endpoint only',
+    'Suggestion chips appear only on the latest answer and tapping one sends its message',
     (tester) async {
+      _tall(tester);
+      var n = 0;
       final (app, seen) = await _app((r) {
+        if (_isSend(r)) {
+          final i = n++;
+          return _json(
+            _exchange(r.url.pathSegments[3], 'x', [
+              {'type': 'text', 'text': 'Jawaban $i'},
+              {
+                'type': 'suggestions',
+                'items': [
+                  {'label': 'Saran $i', 'message': 'pesan saran $i'},
+                ],
+              },
+            ], id: 'a$i'),
+            201,
+          );
+        }
+        return null;
+      });
+      await tester.pumpWidget(app);
+      await tester.pumpAndSettle();
+      await _type(tester, 'halo');
+      expect(find.text('Saran 0'), findsOneWidget);
+      await tester.tap(find.text('Saran 0'));
+      await tester.pumpAndSettle();
+      expect(find.text('Saran 0'), findsNothing);
+      expect(find.text('Saran 1'), findsOneWidget);
+      final last = jsonDecode(seen.where(_isSend).last.body) as Map;
+      expect(last['text'], 'pesan saran 0');
+    },
+  );
+
+  testWidgets(
+    'After a restart the latest recent conversation is restored; an old one is not; a failed restore just shows the empty state',
+    (tester) async {
+      _tall(tester);
+      final (app, _) = await _app((r) {
+        if (r.url.path == '/api/me/conversations' && r.method == 'GET') {
+          return _json({
+            'items': [_thread('recent', title: 'tempe')],
+          });
+        }
+        if (r.url.path == '/api/me/conversations/recent') {
+          return _json({
+            'thread': _thread('recent'),
+            'messages': [
+              _msg('u1', 1, 'USER', text: 'tempe'),
+              _msg(
+                'a1',
+                2,
+                'ASSISTANT',
+                parts: [
+                  _recs([_item('r1', 'Tempe bacem')]),
+                ],
+              ),
+            ],
+          });
+        }
+        return null;
+      });
+      await tester.pumpWidget(app);
+      await tester.pumpAndSettle();
+      expect(find.text('Tempe bacem'), findsOneWidget);
+      expect(find.text('Tambahkan ke rencana'), findsOneWidget);
+
+      final (old, _) = await _app((r) {
+        if (r.url.path == '/api/me/conversations' && r.method == 'GET') {
+          return _json({
+            'items': [
+              _thread(
+                'old',
+                at: DateTime.now().subtract(const Duration(days: 3)),
+              ),
+            ],
+          });
+        }
+        return null;
+      });
+      await tester.pumpWidget(old);
+      await tester.pumpAndSettle();
+      expect(find.text('Mau mulai dari mana?'), findsOneWidget);
+
+      final (broken, _) = await _app((r) {
+        if (r.url.path == '/api/me/conversations' && r.method == 'GET') {
+          return _json({
+            'error': {'code': 'X', 'message': 'gagal'},
+          }, 500);
+        }
+        return null;
+      });
+      await tester.pumpWidget(broken);
+      await tester.pumpAndSettle();
+      expect(find.text('Mau mulai dari mana?'), findsOneWidget);
+      expect(find.text('Coba lagi'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'History sheet lists conversations and plans; plan feedback uses the feedback endpoint only; deleting a conversation asks first and sends DELETE',
+    (tester) async {
+      _tall(tester);
+      final (app, seen) = await _app((r) {
+        if (r.url.path == '/api/me/conversations' && r.method == 'GET') {
+          return _json({
+            'items': [
+              _thread(
+                'th9',
+                title: 'Cari info tahu',
+                at: DateTime.now().subtract(const Duration(days: 2)),
+              ),
+            ],
+          });
+        }
         if (r.url.path == '/api/me/planned-meals') {
           return _json({
             'items': [
@@ -317,16 +560,20 @@ void main() {
           });
         }
         if (r.url.path == '/api/me/agent/recommendations/r9/feedback') {
-          return _json({'replayed': false, 'plannedMeal': {}});
+          return _json({'replayed': false});
         }
-        return _json({}, 404);
+        if (r.method == 'DELETE') {
+          return _json({'deleted': true, 'id': 'th9', 'messages': 2});
+        }
+        return null;
       });
-      _tall(tester);
       await tester.pumpWidget(app);
       await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Riwayat & rencana'));
+      await tester.pumpAndSettle();
+      expect(find.text('Cari info tahu'), findsOneWidget);
       expect(find.text('Tahu kukus'), findsOneWidget);
       expect(find.textContaining('Direncanakan'), findsOneWidget);
-      await tester.ensureVisible(find.text('Sudah dimakan'));
       await tester.tap(find.text('Sudah dimakan'));
       await tester.pumpAndSettle();
       final fb = seen.firstWhere((r) => r.url.path.endsWith('/feedback'));
@@ -334,248 +581,16 @@ void main() {
       expect(
         seen.where((r) => r.url.path.contains('/meals') && r.method == 'POST'),
         isEmpty,
-      ); // tidak membuat catatan makan
-    },
-  );
-
-  testWidgets(
-    'A run that is still running is followed over SSE: progress text shows, and the final state event provides the cards',
-    (tester) async {
-      _tall(tester);
-      final running = {..._run('RUNNING', []), 'id': 'run9'};
-      final done = {
-        ..._run('WAITING_FOR_USER', [_rec('r1', 'Tempe bacem')]),
-        'id': 'run9',
-        'turn': 1,
-      };
-      final sse =
-          'retry: 2000\n\n'
-          'id: 1\nevent: RUN_CREATED\ndata: ${jsonEncode({'seq': 1, 'type': 'RUN_CREATED', 'payload': {}})}\n\n'
-          'id: 2\nevent: NODE_ENTER\ndata: ${jsonEncode({
-            'seq': 2,
-            'type': 'NODE_ENTER',
-            'payload': {'node': 'retrieve_candidates'},
-          })}\n\n'
-          'event: state\ndata: ${jsonEncode(done)}\n\n';
-      final (app, seen) = await _app((r) {
-        if (r.url.path == '/api/me/agent/runs' && r.method == 'POST') {
-          return _json(running, 202);
-        }
-        if (r.url.path == '/api/me/agent/runs/run9/stream') {
-          return http.Response(
-            sse,
-            200,
-            headers: {'content-type': 'text/event-stream'},
-          );
-        }
-        return _planned(r);
-      });
-      await tester.pumpWidget(app);
-      await tester.enterText(find.byType(TextField).first, 'alternatif tempe');
-      await tester.tap(find.text('Cari pilihan'));
-      await _settleStream(tester);
-      expect(
-        seen
-            .firstWhere(
-              (r) => r.method == 'POST' && r.url.path.endsWith('/runs'),
-            )
-            .url
-            .query,
-        'async=1',
       );
-      expect(find.text('Pertimbangkan: Tempe bacem'), findsOneWidget);
-      expect(
-        seen.any(
-          (r) =>
-              r.url.path.endsWith('/stream') &&
-              r.headers['Accept'] == 'text/event-stream',
-        ),
-        isTrue,
-      );
-    },
-  );
 
-  testWidgets(
-    'If the stream cannot be opened the screen falls back to polling the run instead of failing',
-    (tester) async {
-      _tall(tester);
-      var polls = 0;
-      final (app, _) = await _app((r) {
-        if (r.url.path == '/api/me/agent/runs' && r.method == 'POST') {
-          return _json({..._run('RUNNING', []), 'id': 'run8'}, 202);
-        }
-        if (r.url.path.endsWith('/stream')) return http.Response('x', 500);
-        if (r.url.path == '/api/me/agent/runs/run8') {
-          polls++;
-          return _json({
-            ..._run('WAITING_FOR_USER', [_rec('r1', 'Tahu kukus')]),
-            'id': 'run8',
-          });
-        }
-        return _planned(r);
-      });
-      await tester.pumpWidget(app);
-      await tester.enterText(find.byType(TextField).first, 'alternatif tahu');
-      await tester.tap(find.text('Cari pilihan'));
-      await tester.pump(const Duration(seconds: 2));
+      await tester.tap(find.byTooltip('Hapus percakapan'));
       await tester.pumpAndSettle();
-      expect(polls, greaterThanOrEqualTo(1));
-      expect(find.text('Pertimbangkan: Tahu kukus'), findsOneWidget);
-    },
-  );
-
-  testWidgets(
-    '"Pilihan lain" is a follow-up turn: previousRunId is sent and cards from both turns stay visible; "Kenapa ini?" shows the explanation message',
-    (tester) async {
-      _tall(tester);
-      final bodies = <Map<String, dynamic>>[];
-      var n = 0;
-      final (app, _) = await _app((r) {
-        if (r.url.path == '/api/me/agent/runs' && r.method == 'POST') {
-          bodies.add(jsonDecode(r.body) as Map<String, dynamic>);
-          n++;
-          if (n == 1) {
-            return _json({
-              ..._run('WAITING_FOR_USER', [_rec('r1', 'Tempe bacem')]),
-              'id': 'runA',
-              'turn': 1,
-            });
-          }
-          if (n == 2) {
-            return _json({
-              ..._run('WAITING_FOR_USER', [_rec('r2', 'Tahu kukus')]),
-              'id': 'runB',
-              'turn': 2,
-            });
-          }
-          return _json({
-            ..._run(
-              'COMPLETED',
-              [],
-              message: 'Tempe bacem: Urut berdasarkan kecocokan nama.',
-            ),
-            'id': 'runC',
-            'turn': 3,
-            'intent': 'FOLLOW_UP_WHY',
-          });
-        }
-        return _planned(r);
-      });
-      await tester.pumpWidget(app);
-      await _ask(tester, 'alternatif tempe');
-      await tester.tap(find.text('Pilihan lain'));
+      expect(find.text('Hapus percakapan ini?'), findsOneWidget);
+      await tester.tap(find.text('Hapus'));
       await tester.pumpAndSettle();
-      expect(bodies[1]['previousRunId'], 'runA');
-      expect(find.text('Pertimbangkan: Tempe bacem'), findsOneWidget);
-      expect(find.text('Pertimbangkan: Tahu kukus'), findsOneWidget);
-      await tester.tap(find.text('Kenapa ini?'));
-      await tester.pumpAndSettle();
-      expect(bodies[2]['previousRunId'], 'runB');
-      expect(
-        find.textContaining('Urut berdasarkan kecocokan nama.'),
-        findsWidgets,
-      );
-    },
-  );
-
-  testWidgets(
-    'Text written by the language model is labelled, template text is not; measured outcomes are shown as evidence, separate from self-reported feedback',
-    (tester) async {
-      _tall(tester);
-      final (app, _) = await _app((r) {
-        if (r.url.path == '/api/me/agent/runs' && r.method == 'POST') {
-          return _json({
-            ..._run('WAITING_FOR_USER', [
-              {..._rec('r1', 'Tempe bacem'), 'textSource': 'LLM'},
-              _rec('r2', 'Tahu kukus'),
-            ]),
-            'turn': 1,
-          });
-        }
-        if (r.url.path == '/api/me/planned-meals') {
-          return _json({
-            'items': [
-              {
-                'id': 'p1',
-                'recommendationId': 'r1',
-                'name': 'Tempe bacem',
-                'source': 'TKPI',
-                'status': 'PLANNED',
-                'measuredOutcome': {
-                  'kind': 'MEAL_LOGGED',
-                  'observedAt': '2026-11-10T01:00:00Z',
-                },
-              },
-            ],
-          });
-        }
-        return _json({'items': <dynamic>[]});
-      });
-      await tester.pumpWidget(app);
-      await _ask(tester, 'alternatif tempe');
-      expect(
-        find.textContaining('Ditulis dengan bantuan AI'),
-        findsOneWidget,
-      ); // hanya kartu LLM
-      expect(
-        find.textContaining('Terbukti: makanan serupa tercatat'),
-        findsOneWidget,
-      );
-      expect(
-        find.text('Sudah dimakan'),
-        findsOneWidget,
-      ); // umpan balik sendiri tetap tersedia
-    },
-  );
-
-  testWidgets(
-    'E2E-11: after a restart the screen restores pending runs from the server, in order, with Tolak/Simpan still available',
-    (tester) async {
-      _tall(tester);
-      final (app, seen) = await _app((r) {
-        if (r.url.path == '/api/me/agent/pending') {
-          return _json({
-            'consentRequired': false,
-            'items': [
-              {
-                ..._run('WAITING_FOR_USER', [_rec('r1', 'Tempe bacem')]),
-                'id': 'runA',
-                'turn': 1,
-              },
-              {
-                ..._run('WAITING_FOR_USER', [_rec('r2', 'Tahu kukus')]),
-                'id': 'runB',
-                'turn': 2,
-              },
-            ],
-          });
-        }
-        return _planned(r);
-      });
-      await tester.pumpWidget(app);
-      await _settleStream(tester, rounds: 4);
-      expect(seen.any((r) => r.url.path == '/api/me/agent/pending'), isTrue);
-      expect(find.text('Pertimbangkan: Tempe bacem'), findsOneWidget);
-      expect(find.text('Pertimbangkan: Tahu kukus'), findsOneWidget);
-      expect(find.text('Tolak'), findsNWidgets(2));
-      expect(find.text('Pilihan lain'), findsOneWidget);
-    },
-  );
-
-  testWidgets(
-    'If restoring pending runs fails the screen simply starts empty (no error banner)',
-    (tester) async {
-      _tall(tester);
-      final (app, _) = await _app(
-        (r) => r.url.path == '/api/me/agent/pending'
-            ? _json({}, 500)
-            : _planned(r),
-      );
-      await tester.pumpWidget(app);
-      await _settleStream(tester, rounds: 4);
-      expect(find.text('Cari pilihan'), findsOneWidget);
-      expect(find.textContaining('Pertimbangkan'), findsNothing);
-      expect(find.byType(ErrorBanner), findsNothing);
+      final del = seen.where((r) => r.method == 'DELETE').toList();
+      expect(del, hasLength(1));
+      expect(del.single.url.path, '/api/me/conversations/th9');
     },
   );
 }

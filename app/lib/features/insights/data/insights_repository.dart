@@ -1,6 +1,7 @@
 import '../../../core/network/api_client.dart';
 import 'contextual_insights.dart';
 import 'daily_insights.dart';
+import 'statistics.dart';
 import 'trends.dart';
 import 'weekly_insights.dart';
 
@@ -30,4 +31,9 @@ class InsightsRepository {
 
   Future<Trends> trends({required int days}) async =>
       Trends.fromJson((await api.get('/api/me/trends?days=$days')).object);
+
+  Future<Statistics> statistics({required int days}) async =>
+      Statistics.fromJson(
+        (await api.get('/api/me/insights/statistics?days=$days')).object,
+      );
 }

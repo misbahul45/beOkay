@@ -6,18 +6,29 @@ import 'app_spacing.dart';
 import 'app_typography.dart';
 
 abstract final class AppTheme {
-  static ThemeData light({required bool reduceMotion}) {
-    final scheme = const ColorScheme.light(
-      primary: AppColors.primary,
-      onPrimary: AppColors.onPrimary,
-      secondary: AppColors.accent,
-      onSecondary: AppColors.textPrimary,
-      surface: AppColors.surface,
-      onSurface: AppColors.textPrimary,
-      error: AppColors.errorForeground,
-      onError: AppColors.onPrimary,
-      outline: AppColors.border,
-    );
+  static ThemeData light({required bool reduceMotion}) =>
+      build(brightness: Brightness.light, reduceMotion: reduceMotion);
+
+  static ThemeData build({
+    required Brightness brightness,
+    required bool reduceMotion,
+  }) {
+    AppColors.use(brightness);
+    final scheme =
+        ColorScheme.fromSeed(
+          seedColor: AppColors.brand,
+          brightness: brightness,
+        ).copyWith(
+          primary: AppColors.primary,
+          onPrimary: AppColors.onPrimary,
+          secondary: AppColors.accent,
+          onSecondary: AppColors.textPrimary,
+          surface: AppColors.surface,
+          onSurface: AppColors.textPrimary,
+          error: AppColors.errorForeground,
+          onError: AppColors.onPrimary,
+          outline: AppColors.border,
+        );
     const transitions = PageTransitionsTheme(
       builders: {
         TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
@@ -38,6 +49,7 @@ abstract final class AppTheme {
     );
     return ThemeData(
       useMaterial3: true,
+      brightness: brightness,
       fontFamily: AppTypography.family,
       colorScheme: scheme,
       scaffoldBackgroundColor: AppColors.background,
@@ -47,7 +59,7 @@ abstract final class AppTheme {
           : InkRipple.splashFactory,
       pageTransitionsTheme: reduceMotion ? instant : transitions,
       dividerColor: AppColors.border,
-      textTheme: const TextTheme(
+      textTheme: TextTheme(
         displayLarge: AppTypography.display,
         headlineMedium: AppTypography.headline,
         headlineSmall: AppTypography.heading,
@@ -57,7 +69,7 @@ abstract final class AppTheme {
         bodySmall: AppTypography.caption,
         labelLarge: AppTypography.bodyStrong,
       ),
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: AppColors.background,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
@@ -78,7 +90,7 @@ abstract final class AppTheme {
         ),
       ),
       chipTheme: ChipThemeData(
-        shape: const StadiumBorder(side: BorderSide(color: AppColors.border)),
+        shape: StadiumBorder(side: BorderSide(color: AppColors.border)),
         backgroundColor: AppColors.surface,
         selectedColor: AppColors.primary,
         checkmarkColor: AppColors.onPrimary,
@@ -86,7 +98,7 @@ abstract final class AppTheme {
         secondaryLabelStyle: AppTypography.secondaryStrong.copyWith(
           color: AppColors.onPrimary,
         ),
-        side: const BorderSide(color: AppColors.border),
+        side: BorderSide(color: AppColors.border),
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
@@ -105,7 +117,7 @@ abstract final class AppTheme {
         contentTextStyle: AppTypography.secondary,
       ),
       switchTheme: SwitchThemeData(
-        thumbColor: const WidgetStatePropertyAll(AppColors.surface),
+        thumbColor: WidgetStatePropertyAll(AppColors.surface),
         trackColor: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.selected)
               ? AppColors.primary

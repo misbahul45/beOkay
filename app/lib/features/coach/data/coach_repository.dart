@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../../../core/network/account_scoped_repository.dart';
 import '../../../core/network/api_exception.dart';
+import 'conversation_models.dart';
 
 class Recommendation {
   Recommendation.fromJson(Map<String, dynamic> j)
@@ -288,4 +289,38 @@ class CoachRepository extends AccountScopedRepository {
         in (await api.get('/api/me/planned-meals')).object['items'] as List)
       PlannedMeal.fromJson(v as Map<String, dynamic>),
   ];
+
+  Future<List<ConversationThread>> threads() async => [
+    for (final v
+        in (await api.get('/api/me/conversations')).object['items'] as List)
+      ConversationThread.fromJson(v as Map<String, dynamic>),
+  ];
+
+  Future<ThreadDetail> thread(String id) async => ThreadDetail.fromJson(
+    (await api.get('/api/me/conversations/$id')).object,
+  );
+
+  Future<Exchange> send(
+    String threadId, {
+    required String clientMessageId,
+    required String text,
+  }) async => Exchange.fromJson(
+    (await write('POST', '/api/me/conversations/$threadId/messages', {
+      'clientMessageId': clientMessageId,
+      'text': text,
+    })).object,
+  );
+
+  Future<void> deleteThread(String id) async =>
+      write('DELETE', '/api/me/conversations/$id', {});
+
+  Future<void> decideItem(
+    ChatRecommendation r, {
+    required bool accept,
+    required String operationId,
+  }) async => write('POST', '/api/me/agent/recommendations/${r.id}/decision', {
+    'operationId': operationId,
+    'decision': accept ? 'ACCEPT' : 'REJECT',
+    'expectedVersion': r.version,
+  });
 }

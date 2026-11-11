@@ -42,7 +42,7 @@ class ProfileAction extends ConsumerWidget {
                   border: Border.all(color: AppColors.border),
                 ),
                 child: initial.isEmpty
-                    ? const Icon(
+                    ? Icon(
                         Icons.person_outline_rounded,
                         size: 20,
                         color: AppColors.brand,

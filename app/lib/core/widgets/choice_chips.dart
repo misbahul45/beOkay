@@ -51,11 +51,7 @@ class PillChip extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (selected) ...[
-                    const Icon(
-                      Icons.check,
-                      size: 16,
-                      color: AppColors.onPrimary,
-                    ),
+                    Icon(Icons.check, size: 16, color: AppColors.onPrimary),
                     const SizedBox(width: 6),
                   ],
                   Flexible(

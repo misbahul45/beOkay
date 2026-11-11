@@ -235,6 +235,8 @@ class FakeBackend {
     'updatedAt': null,
   };
 
+  final deletedAccounts = <String>[];
+
   Future<http.Response> _handle(http.Request request) async {
     if (offline) throw http.ClientException('offline');
     final path = request.url.path;
@@ -323,6 +325,21 @@ class FakeBackend {
         }
         user.password = body['newPassword'] as String;
         return _json({'status': true});
+      case 'POST /api/me/account/delete':
+        if (body['confirm'] != 'HAPUS') {
+          return _appError(
+            400,
+            'VALIDATION_ERROR',
+            'Data yang dikirim tidak valid.',
+          );
+        }
+        if (user.password != body['password']) {
+          return _appError(403, 'INVALID_PASSWORD', 'Kata sandi tidak cocok.');
+        }
+        _users.remove(user.email);
+        _tokens.removeWhere((_, id) => id == user.id);
+        deletedAccounts.add(user.id);
+        return _json({'deleted': true});
       case 'GET /api/auth/list-sessions':
         final current = request.headers['Authorization']!.substring(7);
         return _json([

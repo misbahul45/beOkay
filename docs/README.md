@@ -13,6 +13,8 @@ beOkay adalah platform pencatatan kebiasaan harian untuk orang dewasa dengan dia
 | Aplikasi Flutter (struktur, rute, offline, Android) | [architecture/mobile-app.md](architecture/mobile-app.md) |
 | Menjalankan, menguji, memigrasi, merilis; variabel lingkungan; pipeline TKPI & model | [operations/runbook.md](operations/runbook.md) |
 | Kondisi proyek, risiko, dan apa yang harus dibereskan | [audits/full-project-audit-2026-11-10.md](audits/full-project-audit-2026-11-10.md) |
+| beOkay 3.0: audit Fase 0, sistem desain & navigasi (Fase 1), Beranda & statistik (Fase 2), rencana fase berikutnya | [reports/beokay-3.0-phase-0-2.md](reports/beokay-3.0-phase-0-2.md) |
+| beOkay 3.0 Fase 3: Asisten percakapan (router, bagian bertipe, gerbang identitas makanan) | [reports/beokay-3.0-phase-3.md](reports/beokay-3.0-phase-3.md) |
 
 ## Status singkat (per 10 November 2026)
 
@@ -22,8 +24,9 @@ beOkay adalah platform pencatatan kebiasaan harian untuk orang dewasa dengan dia
 | P1 | kalkulator porsi, pencarian makanan (lokal + OFF/USDA + TKPI), barcode, pemindaian label/foto, preferensi & alergi, pengingat, push, ekspor, impor Health Connect, insight kontekstual, tren | selesai, dengan keterbatasan | UI dibangun tanpa desain FigCraft; push nyata terblokir Firebase |
 | P2 | agen nutrisi + aktivitas (persetujuan tepat-sekali), personalisasi deterministik, komunitas/tantangan/skor, registri model + Modal, teks saran Mistral, SSE, outbox, hasil terukur | `P2_FUNCTIONALLY_COMPLETE_WITH_LIMITATIONS` | siklus tantangan tidak ada (F-04); registri model tanpa alat (F-16) |
 | P3 | mesin intervensi JITAI (tahap awal), pembersihan UX | irisan vertikal; 5 dari 13 kapabilitas `NOT_STARTED` (P3-04, 06, 08, 11, 13) | lihat [reports/p3-execution-plan.md](reports/p3-execution-plan.md) |
+| 3.0 | sistem desain v3, beOkay Spark, navigasi Asisten, mesin statistik `stats-v1`, Beranda adaptif, Asisten percakapan | Fase 0–3 selesai; Fase 4–7 direncanakan | [phase-0-2](reports/beokay-3.0-phase-0-2.md) · [phase-3](reports/beokay-3.0-phase-3.md) |
 
-Verifikasi audit: `tsc` bersih · backend **238/238** tes · `flutter analyze` bersih · Flutter **157/157** tes. Klasifikasi: siap untuk pengembangan, **belum siap produksi** (F-01 hapus data, F-02 ekspor lengkap, F-03 rilis Android).
+Verifikasi terakhir (setelah 3.0 Fase 3): `tsc` bersih · backend **270/270** tes · `flutter analyze` bersih · Flutter **179/179** tes. Pemblokir rilis F-01 (hapus akun) dan F-02 (ekspor lengkap) sudah ditutup; F-03 tinggal kunci rilis pemilik dan pendaftaran Firebase; F-10 ditutup. Mode gelap mengikuti sistem.
 
 ## Peta dokumen lama
 

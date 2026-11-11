@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/notifications/reminder_scheduler.dart';
+import '../../../core/offline/sync_controller.dart';
 import '../../push/application/push_controller.dart';
 
 import '../../../core/network/api_exception.dart';
@@ -81,6 +82,17 @@ class AuthController extends Notifier<AuthState> {
       await ref.read(pushControllerProvider.notifier).disable();
     } catch (_) {}
     await _repo.signOut();
+    _cancelReminders();
+    state = const AuthUnauthenticated();
+  }
+
+  Future<void> deleteAccount(String password) async {
+    await _repo.deleteAccount(password);
+    try {
+      await ref
+          .read(syncControllerProvider.notifier)
+          .clearForConsentWithdrawal();
+    } catch (_) {}
     _cancelReminders();
     state = const AuthUnauthenticated();
   }

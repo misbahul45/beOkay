@@ -115,8 +115,14 @@ Status model saat dilaporkan: `RESEARCH_ONLY` (lisensi dataset tidak tercantum);
 1. **Satu replika API.** Pembatas laju, cache, dan circuit breaker di memori proses (lihat [system-overview §9](../architecture/system-overview.md)).
 2. **Tantangan komunitas tidak diperbarui otomatis.** Satu tantangan per komunitas di-seed oleh migrasi dengan jendela `CURRENT_DATE … +27 hari`; setelah itu `CHALLENGE_CLOSED` dan tidak ada jalur untuk membuat yang baru (audit F-04). Pada DB prod baru, jendela dimulai pada hari migrasi dijalankan.
 3. **Push nyata terblokir** sampai aplikasi didaftarkan di Firebase dengan `applicationId` asli dan `google-services.json` ditempatkan di `app/android/app/`; kredensial server harus dari proyek yang sama.
-4. **Rilis Android belum siap**: `applicationId` `com.example.app`, ditandatangani kunci debug, `API_BASE_URL` default `http://localhost:3000` (bangun rilis dengan `--dart-define=API_BASE_URL=https://…`).
-5. **Penghapusan akun/data belum ada** (audit F-01); permintaan penghapusan hanya dapat ditangani manual di DB (cascade FK ada, tetapi belum ada prosedur teruji).
+4. **Rilis Android** (sejak 10 Nov 2026): `applicationId`/namespace `id.beokay.app`; izin `INTERNET` di manifes utama. Build rilis **ditolak Gradle** bila `app/android/key.properties` tidak ada atau `API_BASE_URL` bukan `https://`. Buat kunci sekali dan simpan di luar repo:
+   ```bash
+   keytool -genkeypair -keystore ~/beokay-release.jks -alias beokay -keyalg RSA -keysize 2048 -validity 10000
+   # app/android/key.properties (gitignored): storeFile=/home/<user>/beokay-release.jks, storePassword=…, keyAlias=beokay, keyPassword=…
+   cd app && flutter build appbundle --release --dart-define=API_BASE_URL=https://api.domain-anda
+   ```
+   Kehilangan kunci ini berarti aplikasi di Play Store tidak bisa diperbarui; cadangkan. Push masih butuh pendaftaran `id.beokay.app` di Firebase + `google-services.json`.
+5. **Penghapusan akun/data** tersedia untuk pengguna (Pengaturan → Privasi & data → Hapus akun; `POST /api/me/account/delete` dengan kata sandi + `confirm: "HAPUS"`). Semua tabel ber-`user_id` terhapus lewat cascade (diuji per tabel); `audit_events` dan `ml_inference_runs` dianonimkan (`user_id = NULL`). Rute bawaan Better Auth `/api/auth/delete-user` diblokir karena mengizinkan hapus tanpa kata sandi.
 
 ## 7. Skrip pendukung
 

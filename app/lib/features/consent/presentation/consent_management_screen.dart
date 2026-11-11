@@ -14,7 +14,6 @@ import '../../../core/widgets/page_scaffold.dart';
 import '../../../core/widgets/pill_button.dart';
 import '../application/consent_controller.dart';
 import '../data/consent_models.dart';
-import '../../export/presentation/export_section.dart';
 import 'consent_purpose_card.dart';
 
 class ConsentManagementScreen extends ConsumerStatefulWidget {
@@ -188,7 +187,6 @@ class _ConsentManagementScreenState
             );
           },
         ),
-        const ExportSection(),
       ],
     );
   }

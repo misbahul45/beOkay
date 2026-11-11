@@ -15,6 +15,7 @@ import '../../../core/widgets/timeline_tile.dart';
 import '../../goals/application/goals_controller.dart';
 import '../../medication/application/medication_controller.dart';
 import '../application/today_controller.dart';
+import 'today_extras.dart';
 
 /// Domain cards and recent events. Header and Quick Record live in HomeScreen.
 class TodaySection extends ConsumerStatefulWidget {
@@ -156,6 +157,14 @@ class _TodaySectionState extends ConsumerState<TodaySection>
                 _MedicationCard(),
                 const SizedBox(height: 10),
                 _GoalsCard(),
+                if (nutrition != null && nutrition.mealCount > 0) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  NutritionSnapshotCard(nutrition: nutrition),
+                ],
+                const SizedBox(height: AppSpacing.md),
+                TodayActions(mealCount: nutrition?.mealCount),
+                const SizedBox(height: AppSpacing.md),
+                const CompanionInsightCard(),
                 const SizedBox(height: AppSpacing.lg),
                 Semantics(
                   header: true,

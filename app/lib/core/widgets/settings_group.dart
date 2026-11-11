@@ -17,7 +17,7 @@ class SettingsGroup extends StatelessWidget {
       rows.add(children[index]);
       if (index < children.length - 1) {
         rows.add(
-          const Divider(
+          Divider(
             height: 1,
             indent: AppSpacing.md,
             endIndent: AppSpacing.md,
@@ -142,7 +142,7 @@ class SettingsRow extends StatelessWidget {
                 ],
                 if (onTap != null && trailing == null) ...[
                   const SizedBox(width: 4),
-                  const Icon(
+                  Icon(
                     Icons.chevron_right_rounded,
                     size: 20,
                     color: AppColors.decorative,

@@ -16,6 +16,15 @@ export function verificationEmail(url: string) {
   };
 }
 
+export function accountDeletedEmail() {
+  const text = "Akun beOkay-mu dan semua catatan yang terhubung sudah dihapus atas permintaanmu. Jika ini bukan kamu, hubungi kami dengan membalas email ini.";
+  return {
+    subject: "Akun beOkay sudah dihapus",
+    text: `Akunmu sudah dihapus\n\n${text}`,
+    html: `<!doctype html><html lang="id"><body style="margin:0;background:#F6F8FA;font-family:Inter,Arial,sans-serif;color:#171B20"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px"><table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px;background:#FFFFFF;border-radius:24px;padding:32px"><tr><td><p style="margin:0 0 24px;font-weight:700;font-size:18px">beOkay</p><h1 style="margin:0 0 12px;font-size:28px;line-height:1.15">Akunmu sudah dihapus</h1><p style="margin:0;font-size:16px;line-height:1.5;color:#566673">${escapeHtml(text)}</p></td></tr></table></td></tr></table></body></html>`,
+  };
+}
+
 export function passwordResetEmail(url: string) {
   const intro = "Kami menerima permintaan untuk mengatur ulang kata sandi akunmu. Tautan berlaku selama 1 jam.";
   const footer = "Jika kamu tidak meminta ini, abaikan email ini. Kata sandimu tidak berubah.";

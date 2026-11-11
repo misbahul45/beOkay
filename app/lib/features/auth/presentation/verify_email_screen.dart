@@ -83,11 +83,11 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
         Container(
           height: 72,
           width: 72,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: AppColors.accent,
             shape: BoxShape.circle,
           ),
-          child: const ExcludeSemantics(
+          child: ExcludeSemantics(
             child: Icon(
               Icons.mail_outline_rounded,
               size: 34,

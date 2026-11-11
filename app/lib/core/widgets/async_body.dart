@@ -72,11 +72,7 @@ class ErrorState extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Icon(
-            Icons.cloud_off_rounded,
-            size: 36,
-            color: AppColors.decorative,
-          ),
+          Icon(Icons.cloud_off_rounded, size: 36, color: AppColors.decorative),
           const SizedBox(height: AppSpacing.sm),
           Text('Belum bisa memuat', style: AppTypography.title),
           const SizedBox(height: 4),

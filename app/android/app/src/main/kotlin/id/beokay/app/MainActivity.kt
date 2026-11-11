@@ -1,4 +1,4 @@
-package com.example.app
+package id.beokay.app
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 

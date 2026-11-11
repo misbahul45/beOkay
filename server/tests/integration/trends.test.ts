@@ -44,10 +44,10 @@ test("Trends: consent, input range, ownership, unknown stays null, archived/revi
       row({ valueMgDl: 250, originalValue: 250, measuredAt: ago(900_000), archivedAt: new Date() }), // diarsipkan
     ],
   });
-  const act = (min: number, extra: { qualityStatus?: string; startedAt?: Date; endedAt?: Date } = {}) => ({ userId: a.id, activityType: "walking", startedAt: ago(7_200_000), endedAt: ago(7_200_000 - min * 60_000), durationMinutes: min, createHash: hash(), ...extra });
+  const act = (min: number, extra: { qualityStatus?: string; startedAt?: Date } = {}) => { const startedAt = extra.startedAt ?? ago(7_200_000); return { userId: a.id, activityType: "walking", durationMinutes: min, createHash: hash(), ...extra, startedAt, endedAt: new Date(startedAt.getTime() + min * 60_000) }; };
   await prisma.activitySession.createMany({ data: [act(30), act(20), act(99, { qualityStatus: "needs_review" })] });
   // Pembanding: periode sebelumnya (±10 hari lalu) → 15 menit.
-  await prisma.activitySession.create({ data: act(15, { startedAt: ago(10 * 86_400_000), endedAt: ago(10 * 86_400_000 - 900_000) }) });
+  await prisma.activitySession.create({ data: act(15, { startedAt: ago(10 * 86_400_000) }) });
 
   const food = await J(await call("/api/me/foods", a.token, { name: "Trend uji", source: "fixture", status: "user_reported", per100g: { calories: 200, carbohydrates: 30, protein: 5, fat: null, fiber: null } }));
   await call("/api/me/meals", a.token, { id: crypto.randomUUID(), category: "lunch", consumedAt: ago(5_000_000).toISOString(), items: [{ name: food.name, foodId: food.id, quantity: 150, unit: "g" }, { name: "Tanpa gizi", quantity: 1, unit: "portion" }] });

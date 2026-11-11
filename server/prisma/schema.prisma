@@ -58,6 +58,8 @@ model Users {
   recommendationOutcomes RecommendationOutcome[]
   mlInferenceRuns MlInferenceRun[]
   personalization PersonalizationProfile?
+  conversationThreads ConversationThread[]
+  conversationMessages ConversationMessage[]
 
   @@unique([email])
   @@map("users")
@@ -622,6 +624,8 @@ model AgentRun {
   events         AgentRunEvent[]
   toolCalls      AgentToolCall[]
   recommendations Recommendation[]
+  conversationThreads ConversationThread[]
+  conversationMessages ConversationMessage[]
   @@unique([userId, idempotencyKey])
   @@index([userId, createdAt(sort: Desc)])
   @@index([parentRunId])
@@ -981,4 +985,46 @@ model InterventionDecision {
   @@index([userId, decidedAt(sort: Desc)])
   @@index([userId, deliveryStatus])
   @@map("intervention_decisions")
+}
+
+model ConversationThread {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  title         String?
+  lastRunId     String?   @map("last_run_id") @db.Uuid
+  messageCount  Int       @default(0) @map("message_count")
+  lastMessageAt DateTime? @map("last_message_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user          Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastRun       AgentRun? @relation(fields: [lastRunId], references: [id], onDelete: SetNull)
+  messages      ConversationMessage[]
+  @@index([userId, lastMessageAt(sort: Desc)])
+  @@index([lastRunId])
+  @@map("conversation_threads")
+}
+
+model ConversationMessage {
+  id              String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  threadId        String               @map("thread_id") @db.Uuid
+  userId          String               @map("user_id") @db.Uuid
+  seq             Int
+  role            String
+  clientMessageId String?              @map("client_message_id") @db.Uuid
+  replyToId       String?              @unique @map("reply_to_id") @db.Uuid
+  text            String?
+  parts           Json                 @default("[]")
+  route           String?
+  routerVersion   String?              @map("router_version")
+  runId           String?              @map("run_id") @db.Uuid
+  createdAt       DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  thread          ConversationThread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user            Users                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replyTo         ConversationMessage? @relation("MessageReply", fields: [replyToId], references: [id], onDelete: Cascade)
+  reply           ConversationMessage? @relation("MessageReply")
+  run             AgentRun?            @relation(fields: [runId], references: [id], onDelete: SetNull)
+  @@unique([userId, clientMessageId])
+  @@unique([threadId, seq])
+  @@index([runId])
+  @@map("conversation_messages")
 }

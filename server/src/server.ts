@@ -1,4 +1,5 @@
 import { env } from "./config/env.ts";
+import { accountRoutes } from "./features/account/account.routes.ts";
 import { authRoutes } from "./features/auth/auth.routes.ts";
 import { consentRoutes } from "./features/consent/consent.routes.ts";
 import { healthProfileRoutes } from "./features/health-profile/health-profile.routes.ts";
@@ -27,6 +28,7 @@ import { mlRoutes } from "./features/ml/ml.routes.ts";
 import { interventionRoutes } from "./features/interventions/intervention.routes.ts";
 import { syncRoutes } from "./features/sync/sync.routes.ts";
 import { insightsRoutes } from "./features/insights/insights.routes.ts";
+import { conversationRoutes } from "./features/conversation/conversation.routes.ts";
 import { checkDatabase, prisma } from "./infrastructure/database/prisma.ts";
 import { route } from "./shared/http/handler.ts";
 import { logEvent } from "./shared/http/logger.ts";
@@ -36,6 +38,7 @@ const server = Bun.serve({
   idleTimeout: 60, // SSE: peristiwa/detak jantung lebih jarang dari 60 dtk
   routes: {
     ...authRoutes,
+    ...accountRoutes,
     ...consentRoutes,
     ...onboardingRoutes,
     ...profileRoutes,
@@ -49,6 +52,7 @@ const server = Bun.serve({
     ...exportRoutes,
     ...pushRoutes,
     ...agentRoutes,
+    ...conversationRoutes,
     ...communityRoutes,
     ...mlRoutes,
     ...interventionRoutes,

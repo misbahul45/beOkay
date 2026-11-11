@@ -116,7 +116,7 @@ class _IntroPoint extends StatelessWidget {
           Container(
             height: 36,
             width: 36,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: AppColors.accent,
               shape: BoxShape.circle,
             ),

@@ -521,6 +521,52 @@ void main() {
     expect(find.textContaining('tidak memverifikasi diagnosis'), findsNothing);
     await h.shot(tester, '14-edit-health');
   });
+  testWidgets(
+    'N. account deletion needs the password and HAPUS, then clears the session',
+    (tester) async {
+      final backend = FakeBackend();
+      final tokens = MemoryTokenStorage();
+      await tokens.write(
+        await seedVerifiedUser(
+          backend,
+          consent: true,
+          profile: true,
+          health: true,
+          prefs: true,
+          complete: true,
+        ),
+      );
+      final h = TestHarness(backend: backend, tokens: tokens);
+      await h.pump(tester);
+      await h.openProfile(tester);
+      await h.tapText(tester, 'Pengaturan aplikasi');
+      await h.tapText(tester, 'Privasi & data');
+      expect(find.text('Unduh data saya'), findsOneWidget);
+      await h.tapText(tester, 'Hapus akun dan data');
+      expect(find.text('Yang akan dihapus'), findsOneWidget);
+      PillButton button() => tester.widget<PillButton>(
+        find.widgetWithText(PillButton, 'Hapus permanen'),
+      );
+      expect(button().onPressed, isNull);
+
+      await h.fill(tester, 'Kata sandi', 'bukan-kata-sandi');
+      await h.fill(tester, 'Ketik HAPUS untuk konfirmasi', 'hapus');
+      await tester.pump();
+      expect(button().onPressed, isNotNull);
+      await h.tapText(tester, 'Hapus permanen');
+      expect(find.text('Kata sandi tidak cocok.'), findsOneWidget);
+      expect(backend.deletedAccounts, isEmpty);
+      expect(await tokens.read(), isNotNull);
+
+      await h.fill(tester, 'Kata sandi', _password);
+      await tester.pump();
+      await h.tapText(tester, 'Hapus permanen');
+      expect(backend.deletedAccounts, hasLength(1));
+      expect(await tokens.read(), isNull);
+      expect(find.text('Akun dan datamu sudah dihapus.'), findsOneWidget);
+      expect(find.text('Mulai Sekarang'), findsOneWidget);
+    },
+  );
 }
 
 Future<void> seedVerifiedUserSecondSession(FakeBackend backend) async {

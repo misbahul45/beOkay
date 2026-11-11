@@ -46,7 +46,7 @@ class ProfileScreen extends ConsumerWidget {
               child: Container(
                 height: 44,
                 width: 44,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: AppColors.accent,
                   shape: BoxShape.circle,
                 ),

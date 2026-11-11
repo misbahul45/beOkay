@@ -13,7 +13,7 @@ class PageScaffold extends StatelessWidget {
     this.showBack = true,
     this.bottom,
     this.actions,
-    this.background = AppColors.background,
+    this.background,
     this.onRefresh,
   });
 
@@ -23,7 +23,7 @@ class PageScaffold extends StatelessWidget {
   final bool showBack;
   final Widget? bottom;
   final List<Widget>? actions;
-  final Color background;
+  final Color? background;
 
   /// When set, the page supports pull-to-refresh.
   final Future<void> Function()? onRefresh;
@@ -38,6 +38,7 @@ class PageScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final background = this.background ?? AppColors.background;
     final canGoBack = showBack && (onBack != null || context.canPop());
     // Tab roots without title/actions skip the empty app bar and use the space for content.
     final hasBar = canGoBack || title != null || (actions?.isNotEmpty ?? false);
@@ -61,7 +62,7 @@ class PageScaffold extends StatelessWidget {
                         ),
                         style: IconButton.styleFrom(
                           backgroundColor: AppColors.surface,
-                          side: const BorderSide(color: AppColors.border),
+                          side: BorderSide(color: AppColors.border),
                           fixedSize: const Size(40, 40),
                           minimumSize: const Size(40, 40),
                           tapTargetSize: MaterialTapTargetSize.padded,

@@ -17,6 +17,7 @@ import { env } from "../../config/env.ts";
 import { outcomes } from "./outcomes.ts";
 import { createTextWriter, type TextWriter } from "./llm-text.ts";
 import type { Decision, Feedback, RunCreate } from "./agent.schema.ts";
+import { classifyFollowUp, classifyIntent, extractQuery } from "./agent.intent.ts";
 
 export const RUN_TTL_MS = 24 * 3_600_000;
 export const STALE_RUN_MS = 120_000;
@@ -28,32 +29,7 @@ export const MAX_TURNS = 20;
 /** Dapat diganti pada tes unit; produksi memakai Mistral bila kunci tersedia. */
 export const textWriterRef: { current: TextWriter } = { current: createTextWriter({ apiKey: env.MISTRAL_API_KEY, model: env.MISTRAL_AGENT_MODEL }) };
 
-const WHY_RE = /\b(kenapa|mengapa|alasan(nya)?|dasar(nya)?)\b/;
-const MORE_RE = /\b(yang lain|lainnya|ada lagi|opsi lain|pilihan lain|selain (itu|ini)|coba lagi)\b/;
-/** Rujukan giliran lanjutan, deterministik. "kenapa" didahulukan agar "kenapa tidak yang lain" tetap dijelaskan. */
-export function classifyFollowUp(message: string): "WHY" | "MORE" | null {
-  const m = message.toLowerCase();
-  if (WHY_RE.test(m)) return "WHY";
-  return MORE_RE.test(m) ? "MORE" : null;
-}
-
-const STOP = new Set(["alternatif", "pengganti", "ganti", "untuk", "makanan", "makan", "apa", "yang", "dong", "tolong", "saya", "aku", "cari", "carikan", "dari", "dengan", "atau", "dan", "pilihan", "rekomendasi", "saran", "usul", "menu", "lauk", "bisa", "boleh", "ada", "sebagai", "buat", "mau", "ingin"]);
-
-/** Turunan query deterministik dari pesan: kata bermakna pertama (maks 4). */
-export function extractQuery(message: string): string | null {
-  const tokens = message.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "").replace(/[^a-z0-9\s-]/g, " ").split(/\s+/).filter((t) => t.length >= 2 && !STOP.has(t));
-  return tokens.length ? tokens.slice(0, 4).join(" ") : null;
-}
-
-const NUTRITION_INTENT = /(alternatif|pengganti|ganti|rekomendasi|saran|pilihan|usul|cari|makan|makanan|menu|lauk|snack|camilan|sarapan)/;
-const ACTIVITY_INTENT = /(olahraga|aktivitas|jalan kaki|jogging|bersepeda|sepeda|latihan|bergerak|gerak badan|workout|exercise)/;
-const FOOD_WORDS = /(makan|makanan|menu|lauk|snack|camilan|sarapan|minum)/;
-export function classifyIntent(message: string, explicitQuery?: string): "NUTRITION_ALTERNATIVES" | "ACTIVITY_PLAN" | "UNSUPPORTED" {
-  const m = message.toLowerCase();
-  if (explicitQuery) return "NUTRITION_ALTERNATIVES";
-  if (ACTIVITY_INTENT.test(m) && !FOOD_WORDS.test(m)) return "ACTIVITY_PLAN";
-  return NUTRITION_INTENT.test(m) ? "NUTRITION_ALTERNATIVES" : "UNSUPPORTED";
-}
+export { classifyFollowUp, classifyIntent, extractQuery };
 
 async function consentOk(userId: string): Promise<boolean> {
   try {
@@ -140,7 +116,7 @@ async function runView(userId: string, id: string) {
     expiresAt: current.expiresAt.toISOString(),
     createdAt: current.createdAt.toISOString(),
     toolCallsUsed: current.toolCallsUsed,
-    summary: { query: state.query ?? null, coverage: state.coverage ?? null, excludedByConstraints: state.excludedByConstraints ?? 0, rejectedByValidation: state.rejectedByValidation ?? 0, profileVersion: state.profileVersion ?? null, preferencesConsidered: state.preferencesConsidered ?? 0 },
+    summary: { query: state.query ?? null, coverage: state.coverage ?? null, excludedByConstraints: state.excludedByConstraints ?? 0, rejectedByValidation: state.rejectedByValidation ?? 0, weakMatchesDropped: state.weakMatchesDropped ?? 0, profileVersion: state.profileVersion ?? null, preferencesConsidered: state.preferencesConsidered ?? 0 },
     events: events.map((e) => ({ seq: e.seq, type: e.type, payload: e.payload })),
     recommendations: recs.map(recView),
     consentRequired: !allowed,
@@ -418,9 +394,9 @@ async function execute(userId: string, run: RunRow, input: RunCreate, parent: Ru
       const outcome = await runNutritionGraph(ctx, query, exclude);
       for (const e of outcome.events) await emit(run.id, e.type, e.payload);
       const strict = outcome.preferencesConsidered > 0 && (await foodPreferencesService.activeFor(userId)).some((p) => p.severity === "strict");
-      const state = { query, coverage: outcome.coverage, excludedByConstraints: outcome.excludedByConstraints, rejectedByValidation: outcome.rejectedByValidation, profileVersion: outcome.profileVersion, preferencesConsidered: outcome.preferencesConsidered };
+      const state = { query, coverage: outcome.coverage, excludedByConstraints: outcome.excludedByConstraints, rejectedByValidation: outcome.rejectedByValidation, weakMatchesDropped: outcome.weakMatchesDropped, profileVersion: outcome.profileVersion, preferencesConsidered: outcome.preferencesConsidered };
       if (outcome.offered.length === 0) {
-        await setStatus(run.id, "COMPLETED", { toolCallsUsed: ctx.callsUsed, state: { ...state, outcome: "INSUFFICIENT_DATA", message: follow === "MORE" ? "Tidak ada pilihan lain yang cocok dan bersumber untuk pencarian itu." : outcome.excludedByConstraints > 0 ? "Semua kandidat yang ditemukan cocok dengan alergi atau pembatasanmu, jadi tidak ada yang ditawarkan." : "Tidak ada kandidat bergizi bersumber yang ditemukan untuk pencarian itu. Coba kata kunci lain." } });
+        await setStatus(run.id, "COMPLETED", { toolCallsUsed: ctx.callsUsed, state: { ...state, outcome: "INSUFFICIENT_DATA", message: follow === "MORE" ? "Tidak ada pilihan lain yang cocok dan bersumber untuk pencarian itu." : outcome.excludedByConstraints > 0 ? "Semua kandidat yang ditemukan cocok dengan alergi atau pembatasanmu, jadi tidak ada yang ditawarkan." : outcome.weakMatchesDropped > 0 ? `Belum menemukan makanan yang cocok dengan "${query}". Coba nama yang lebih spesifik.` : "Tidak ada kandidat bergizi bersumber yang ditemukan untuk pencarian itu. Coba kata kunci lain." } });
         return runView(userId, run.id);
       }
       const expiresAt = new Date(Date.now() + RUN_TTL_MS);

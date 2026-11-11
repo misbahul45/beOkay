@@ -1,5 +1,6 @@
 import { afterAll, expect, test } from "bun:test";
 import { prisma } from "../../src/infrastructure/database/prisma.ts";
+import { EXCLUDED_TABLES, EXPORTED_TABLES } from "../../src/features/export/export.service.ts";
 
 const api = process.env.API_BASE_URL;
 const users: string[] = [];
@@ -34,7 +35,7 @@ test("Ekspor: hanya data sendiri, tanpa rahasia/hash, tetap bisa setelah consent
   expect(res.headers.get("cache-control")).toContain("no-store");
   const text = await res.text();
   const bundle = JSON.parse(text);
-  expect(bundle.format).toBe("beokay-export-v1");
+  expect(bundle.format).toBe("beokay-export-v2");
   expect(bundle.counts).toMatchObject({ glucoseObservations: 1, foodPreferences: 1, reminders: 1 });
   expect(bundle.data.account.id).toBe(a.id);
   expect(bundle.data.glucoseObservations[0].originalValue ?? bundle.data.glucoseObservations[0].valueMgDl).toBeDefined();
@@ -60,4 +61,22 @@ test("Ekspor: hanya data sendiri, tanpa rahasia/hash, tetap bisa setelah consent
   for (let i = 0; i < 3; i++) expect((await call("/api/me/export", a.token)).status).toBe(200);
   expect((await call("/api/me/export", a.token)).status).toBe(429);
   expect((await call("/api/me/export", b.token)).status).toBe(200); // akun lain tidak terpengaruh
+});
+
+test("Ekspor lengkap: setiap tabel milik pengguna diekspor atau dikecualikan dengan alasan", async () => {
+  const rows = await prisma.$queryRaw<{ table: string }[]>`
+    SELECT DISTINCT table_name AS "table" FROM information_schema.columns
+    WHERE table_schema = 'public' AND column_name IN ('user_id', 'userId') ORDER BY 1`;
+  const owned = rows.map((r) => r.table).filter((t) => t !== "users");
+  const covered = new Set<string>([...EXPORTED_TABLES, ...Object.keys(EXCLUDED_TABLES)]);
+  expect(owned.filter((t) => !covered.has(t))).toEqual([]);
+  expect([...covered].filter((t) => !owned.includes(t))).toEqual([]);
+  for (const reason of Object.values(EXCLUDED_TABLES)) expect(reason.length).toBeGreaterThan(10);
+
+  const a = await actor();
+  const bundle = await J(await call("/api/me/export", a.token));
+  for (const key of ["assistantRuns", "recommendations", "plannedMeals", "activityPlans", "personalization", "communityMemberships", "challengeParticipants", "scoreEvents", "interventionDecisions", "pushDevices", "modelInferenceRuns"]) {
+    expect(bundle.data).toHaveProperty(key);
+  }
+  expect(bundle.excluded).toEqual(EXCLUDED_TABLES);
 });

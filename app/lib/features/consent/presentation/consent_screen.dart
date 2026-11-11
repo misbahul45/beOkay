@@ -203,11 +203,7 @@ class _AcceptRow extends StatelessWidget {
                   ),
                 ),
                 child: value
-                    ? const Icon(
-                        Icons.check,
-                        size: 18,
-                        color: AppColors.onPrimary,
-                      )
+                    ? Icon(Icons.check, size: 18, color: AppColors.onPrimary)
                     : null,
               ),
               const SizedBox(width: AppSpacing.sm),

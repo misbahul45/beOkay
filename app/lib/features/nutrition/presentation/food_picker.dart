@@ -129,7 +129,7 @@ class _FoodPickerState extends State<FoodPicker> {
     if (c.excluded) {
       return Text(
         'Perhatian: cocok dengan ${c.labels.join(', ')} (dugaan dari nama)',
-        style: const TextStyle(
+        style: TextStyle(
           color: AppColors.errorForeground,
           fontWeight: FontWeight.w600,
         ),
@@ -138,7 +138,7 @@ class _FoodPickerState extends State<FoodPicker> {
     if (c.warning) {
       return Text(
         'Kamu tidak suka: ${c.labels.join(', ')}',
-        style: const TextStyle(color: AppColors.warningForeground),
+        style: TextStyle(color: AppColors.warningForeground),
       );
     }
     return null;

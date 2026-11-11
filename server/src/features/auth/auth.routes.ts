@@ -15,6 +15,9 @@ function clientIp(req: Request, server: Server<unknown>): string | undefined {
 
 export const authRoutes = {
   "/api/auth/*": route(async ({ req, server }) => {
+    if (new URL(req.url).pathname.startsWith("/api/auth/delete-user")) {
+      return { status: 404, body: { error: { code: "NOT_FOUND", message: "Rute tidak ditemukan." } } };
+    }
     const headers = new Headers(req.headers);
     headers.delete(CLIENT_IP_HEADER);
     const ip = clientIp(req, server);

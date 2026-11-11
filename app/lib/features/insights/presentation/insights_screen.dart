@@ -24,6 +24,7 @@ import '../../nutrition/data/nutrition_models.dart';
 import '../application/insights_controller.dart';
 import '../data/daily_insights.dart';
 import 'contextual_card.dart';
+import 'statistics_section.dart';
 import 'weekly_card.dart';
 
 /// "Wawasan" tab: descriptive daily summary with explicit coverage and freshness.
@@ -38,6 +39,7 @@ class InsightsScreen extends ConsumerWidget {
       onRefresh: () async {
         ref.invalidate(dailyInsightsProvider);
         ref.invalidate(contextualInsightsProvider);
+        ref.invalidate(statisticsProvider(ref.read(trendRangeProvider)));
         await ref.read(dailyInsightsProvider.future).catchError((_) => null);
       },
       children: [
@@ -47,6 +49,13 @@ class InsightsScreen extends ConsumerWidget {
               'Ringkasan dari catatanmu sendiri. Bukan diagnosis dan bukan saran medis.',
         ),
         const SizedBox(height: AppSpacing.md),
+        const StatisticsSection(),
+        const SizedBox(height: AppSpacing.lg),
+        Semantics(
+          header: true,
+          child: Text('Hari ini dan per hari', style: AppTypography.heading),
+        ),
+        const SizedBox(height: AppSpacing.sm),
         const ContextualCard(),
         const _TrendsEntry(),
         const SizedBox(height: AppSpacing.sm),
@@ -101,7 +110,7 @@ class _TrendsEntry extends StatelessWidget {
           padding: const EdgeInsets.all(AppSpacing.md),
           child: Row(
             children: [
-              const Icon(Icons.show_chart_rounded, color: AppColors.onPrimary),
+              Icon(Icons.show_chart_rounded, color: AppColors.onPrimary),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
@@ -122,10 +131,7 @@ class _TrendsEntry extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.onPrimary,
-              ),
+              Icon(Icons.chevron_right_rounded, color: AppColors.onPrimary),
             ],
           ),
         ),

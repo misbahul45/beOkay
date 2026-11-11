@@ -1,6 +1,6 @@
 # Referensi Endpoint API
 
-> Daftar lengkap rute yang terdaftar di `server/src/server.ts` (sumber: `*.routes.ts` tiap modul), diaudit 10 November 2026. Total: **±120 kombinasi metode+path** (+ sub-rute `/api/auth/*` milik Better Auth). Dokumen `docs/api/{activity,glucose,nutrition}.md` lama merinci contoh payload tiga domain pertama; dokumen ini mencakup semuanya.
+> Daftar lengkap rute yang terdaftar di `server/src/server.ts` (sumber: `*.routes.ts` tiap modul), diaudit 10 November 2026. Total: **±121 kombinasi metode+path** (+ sub-rute `/api/auth/*` milik Better Auth). Dokumen `docs/api/{activity,glucose,nutrition}.md` lama merinci contoh payload tiga domain pertama; dokumen ini mencakup semuanya.
 > Sebagian besar kontrak payload didefinisikan oleh skema Zod di `server/src/features/<modul>/*.schema.ts` — itulah rujukan nama dan batas bidang yang tepat.
 
 ## 1. Konvensi umum
@@ -58,7 +58,8 @@ Rate limit (per menit): umum 120; `sign-in/email` 5; `sign-up/email` 5; `request
 | POST | `/api/me/consents/withdraw` | — | `{purposes[]}` |
 | GET · PATCH | `/api/me/onboarding` | — | state diturunkan; `PATCH {introSeen:true, expectedVersion?}` |
 | POST | `/api/me/onboarding/complete` | — | `409 ONBOARDING_INCOMPLETE {missingSteps}` bila belum lengkap |
-| GET | `/api/me/export` | — (sengaja) | ekspor data milik sendiri, 5/jam |
+| GET | `/api/me/export` | — (sengaja) | ekspor data milik sendiri, 5/jam; format `beokay-export-v2` mencakup semua tabel ber-`user_id` kecuali yang tercantum di `excluded` beserta alasannya |
+| POST | `/api/me/account/delete` | — | `{password, confirm: "HAPUS"}`; `403 INVALID_PASSWORD`; 5 percobaan / 15 menit; menghapus akun dan semua data (cascade), email konfirmasi dikirim. `/api/auth/delete-user` diblokir (404) |
 
 ## 5. Pencatatan
 
@@ -91,6 +92,7 @@ Catatan khusus:
 | GET | `/api/me/summaries/weekly` | `date?` |
 | GET | `/api/me/insights/contextual` | — |
 | GET | `/api/me/trends` | `days ∈ {7,14,30,90}` (default 14) |
+| GET | `/api/me/insights/statistics` | `days ∈ {7,14,30,90}` (default 14). Statistik bermetadata (`stats-v1`), kartu insight (`insight-rules-v1`), dan seri harian makronutrien/aktivitas/glukosa/obat. Lihat `docs/reports/beokay-3.0-phase-0-2.md` §5 |
 
 ## 7. Pencarian makanan dan pemindaian (Consent H)
 
@@ -125,11 +127,22 @@ Catatan khusus:
 | GET | `/api/me/agent/pending` | H + A (bila kurang → `consentRequired:true`, bukan 403) | run menunggu keputusan (pemulihan setelah restart) |
 | POST | `/api/me/agent/recommendations/:id/decision` | H + A | `{operationId, decision: ACCEPT|REJECT, expectedVersion}` |
 | POST | `/api/me/agent/recommendations/:id/feedback` | H + A | `{operationId, kind: CONSUMED|NOT_CONSUMED|COMPLETED|SKIPPED, activitySessionId?}`; hanya rekomendasi `ACCEPTED` |
-| GET | `/api/me/agent/tools` | — | kontrak alat terdaftar |
+| GET | `/api/me/agent/tools` | — | kontrak alat terdaftar; sejak 3.0 Fase 3 `requiredPermissions` ditegakkan di `executeTool` (tanpa consent → `PERMISSION_DENIED`, tercatat `DENIED`) |
 | GET | `/api/me/planned-meals` · `/api/me/activity-plans` | H | rencana (bukan catatan) |
 | GET · DELETE | `/api/me/personalization` | GET: A | ringkasan / reset profil personalisasi |
 | GET | `/api/me/ml/models` | — | katalog model + status (`usableForUsers` hanya `APPROVED`) |
 | POST | `/api/me/ml/warmup` | — | selalu `202 {accepted:true}` agar status tidak bocor |
+
+### 9a. Percakapan Asisten (3.0 Fase 3)
+
+| Metode | Path | Consent | Keterangan |
+|---|---|---|---|
+| GET | `/api/me/conversations` | H | 30 thread terbaru: `id`, `title`, `messageCount`, `lastMessageAt` |
+| GET | `/api/me/conversations/:id` | H | thread + semua pesan; bagian `recommendations` diisi status saran terkini (`hidden:true` bila consent A dicabut); thread orang lain → `404` |
+| POST | `/api/me/conversations/:id/messages` | H (+ A untuk makanan/aktivitas, + S untuk ringkasan; kekurangan dijawab sebagai bagian `consent_required`, bukan 403) | `{clientMessageId: uuid, text(1–1000)}`; thread dibuat otomatis dengan `id` dari klien; `201` baru, `200` + `replayed:true` untuk `clientMessageId` yang sama; teks berbeda → `409 IDEMPOTENCY_CONFLICT`; sedang diproses → `409 MESSAGE_IN_PROGRESS`; `422 THREAD_FULL` (400 pesan); `429 CONVERSATION_RATE_LIMITED` (30 pesan / 10 mnt) |
+| DELETE | `/api/me/conversations/:id` | — | hapus thread dan pesan; saran terbuka dari thread itu menjadi `INVALIDATED`, run terkait `CANCELLED`, `input_text` run disamarkan; rencana yang sudah diterima tetap |
+
+Balasan berupa bagian bertipe: `text`, `statistic` (dari `stats-v1`), `recommendations` (run agen), `no_match`, `safety`, `notice`, `consent_required`, `suggestions`, `link` (`INSIGHTS`/`LOG`/`LOG_MEAL`/`CONSENT`). Rute dipilih router deterministik `router-v1` (`conversation.router.ts`).
 
 ## 10. Komunitas (P2) — Consent per tujuan
 

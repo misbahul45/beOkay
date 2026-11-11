@@ -38,7 +38,7 @@ class SelectionCard extends StatelessWidget {
         ),
       ),
       child: selected
-          ? const Icon(Icons.check, size: 16, color: AppColors.onPrimary)
+          ? Icon(Icons.check, size: 16, color: AppColors.onPrimary)
           : null,
     );
     return Semantics(

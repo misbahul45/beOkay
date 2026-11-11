@@ -28,7 +28,7 @@ class BeOkayAvatar extends StatelessWidget {
         height: size,
         width: size,
         alignment: Alignment.center,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: AppColors.cream,
         ),

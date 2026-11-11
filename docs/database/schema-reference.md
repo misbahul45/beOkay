@@ -89,6 +89,13 @@ Indeks: GIN trigram `food_reference_name_trgm_idx` (kata) dan **HNSW** `food_ref
 | `recommendation_outcomes` | hasil **terukur** dari catatan nyata: `recommendation_id` unik, `evidence_type` (`meal_item`/`activity_session`), `evidence_id` |
 | `personalization_profiles` / `personalization_events` | profil deterministik berversi (`data` JSONB) dan jejak perubahannya `UNIQUE(user_id, version)` |
 
+### Percakapan (3.0 Fase 3)
+
+| Tabel | Fungsi |
+|---|---|
+| `conversation_threads` | `id` dari klien, `title` (CHECK 1–80), `last_run_id` (FK `agent_runs`, SET NULL; run terakhir yang bisa dilanjutkan "kenapa"/"pilihan lain"), `message_count` (CHECK 0–400), `last_message_at` |
+| `conversation_messages` | `seq` (`UNIQUE(thread_id, seq)`), `role` `USER`/`ASSISTANT`; pesan pengguna wajib `client_message_id` (`UNIQUE(user_id, client_message_id)`) dan `text` 1–1000; balasan wajib `reply_to_id` (unik, satu balasan per pesan), `route`, `router_version`; `parts` JSONB array (CHECK `jsonb_typeof`); `run_id` (FK `agent_runs`, SET NULL) |
+
 ## 8. Komunitas (P2)
 
 | Tabel | Fungsi |
@@ -135,6 +142,7 @@ Indeks: GIN trigram `food_reference_name_trgm_idx` (kata) dan **HNSW** `food_ref
 | 19 | `20261109130000_ml_registry` | registri model |
 | 20 | `20261109140000_p2_outbox_outcomes_conversations` | outbox, hasil terukur, percakapan |
 | 21 | `20261110010000_interventions` | intervensi |
+| 22 | `20261110132120_conversations` | thread & pesan percakapan Asisten + CHECK |
 
 ## 11. Membuat migrasi baru (ringkas)
 

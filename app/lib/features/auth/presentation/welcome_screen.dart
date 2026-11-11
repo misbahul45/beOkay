@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/router/routes.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/beokay_avatar.dart';
@@ -16,11 +15,11 @@ class WelcomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF0E6B73), AppColors.brand, Color(0xFF07313B)],
+            colors: [Color(0xFF0E6B73), Color(0xFF16796F), Color(0xFF07313B)],
           ),
         ),
         child: SafeArea(
@@ -41,9 +40,7 @@ class WelcomeScreen extends StatelessWidget {
                   header: true,
                   child: Text(
                     'Halo, aku beOkay.',
-                    style: AppTypography.display.copyWith(
-                      color: AppColors.onPrimary,
-                    ),
+                    style: AppTypography.display.copyWith(color: Colors.white),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
@@ -64,14 +61,14 @@ class WelcomeScreen extends StatelessWidget {
                   child: TextButton(
                     style: TextButton.styleFrom(
                       minimumSize: const Size(48, 48),
-                      foregroundColor: AppColors.onPrimary,
+                      foregroundColor: Colors.white,
                       backgroundColor: Colors.transparent,
                     ),
                     onPressed: () => context.go(Routes.login),
                     child: Text(
                       'Sudah punya akun? Masuk',
                       style: AppTypography.bodyStrong.copyWith(
-                        color: AppColors.onPrimary,
+                        color: Colors.white,
                       ),
                     ),
                   ),

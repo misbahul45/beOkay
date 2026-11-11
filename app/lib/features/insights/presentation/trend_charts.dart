@@ -635,7 +635,7 @@ class _ChartTableToggleState extends State<ChartTableToggle> {
       if (open)
         Table(
           columnWidths: const {0: FlexColumnWidth(1.6)},
-          border: const TableBorder(
+          border: TableBorder(
             horizontalInside: BorderSide(color: AppColors.border),
           ),
           children: [

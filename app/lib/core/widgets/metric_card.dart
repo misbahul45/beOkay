@@ -27,8 +27,8 @@ class MetricCard extends StatelessWidget {
     this.onSecondary,
     this.footnote,
     this.prominentValue = false,
-    this.tint = AppColors.accent,
-    this.ink = AppColors.primary,
+    this.tint,
+    this.ink,
   });
 
   final IconData icon;
@@ -50,7 +50,10 @@ class MetricCard extends StatelessWidget {
 
   /// Larger value (Insights) instead of the compact one (Today).
   final bool prominentValue;
-  final Color tint, ink;
+  final Color? tint, ink;
+
+  Color get _tint => tint ?? AppColors.accent;
+  Color get _ink => ink ?? AppColors.primary;
 
   @override
   Widget build(BuildContext context) {
@@ -67,8 +70,8 @@ class MetricCard extends StatelessWidget {
             child: Container(
               height: 40,
               width: 40,
-              decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
-              child: Icon(icon, size: 20, color: ink),
+              decoration: BoxDecoration(color: _tint, shape: BoxShape.circle),
+              child: Icon(icon, size: 20, color: _ink),
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
@@ -134,7 +137,7 @@ class MetricCard extends StatelessWidget {
                   width: AppSpacing.minTouchTarget,
                   child: Center(
                     child: Material(
-                      color: tint,
+                      color: _tint,
                       shape: const CircleBorder(),
                       child: InkWell(
                         customBorder: const CircleBorder(),
@@ -142,7 +145,7 @@ class MetricCard extends StatelessWidget {
                         child: SizedBox(
                           height: 40,
                           width: 40,
-                          child: Icon(Icons.add_rounded, size: 22, color: ink),
+                          child: Icon(Icons.add_rounded, size: 22, color: _ink),
                         ),
                       ),
                     ),
@@ -151,7 +154,7 @@ class MetricCard extends StatelessWidget {
               ),
             )
           else if (onSecondary != null)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 6),
               child: Icon(
                 Icons.chevron_right_rounded,
@@ -166,7 +169,7 @@ class MetricCard extends StatelessWidget {
       color: AppColors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: AppRadius.cardRadius,
-        side: const BorderSide(color: AppColors.border),
+        side: BorderSide(color: AppColors.border),
       ),
       clipBehavior: Clip.antiAlias,
       child: onSecondary == null
