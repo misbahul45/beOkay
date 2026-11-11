@@ -283,15 +283,19 @@ class _Painter extends CustomPainter {
       scaler: scaler,
     );
     w.painter.paint(canvas, f);
-    // Sumbu-x: jarang agar tidak bertabrakan; hari terpilih selalu berlabel.
     final every = (w.count / 7).ceil();
-    for (var i = 0; i < w.count; i++) {
-      if (i % every != 0 && i != selected && i != w.count - 1) continue;
-      if (i != selected &&
-          i != w.count - 1 &&
-          w.count - 1 - i < every ~/ 2 + 1) {
-        continue;
-      }
+    final candidates = <int>[
+      ?selected,
+      if (selected != w.count - 1) w.count - 1,
+      for (var i = 0; i < w.count; i++)
+        if (i % every == 0 &&
+            i != selected &&
+            i != w.count - 1 &&
+            w.count - 1 - i >= every ~/ 2 + 1)
+          i,
+    ];
+    final drawn = <Rect>[];
+    for (final i in candidates) {
       final s = w.xLabel(i);
       if (s == null) continue;
       final tp = f.text(
@@ -303,13 +307,14 @@ class _Painter extends CustomPainter {
           fontWeight: i == selected ? FontWeight.w700 : FontWeight.w400,
         ),
       );
-      tp.paint(
-        canvas,
-        Offset(
-          (f.centerX(i) - tp.width / 2).clamp(0.0, size.width - tp.width),
-          plot.bottom + 4,
-        ),
+      final left = (f.centerX(i) - tp.width / 2).clamp(
+        0.0,
+        size.width - tp.width,
       );
+      final rect = Rect.fromLTWH(left, plot.bottom + 4, tp.width, tp.height);
+      if (drawn.any((r) => r.inflate(3).overlaps(rect))) continue;
+      drawn.add(rect);
+      tp.paint(canvas, rect.topLeft);
     }
   }
 
