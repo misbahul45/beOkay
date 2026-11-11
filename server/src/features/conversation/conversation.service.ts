@@ -240,24 +240,26 @@ async function mealDraftReply(userId: string, thread: Thread, body: string, msg:
 }
 
 async function reflectionReply(userId: string): Promise<Reply> {
-  const r = await coachingService.reflection(userId);
-  if (r.consentRequired) {
+  const open = await coachingService.reflection(userId);
+  if (open.consentRequired) {
     return { parts: [text("Wajar merasa begitu. Satu minggu yang berat tidak membuatmu gagal."), ...consentReply("descriptive_summaries")], route: "REFLECTION", runId: null, continuesRun: false };
   }
-  const positives = r.positives.slice(0, 3);
-  const actionsDone = r.actions.observed + r.actions.confirmed + r.actions.fromAssistant;
+  const now = open.isCurrentWeek ? open : await coachingService.reflection(userId, new Date(), { currentWeek: true });
+  if (now.consentRequired) return { parts: consentReply("descriptive_summaries"), route: "REFLECTION", runId: null, continuesRun: false };
+  const positives = now.positives.slice(0, 3);
+  const actionsDone = now.actions.observed + now.actions.confirmed + now.actions.fromAssistant;
   const lead = positives.length
-    ? "Wajar merasa begitu, dan satu minggu yang berat tidak membuatmu gagal. Ini yang benar-benar tercatat minggu ini:"
+    ? `Wajar merasa begitu, dan satu minggu yang berat tidak membuatmu gagal. Ini yang benar-benar tercatat minggu ini${open.isCurrentWeek ? "" : " sejauh ini"}:`
     : "Wajar merasa begitu. Minggu ini belum banyak yang tercatat, dan itu tidak apa-apa. Kita bisa mulai lagi dari langkah yang sangat kecil.";
-  const ask = r.done
-    ? "Refleksi minggu ini sudah kamu isi. Bagian mana yang paling berat? Ceritakan saja, atau lihat lagi rencanamu."
-    : r.adjustments.length
+  const ask = open.done
+    ? "Refleksi mingguanmu sudah terisi. Bagian mana yang paling berat? Ceritakan saja, atau lihat lagi rencanamu."
+    : open.adjustments.length
       ? "Bagian mana yang paling berat? Kalau mau, target minggu depan bisa kita kecilkan bersama lewat refleksi mingguan."
       : "Bagian mana yang paling berat? Di refleksi mingguan kita bisa memilih satu langkah kecil untuk minggu depan.";
-  const sources: BasisSource[] = [{ kind: "STATISTICS", label: `Ringkasan minggu ${r.weekStart} dari catatanmu` }];
-  if (r.goals.length) sources.push({ kind: "GOALS", label: "Tujuan yang kamu pilih" });
+  const sources: BasisSource[] = [{ kind: "STATISTICS", label: `Ringkasan minggu ${now.weekStart} dari catatanmu` }];
+  if (now.goals.length) sources.push({ kind: "GOALS", label: "Tujuan yang kamu pilih" });
   return {
-    parts: [text(lead), { type: "reflection", weekStart: r.weekStart, positives, actionsDone, canAdjust: r.adjustments.length > 0, done: Boolean(r.done) }, text(ask)],
+    parts: [text(lead), { type: "reflection", weekStart: open.weekStart, positives, actionsDone, canAdjust: open.adjustments.length > 0, done: Boolean(open.done) }, text(ask)],
     route: "REFLECTION",
     runId: null,
     continuesRun: false,

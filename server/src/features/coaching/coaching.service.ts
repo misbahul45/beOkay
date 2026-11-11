@@ -175,6 +175,11 @@ async function loadAction(userId: string, id: string, db: Tx | typeof prisma = p
   return a;
 }
 
+const OPEN_CARDS = ["ELIGIBLE", "DELIVERED", "OPENED", "SNOOZED"];
+async function closeCards(db: Tx | typeof prisma, userId: string, trigger: "COACHING_ACTION_DUE" | "WEEKLY_REVIEW_AVAILABLE", subjectRef?: string) {
+  await db.interventionDecision.updateMany({ where: { userId, triggerType: trigger, deliveryStatus: { in: OPEN_CARDS }, ...(subjectRef ? { subjectRef } : {}) }, data: { deliveryStatus: "CANCELLED" } });
+}
+
 async function archiveReminder(tx: Tx, userId: string, reminderId: string | null, now: Date) {
   if (!reminderId) return;
   await tx.reminder.updateMany({ where: { id: reminderId, userId, archivedAt: null }, data: { archivedAt: now, enabled: false, version: { increment: 1 } } });
@@ -220,6 +225,7 @@ export const coachingService = {
               const data = { status: "OBSERVED", evidenceType: hit.type, evidenceId: hit.id, observedAt: hit.at };
               if (row) await prisma.coachingOutcome.update({ where: { id: row.id }, data });
               else await prisma.coachingOutcome.create({ data: { userId, actionId: a.id, localDate: asDate(date), ...data } });
+              if (date === today) await closeCards(prisma, userId, "COACHING_ACTION_DUE", a.id);
               observed++;
             } else if (!hit && row?.status === "OBSERVED") {
               await prisma.coachingOutcome.update({ where: { id: row.id }, data: { status: "RETRACTED", evidenceType: null, evidenceId: null, observedAt: null } });
@@ -326,6 +332,7 @@ export const coachingService = {
         } else {
           Object.assign(data, { status: "WITHDRAWN", closeReason: "USER_WITHDREW" });
           await archiveReminder(tx, userId, a.reminderId, now);
+          await closeCards(tx, userId, "COACHING_ACTION_DUE", a.id);
         }
         const moved = await tx.coachingAction.updateMany({ where: { id, userId, status: expected, version: a.version }, data });
         if (moved.count !== 1) throw conflict("ACTION_NOT_OPEN", "Rencana ini sudah berubah. Muat ulang.");
@@ -360,7 +367,10 @@ export const coachingService = {
           const status = proposed ? "DECLINED" : "WITHDRAWN";
           const moved = await tx.coachingAction.updateMany({ where: { id, userId, status: a.status, version: a.version }, data: { status, closeReason, decidedAt: proposed ? now : a.decidedAt, version: { increment: 1 } } });
           if (moved.count !== 1) throw conflict("ACTION_NOT_OPEN", "Rencana ini sudah berubah. Muat ulang.");
-          if (accepted) await archiveReminder(tx, userId, a.reminderId, now);
+          if (accepted) {
+            await archiveReminder(tx, userId, a.reminderId, now);
+            await closeCards(tx, userId, "COACHING_ACTION_DUE", a.id);
+          }
         };
         const variant = a.opportunityKey.split(":")[1] ?? "";
         switch (k) {
@@ -381,6 +391,7 @@ export const coachingService = {
               const dates = M.actionDates(iso(a.startDate), a.days);
               if (!dates.includes(today)) throw unprocessable("DATE_NOT_IN_PLAN", "Hari ini tidak termasuk rencana ini.");
               await confirmDay(tx, userId, a.id, today);
+              await closeCards(tx, userId, "COACHING_ACTION_DUE", a.id);
             }
             break;
           case "NOT_NOW":
@@ -451,6 +462,7 @@ export const coachingService = {
     try {
       await prisma.$transaction(async (tx) => {
         await confirmDay(tx, userId, id, input.date);
+        if (input.date === today) await closeCards(tx, userId, "COACHING_ACTION_DUE", id);
         await tx.coachingEvent.create({ data: { userId, actionId: id, operationId: input.operationId, type: "CONFIRMATION", value: input.date } });
         await recordAudit(tx, { userId, eventType: "coaching_confirmed", metadata: { actionId: id, date: input.date } });
       });
@@ -502,15 +514,16 @@ export const coachingService = {
     return { weekStart: target, weekEnd: week.weekEnd, done: Boolean(done), available: week.recordedDays > 0 || actions > 0 };
   },
 
-  async reflection(userId: string, now = new Date()) {
+  async reflection(userId: string, now = new Date(), opts: { currentWeek?: boolean } = {}) {
     if (!(await hasConsent(userId, ["health_data_processing", "descriptive_summaries"]))) return { consentRequired: true as const };
     await this.reconcile(userId, now);
     const { tz, today } = await clock(userId, now);
     const current = await weeklyService.get(userId, today);
-    const target = M.reflectionWeekStart(today, current.weekStart);
+    const target = opts.currentWeek ? current.weekStart : M.reflectionWeekStart(today, current.weekStart);
     const week = target === current.weekStart ? current : await weeklyService.get(userId, target);
     const weekEnd = week.weekEnd;
     const asOf = target === current.weekStart ? today : weekEnd;
+    const daysSoFar = target === current.weekStart ? Math.min(week.totalDays, M.daysBetween(target, today) + 1) : week.totalDays;
     const [checkin, history, actionRows, agentOutcomes, goalRows] = await Promise.all([
       prisma.weeklyCheckin.findUnique({ where: { userId_weekStart: { userId, weekStart: asDate(target) } } }),
       prisma.weeklyCheckin.findMany({ where: { userId }, orderBy: { weekStart: "desc" }, take: 12 }),
@@ -537,7 +550,7 @@ export const coachingService = {
       activityMinutes: week.activity.totalMinutes,
       activityDays: week.activity.daysWithRecords,
       recordedDays: week.recordedDays,
-      totalDays: week.totalDays,
+      totalDays: daysSoFar,
       actionsDone,
       goalsReached: goals.filter((g) => g.period === "weekly" && (g.ratio ?? 0) >= 1).map((g) => g.title),
       previousReflection: previous,
@@ -552,7 +565,7 @@ export const coachingService = {
       weekEnd,
       isCurrentWeek: target === current.weekStart,
       done: checkin ? checkinView(checkin) : null,
-      summary: { recordedDays: week.recordedDays, totalDays: week.totalDays, coverageStatus: week.coverageStatus, meals: { daysWithRecords: week.meals.daysWithRecords }, activity: { totalMinutes: week.activity.totalMinutes, daysWithRecords: week.activity.daysWithRecords }, glucose: { daysWithRecords: week.glucose.daysWithRecords } },
+      summary: { recordedDays: week.recordedDays, totalDays: daysSoFar, coverageStatus: week.coverageStatus, meals: { daysWithRecords: week.meals.daysWithRecords }, activity: { totalMinutes: week.activity.totalMinutes, daysWithRecords: week.activity.daysWithRecords }, glucose: { daysWithRecords: week.glucose.daysWithRecords } },
       goals: goals.map((g) => ({ id: g.id, title: g.title, goalType: g.goalType, period: g.period, target: g.target, value: g.value, ratio: g.ratio })),
       actions: { ...tally, fromAssistant: agentOutcomes, items },
       positives,
@@ -575,7 +588,7 @@ export const coachingService = {
     const r = await this.reflection(userId, now);
     if (r.consentRequired) throw conflict("CONSENT_REQUIRED", "Persetujuan diperlukan.");
     if (input.weekStart !== r.weekStart) throw unprocessable("WEEK_NOT_OPEN", "Refleksi untuk minggu ini belum atau sudah tidak dibuka.", { weekStart: r.weekStart });
-    if (r.done) throw conflict("CHECKIN_EXISTS", "Refleksi minggu ini sudah tersimpan.");
+    if (r.done) throw conflict("CHECKIN_EXISTS", "Refleksi untuk minggu ini sudah tersimpan.");
     const offered = new Map(r.adjustments.map((a) => [a.goalId, a]));
     for (const adj of input.adjustments) {
       const o = offered.get(adj.goalId);
@@ -628,6 +641,7 @@ export const coachingService = {
             summary: { recordedDays: r.summary.recordedDays, totalDays: r.summary.totalDays, positives: r.positives, actions: { observed: r.actions.observed, confirmed: r.actions.confirmed, notObserved: r.actions.notObserved, fromAssistant: r.actions.fromAssistant }, recognition, rememberedSlot: remember },
           },
         });
+        await closeCards(tx, userId, "WEEKLY_REVIEW_AVAILABLE");
         await recordAudit(tx, { userId, eventType: "weekly_reflection_completed", metadata: { checkinId: row.id, adjustments: applied.length } });
         await outbox.enqueue(tx, { userId, type: "coaching.checkin", payload: { checkinId: row.id, weekStart: r.weekStart }, dedupeKey: `coaching-checkin:${row.id}` });
         return row;
@@ -637,7 +651,7 @@ export const coachingService = {
       if (isUnique(e)) {
         const again = await prisma.weeklyCheckin.findUnique({ where: { userId_operationId: { userId, operationId: input.operationId } } });
         if (again) return { checkin: checkinView(again), recognition: (again.summary as { recognition?: string[] }).recognition ?? [], replayed: true };
-        throw conflict("CHECKIN_EXISTS", "Refleksi minggu ini sudah tersimpan.");
+        throw conflict("CHECKIN_EXISTS", "Refleksi untuk minggu ini sudah tersimpan.");
       }
       throw e;
     }

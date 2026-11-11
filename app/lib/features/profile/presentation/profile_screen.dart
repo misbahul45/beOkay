@@ -102,6 +102,12 @@ class ProfileScreen extends ConsumerWidget {
               onTap: () => context.go(Routes.coach),
             ),
             SettingsRow(
+              icon: Icons.event_available_outlined,
+              title: 'Rencana kecil & refleksi',
+              subtitle: 'Langkah dari catatanmu dan refleksi mingguan',
+              onTap: () => context.push(Routes.coaching),
+            ),
+            SettingsRow(
               icon: Icons.psychology_alt_outlined,
               title: 'Memori & personalisasi',
               subtitle: 'Yang diingat asisten, bisa dijeda dan dihapus',

@@ -23,10 +23,14 @@ final interventionRepositoryProvider = Provider<InterventionRepository>((ref) {
 final openInterventionsProvider =
     FutureProvider.autoDispose<List<Intervention>>((ref) async {
       final repo = ref.watch(interventionRepositoryProvider);
-      try {
-        await repo.consider('GOAL_WINDOW_APPROACHING');
-      } catch (_) {
-        // tidak ada tujuan aktif, jam tenang, dll.: bukan masalah bagi pengguna
+      for (final trigger in const [
+        'COACHING_ACTION_DUE',
+        'WEEKLY_REVIEW_AVAILABLE',
+        'GOAL_WINDOW_APPROACHING',
+      ]) {
+        try {
+          await repo.consider(trigger);
+        } catch (_) {}
       }
       try {
         return await repo.open();

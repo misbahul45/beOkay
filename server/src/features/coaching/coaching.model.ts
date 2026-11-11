@@ -289,7 +289,7 @@ export function goalAdjustments(goals: GoalWeek[]): Adjustment[] {
 }
 
 export function recognitions(input: { streak: number; actionsDone: number; recordedDays: number }): string[] {
-  const out = ["Refleksi minggu ini selesai"];
+  const out = ["Refleksi mingguan selesai"];
   if (input.streak >= 2) out.push(`${input.streak} minggu berturut-turut`);
   if (input.actionsDone > 0) out.push(`${input.actionsDone} rencana kecil terlaksana`);
   if (input.recordedDays >= 4) out.push(`Data tercatat di ${input.recordedDays} hari`);

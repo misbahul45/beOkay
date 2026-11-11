@@ -1003,4 +1003,41 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'A hard week is answered with verified records and a way into the weekly reflection',
+    (tester) async {
+      _tall(tester);
+      final (app, _) = await _app((r) {
+        if (_isSend(r)) {
+          return _json(
+            _exchange(r.url.pathSegments[3], 'Minggu ini aku merasa gagal.', [
+              {
+                'type': 'text',
+                'text':
+                    'Wajar merasa begitu, dan satu minggu yang berat tidak membuatmu gagal. Ini yang benar-benar tercatat minggu ini:',
+              },
+              {
+                'type': 'reflection',
+                'weekStart': '2026-11-08',
+                'positives': ['Makan tercatat di 5 dari 7 hari'],
+                'actionsDone': 1,
+                'canAdjust': true,
+                'done': false,
+              },
+              {'type': 'text', 'text': 'Bagian mana yang paling berat?'},
+            ]),
+            201,
+          );
+        }
+        return null;
+      });
+      await tester.pumpWidget(app);
+      await tester.pumpAndSettle();
+      await _type(tester, 'Minggu ini aku merasa gagal.');
+      expect(find.textContaining('tidak membuatmu gagal'), findsOneWidget);
+      expect(find.text('Makan tercatat di 5 dari 7 hari'), findsOneWidget);
+      expect(find.text('Buka refleksi mingguan'), findsOneWidget);
+    },
+  );
 }

@@ -117,8 +117,31 @@ sealed class ChatPart {
           confidence: i['confidence'] as String,
         ),
     ]),
+    'reflection' => ReflectionPart(
+      weekStart: j['weekStart'] as String,
+      positives: [
+        for (final p in j['positives'] as List? ?? const []) p as String,
+      ],
+      actionsDone: (j['actionsDone'] as int?) ?? 0,
+      canAdjust: j['canAdjust'] == true,
+      done: j['done'] == true,
+    ),
     _ => null,
   };
+}
+
+class ReflectionPart extends ChatPart {
+  const ReflectionPart({
+    required this.weekStart,
+    required this.positives,
+    required this.actionsDone,
+    required this.canAdjust,
+    required this.done,
+  });
+  final String weekStart;
+  final List<String> positives;
+  final int actionsDone;
+  final bool canAdjust, done;
 }
 
 class TextPart extends ChatPart {

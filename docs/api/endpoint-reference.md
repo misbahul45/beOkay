@@ -159,6 +159,20 @@ Balasan berupa bagian bertipe: `text`, `statistic` (dari `stats-v1`), `recommend
 
 Alat agen baru `search_web_nutrition` (maksud `MEAL_DRAFT_ENRICHMENT`, consent H) memanggil Firecrawl `v2/search` dan hanya mengembalikan nama dari judul halaman, URL, host, dan angka per 100 g yang lolos parser deterministik. Tanpa `FIRECRAWL_API_KEY`, endpoint pencarian web membalas `NOT_CONFIGURED`.
 
+### 9c. Rencana kecil & refleksi mingguan (3.0 Fase 5) — Consent H + A (refleksi: H + S)
+
+| Metode | Path | Keterangan |
+|---|---|---|
+| GET | `/api/me/coaching` | ringkasan: `opportunities[]` (usulan `PROPOSED` yang didukung catatan), `withheld[]` (sumber yang ditahan beserta alasan: `MUTED_BY_USER`, `SNOOZED`, `PLAN_ALREADY_RUNNING`, `ALL_VARIANTS_DECLINED`, `SUGGESTION_LIMIT`, `DURATION_ABOVE_SAFE_CAP`, `ACTIVITY_DISLIKED`), `actions[]` (rencana diterima 14 hari terakhir dengan `dayStates[]` dan `phase` `RUNNING`/`ENDED`), `reflection`, `preferences`; tanpa consent → `consentRequired: true` dan usulan terbuka kedaluwarsa |
+| GET | `/api/me/coaching/opportunities` | hanya usulan; menjalankan rekonsiliasi dan menghapus usulan yang tidak lagi didukung data (`NO_LONGER_SUPPORTED`) |
+| POST | `/api/me/coaching/actions/:id/decision` | `{operationId, decision: ACCEPT|DECLINE|WITHDRAW, slot?, reminder?: {localTime?}}`; tepat sekali per `operationId` (ulang = `replayed`, isi berbeda = `409 OPERATION_ID_REUSED`); `409 ACTION_NOT_OPEN`/`ACTION_EXPIRED`; `ACCEPT` memulai rencana hari ini dan (opsional) membuat pengingat yang diarsipkan otomatis saat rencana selesai/dihentikan; `422 REMINDER_LIMIT` |
+| POST | `/api/me/coaching/actions/:id/feedback` | `{operationId, kind, slot?}`; `kind`: `HELPFUL`, `NOT_HELPFUL` (sekali per rencana, `409 FEEDBACK_ALREADY_RECORDED`), `ALREADY_DONE`, `NOT_NOW`, `TOO_FREQUENT`, `PREFER_DIFFERENT_TIME` (`slot` wajib), `PREFER_DIFFERENT_SUGGESTION`, `STOP_THIS_TYPE`; setiap akibat tercatat di `personalization_events` |
+| POST | `/api/me/coaching/actions/:id/confirm` | `{operationId, date}` → hari itu `USER_CONFIRMED` (terpisah dari `OBSERVED`); hanya hari rencana yang sudah lewat atau hari ini (`422 DATE_NOT_IN_PLAN`) |
+| GET | `/api/me/coaching/checkins` | refleksi minggu sasaran (minggu berjalan bila sudah ≥ 4 hari, selain itu minggu lalu): ringkasan deskriptif, tujuan, status rencana, `positives[]`, `adjustments[]` (hanya penurunan, tujuan `weekly` non-glukosa), `streak`, `history[]`, `memoryAvailable`, `preferredSlot`, `nudge` |
+| POST | `/api/me/coaching/checkins` | `{operationId, weekStart, mood?: GOOD|MIXED|HARD, hardest[]?: TIME|FORGOT|ENERGY|MOTIVATION|OTHER, note?(≤280), adjustments[]: [{goalId, toTarget}], preferredSlot?, rememberSlot?}` → `201 {checkin, recognition[]}`; penyesuaian harus sama dengan usulan (`422 ADJUSTMENT_NOT_OFFERED`), minggu harus minggu sasaran (`422 WEEK_NOT_OPEN`), satu per minggu (`409 CHECKIN_EXISTS`), ulang dengan `operationId` yang sama = `replayed` |
+
+Status per hari rencana: `PLANNED`, `OBSERVED` (ada catatan yang cocok), `USER_CONFIRMED` (dikonfirmasi sendiri), `NOT_OBSERVED` (hari lewat tanpa catatan; bukan "gagal"), `RETRACTED` (catatan pembuktinya dihapus), `UNKNOWN` (tanpa izin membaca catatan).
+
 ## 10. Komunitas (P2) — Consent per tujuan
 
 | Metode | Path | Consent |
@@ -183,7 +197,7 @@ Kode galat khas: `INVALID_ALIAS` (422), `ALIAS_TAKEN` (409), `NOT_A_MEMBER` (403
 
 | Metode | Path | Keterangan |
 |---|---|---|
-| POST | `/api/me/interventions/evaluate` | `{trigger: USER_REQUESTS_SUPPORT|GOAL_WINDOW_APPROACHING|USER_SELECTED_ROUTINE_REMINDER|WEEKLY_REVIEW_AVAILABLE, goalId?}`; selalu mencatat keputusan |
+| POST | `/api/me/interventions/evaluate` | `{trigger: USER_REQUESTS_SUPPORT|GOAL_WINDOW_APPROACHING|USER_SELECTED_ROUTINE_REMINDER|WEEKLY_REVIEW_AVAILABLE|COACHING_ACTION_DUE, goalId?}`; selalu mencatat keputusan; sejak `jitai-policy-v2` balasan memuat `decision`: `INTERVENE`, `DO_NOT_INTERVENE`, `DEFER` (jam tenang, jatah, terlalu cepat, ditunda, `SLOT_NOT_STARTED`), `ASK_FOR_CLARIFICATION` (opsi `CLARIFICATION_QUESTION` setelah tanggapan `NOT_USEFUL` terakhir), `REQUIRES_REVIEW` (rencana gagal validasi ulang keselamatan) |
 | GET | `/api/me/interventions` | kartu terbuka (maks 5) |
 | POST | `/api/me/interventions/:id/response` | `{kind, snoozeMinutes?}`; `409 CONSENT_REQUIRED` *(bukan 403 — audit F-14)* |
 | GET · PATCH | `/api/me/intervention-preferences` | jeda, jam tenang, jatah, `mutedTriggers` |

@@ -105,6 +105,17 @@ Indeks: GIN trigram `food_reference_name_trgm_idx` (kata) dan **HNSW** `food_ref
 
 Kolom baru: `user_settings.memory_enabled` (default `true`), `conversation_threads.context` (JSONB objek: rute terakhir), `conversation_messages.basis` (JSONB objek atau NULL).
 
+### Rencana kecil & refleksi (3.0 Fase 5)
+
+| Tabel | Fungsi |
+|---|---|
+| `coaching_actions` | usulan dan rencana: `opportunity_key`, `source` (`MEAL_LOG_GAP`, `ACTIVITY_STEP_DOWN`, `GOAL_PACE`, `ROUTINE_START`), `kind` (`ACTIVITY_SESSION`, `MEAL_LOGGING`), `title`, `rationale`, `evidence`/`params` (JSONB objek), `slot` (`MORNING`/`MIDDAY`/`AFTERNOON`/`EVENING`), `start_date`, `days` (1–7), `status` (`PROPOSED`, `ACCEPTED`, `DECLINED`, `EXPIRED`, `WITHDRAWN`; CHECK `decided_at` kosong tepat saat `PROPOSED`), `close_reason`, `reminder_id` (FK `reminders`, SET NULL), `policy_version`, `version`, `expires_at`; indeks unik parsial `(user_id, opportunity_key)` untuk `PROPOSED` |
+| `coaching_outcomes` | bukti per hari: `status` `OBSERVED` (CHECK `evidence_type` `activity_session`/`meal_log` + `evidence_id` + `observed_at`), `USER_CONFIRMED`, `RETRACTED`; unik `(action_id, local_date)` |
+| `coaching_events` | kuitansi idempotensi dan jejak: `type` `DECISION`/`FEEDBACK`/`CONFIRMATION`, `value`, `detail`; unik `(user_id, operation_id)` |
+| `weekly_checkins` | refleksi mingguan: unik `(user_id, week_start)` dan `(user_id, operation_id)`; `mood`, `hardest[]` (subset tetap), `note` (≤ 280), `preferred_slot`, `adjustments` (array), `summary` (objek; angka deskriptif, tanpa nilai klinis) |
+
+CHECK `intervention_decisions_valid` diperluas dengan pemicu `COACHING_ACTION_DUE` dan opsi `ACTION_REMINDER_CARD`, `CLARIFICATION_QUESTION`. Preferensi coaching (dimatikan, ditunda, waktu, varian yang ditolak, penilaian, batas usulan) disimpan di `personalization_profiles.data.coaching`; setiap perubahan dicatat di `personalization_events` (`COACHING_*`).
+
 ## 8. Komunitas (P2)
 
 | Tabel | Fungsi |
@@ -153,6 +164,7 @@ Kolom baru: `user_settings.memory_enabled` (default `true`), `conversation_threa
 | 21 | `20261110010000_interventions` | intervensi |
 | 22 | `20261110132120_conversations` | thread & pesan percakapan Asisten + CHECK |
 | 23 | `20261110162503_memory_meal_drafts` | draf makan, memori, sakelar memori, `basis`/`context` percakapan + CHECK dan indeks parsial |
+| 24 | `20261111065804_coaching` | rencana kecil, bukti per hari, kuitansi, refleksi mingguan + CHECK dan indeks parsial; perluasan CHECK intervensi |
 
 ## 11. Membuat migrasi baru (ringkas)
 

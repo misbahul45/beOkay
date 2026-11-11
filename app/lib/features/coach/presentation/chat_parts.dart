@@ -1448,3 +1448,48 @@ Future<void> showBasisSheet(
     ),
   ),
 );
+
+class ReflectionCard extends StatelessWidget {
+  const ReflectionCard({super.key, required this.part});
+
+  final ReflectionPart part;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.cardPadding),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: AppRadius.cardRadius,
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final p in part.positives)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.check_rounded, size: 18, color: AppColors.brand),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(child: Text(p, style: AppTypography.body)),
+                ],
+              ),
+            ),
+          if (part.positives.isNotEmpty) const SizedBox(height: AppSpacing.xs),
+          PillButton(
+            label: part.done
+                ? 'Lihat refleksi mingguan'
+                : 'Buka refleksi mingguan',
+            kind: part.done ? PillButtonKind.secondary : PillButtonKind.primary,
+            expand: false,
+            onPressed: () => context.push(Routes.reflection),
+          ),
+        ],
+      ),
+    );
+  }
+}

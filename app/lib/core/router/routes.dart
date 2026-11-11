@@ -41,6 +41,8 @@ abstract final class Routes {
   static const accountSecurity = '/settings/security';
   static const privacyData = '/settings/privacy';
   static const memory = '/settings/memory';
+  static const coaching = '/coaching';
+  static const reflection = '/coaching/reflection';
   static const deleteAccount = '/settings/privacy/delete';
 
   static const publicRoutes = {

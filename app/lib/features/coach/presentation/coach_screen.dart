@@ -622,6 +622,7 @@ class _AssistantTurn extends StatelessWidget {
         SuggestionsPart() => null,
         LinkPart() => null,
         PhotoPart() => null,
+        ReflectionPart() => ReflectionCard(part: part),
         MealDraftPart(:final draft) =>
           draft == null
               ? null

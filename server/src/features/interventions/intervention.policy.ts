@@ -101,7 +101,7 @@ export function contentFor(trigger: Trigger, goalTitle?: string): { title: strin
     case "USER_SELECTED_ROUTINE_REMINDER":
       return { title: "Rutinitas pilihanmu", body: `Waktunya ${goalTitle ?? "rutinitas yang kamu pilih"}.`, action: "OPEN_GOALS" };
     case "WEEKLY_REVIEW_AVAILABLE":
-      return { title: "Refleksi minggu ini siap", body: "Lihat yang sudah berjalan dan atur langkah minggu depan. Sekitar 2 menit.", action: "OPEN_REFLECTION" };
+      return { title: "Refleksi mingguan siap", body: "Lihat yang sudah berjalan dan atur langkah minggu depan. Sekitar 2 menit.", action: "OPEN_REFLECTION" };
     case "COACHING_ACTION_DUE":
       return { title: "Rencana hari ini", body: `${goalTitle ?? "Rencana kecilmu"}. Cukup langkah kecil.`, action: "OPEN_COACHING" };
   }

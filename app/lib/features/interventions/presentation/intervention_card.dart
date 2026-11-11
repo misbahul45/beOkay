@@ -38,7 +38,9 @@ class InterventionCard extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: Material(
-        color: AppColors.surface,
+        color: item.action == 'OPEN_REFLECTION'
+            ? AppColors.cream
+            : AppColors.surface,
         borderRadius: AppRadius.cardRadius,
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.cardPadding),
@@ -87,31 +89,48 @@ class InterventionCard extends ConsumerWidget {
               ),
               Text(item.body, style: AppTypography.secondary),
               const SizedBox(height: AppSpacing.xs),
-              Wrap(
-                spacing: 4,
-                children: [
-                  TextButton(
-                    onPressed: () async {
-                      await send('OPENED');
-                      if (!context.mounted) return;
-                      context.push(switch (item.action) {
-                        'OPEN_COACH' => Routes.coach,
-                        'OPEN_INSIGHTS' => Routes.insights,
-                        _ => Routes.goals,
-                      });
-                    },
-                    child: const Text('Buka'),
-                  ),
-                  TextButton(
-                    onPressed: () => send('NOT_NOW', snooze: 120),
-                    child: const Text('Nanti'),
-                  ),
-                  TextButton(
-                    onPressed: () => send('STOP_THIS_TYPE'),
-                    child: const Text('Jangan lagi'),
-                  ),
-                ],
-              ),
+              if (item.asksClarification)
+                Wrap(
+                  spacing: 4,
+                  children: [
+                    TextButton(
+                      onPressed: () => send('USEFUL'),
+                      child: const Text('Ya, tetap'),
+                    ),
+                    TextButton(
+                      onPressed: () => send('STOP_THIS_TYPE'),
+                      child: const Text('Tidak usah'),
+                    ),
+                  ],
+                )
+              else
+                Wrap(
+                  spacing: 4,
+                  children: [
+                    TextButton(
+                      onPressed: () async {
+                        await send('OPENED');
+                        if (!context.mounted) return;
+                        context.push(switch (item.action) {
+                          'OPEN_COACH' => Routes.coach,
+                          'OPEN_INSIGHTS' => Routes.insights,
+                          'OPEN_COACHING' => Routes.coaching,
+                          'OPEN_REFLECTION' => Routes.reflection,
+                          _ => Routes.goals,
+                        });
+                      },
+                      child: const Text('Buka'),
+                    ),
+                    TextButton(
+                      onPressed: () => send('NOT_NOW', snooze: 120),
+                      child: const Text('Nanti'),
+                    ),
+                    TextButton(
+                      onPressed: () => send('STOP_THIS_TYPE'),
+                      child: const Text('Jangan lagi'),
+                    ),
+                  ],
+                ),
             ],
           ),
         ),

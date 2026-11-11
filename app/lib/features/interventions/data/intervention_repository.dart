@@ -5,10 +5,12 @@ class Intervention {
   Intervention.fromJson(Map<String, dynamic> j)
     : id = j['id'] as String,
       trigger = j['trigger'] as String,
+      option = (j['option'] as String?) ?? '',
       title = (j['content'] as Map<String, dynamic>)['title'] as String,
       body = (j['content'] as Map<String, dynamic>)['body'] as String,
       action = (j['content'] as Map<String, dynamic>)['action'] as String;
-  final String id, trigger, title, body, action;
+  final String id, trigger, option, title, body, action;
+  bool get asksClarification => option == 'CLARIFICATION_QUESTION';
 }
 
 class InterventionRepository extends AccountScopedRepository {

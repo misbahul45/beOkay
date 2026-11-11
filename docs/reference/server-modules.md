@@ -140,6 +140,13 @@ Berkas: `conversation.router.ts` (router deterministik `router-v1`, murni), `con
 - `food-discovery/firecrawl.client.ts` (host dipaku, tanpa redirect, kunci di header) dan `web-nutrition.parser.ts` (per 100 g eksplisit, atau nilai per sajian yang diskalakan dengan gram atau rasio energi per 100 g yang dinyatakan halaman; dibaca per entri yang diawali nama makanan; uji kewajaran 4·P + 4·K + 9·L).
 - Percakapan: rute `MEAL_LOG`, `PHOTO_MEAL`, `APPROVAL_HINT`, `PREFERENCE`; aktivitas memakai ingatan sebagai batasan yang hanya memendekkan (`applyActivityConstraints`).
 
+## Rencana kecil & refleksi (3.0 Fase 5)
+
+- `coaching/coaching.model.ts` (murni, `coach-rules-v1`): deteksi peluang dari fakta catatan 14 hari (makan siang/sarapan/makan malam jarang tercatat, rencana aktivitas yang sering belum terlihat, tujuan mingguan yang tertinggal, catatan jarang), varian yang lebih kecil bila ditolak, batas aman aktivitas (5 menit hingga sesi terpanjang 28 hari, maks 30), status per hari, minggu sasaran refleksi, pengamatan positif (hanya usaha), penyesuaian tujuan (hanya menurunkan; tujuan glukosa dikecualikan), pengakuan dan rentetan.
+- `coaching/coaching.service.ts`: usulan dimaterialisasi sebagai `coaching_actions` `PROPOSED`; keputusan, umpan balik, dan konfirmasi tepat sekali lewat `coaching_events`; rekonsiliasi mencocokkan rencana dengan sesi aktivitas (jenis sama, durasi ≥ 50%) atau catatan makan (kategori sama), menarik bukti yang diarsipkan, mengarsipkan pengingat rencana yang selesai, dan menutup kartu JITAI terkait; refleksi memakai `weeklyService` dan `goalsService`; menyimpan refleksi menerapkan penyesuaian tujuan dengan `record_revisions`, preferensi waktu, dan (bila diizinkan) ingatan `ACTIVITY_TIME`.
+- JITAI `jitai-policy-v2`: pemicu `COACHING_ACTION_DUE` (rencana hari ini yang belum terlihat; ditunda sampai waktunya; ditahan bila gagal validasi ulang), `WEEKLY_REVIEW_AVAILABLE` berhenti setelah refleksi terisi, pertanyaan klarifikasi setelah "kurang membantu", dan kelas keputusan `classify()`.
+- Percakapan `router-v2`: rute `REFLECTION` ("minggu ini aku merasa gagal", "refleksi") dengan bagian `reflection` berisi fakta minggu berjalan.
+
 ## Komunitas
 Lihat [overview §7.8](../architecture/system-overview.md). Aturan tambahan: check-in hanya hari ini atau ≤ 2 hari ke belakang (`MAX_BACKFILL_DAYS`), tidak di masa depan, dan dalam jendela tantangan; join tantangan memerlukan keanggotaan komunitas aktif; `memberCount` disembunyikan (`kurang dari 5`) bila kohort < 5. **Tidak ada kode untuk membuat/menutup tantangan** — hanya seed migrasi (audit F-04).
 

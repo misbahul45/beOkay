@@ -115,7 +115,7 @@ test("Refleksi: minggu sasaran, pengamatan positif hanya tentang usaha, penyesua
   expect(M.goalAdjustments([g({ value: 100 })])).toEqual([]);
   expect(M.goalAdjustments([g({ value: null })])).toEqual([]);
   expect(M.goalAdjustments([g({ period: "daily" })])).toEqual([]);
-  expect(M.recognitions({ streak: 3, actionsDone: 2, recordedDays: 5 })).toEqual(["Refleksi minggu ini selesai", "3 minggu berturut-turut", "2 rencana kecil terlaksana", "Data tercatat di 5 hari"]);
+  expect(M.recognitions({ streak: 3, actionsDone: 2, recordedDays: 5 })).toEqual(["Refleksi mingguan selesai", "3 minggu berturut-turut", "2 rencana kecil terlaksana", "Data tercatat di 5 hari"]);
   expect(M.streakOf(["2026-11-09", "2026-11-02", "2026-10-19"], "2026-11-09")).toBe(2);
   expect(M.streakOf([], "2026-11-09")).toBe(0);
 });

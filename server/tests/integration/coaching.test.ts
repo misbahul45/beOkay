@@ -83,12 +83,15 @@ test("Lingkar tertutup makan: usulan dari catatan → diterima tepat sekali deng
   expect(await prisma.reminder.count({ where: { userId: a.id } })).toBe(1);
   expect(await prisma.coachingEvent.count({ where: { userId: a.id, type: "DECISION" } })).toBe(1);
 
+  const dueCard = await interventionService.evaluate(a.id, { trigger: "COACHING_ACTION_DUE" }, wib(D0, 11, 30));
+  expect(dueCard).toMatchObject({ option: "ACTION_REMINDER_CARD", content: { body: "Catat makan siang 3 hari ke depan · siang. Cukup langkah kecil." } });
   const lunch = await meal(a.id, D0, "lunch", 12);
   await coachingService.reconcile(a.id, wib(D0, 13));
   let v = (await coachingService.overview(a.id, wib(D0, 13))).actions[0]!;
   expect(v.dayStates[0]).toMatchObject({ state: "OBSERVED", today: true });
   const outcome = await prisma.coachingOutcome.findFirstOrThrow({ where: { actionId: p.id } });
   expect(outcome).toMatchObject({ evidenceType: "meal_log", evidenceId: lunch.id });
+  expect((await prisma.interventionDecision.findUniqueOrThrow({ where: { id: dueCard.id } })).deliveryStatus).toBe("CANCELLED");
 
   await prisma.mealLog.update({ where: { id: lunch.id }, data: { archivedAt: new Date() } });
   await coachingService.reconcile(a.id, wib(D0, 14));
@@ -175,6 +178,8 @@ test("JITAI v2: rencana hari ini ditunda sampai waktunya, kartu tepat sekali, pe
   expect(ask).toMatchObject({ option: "CLARIFICATION_QUESTION", decision: "ASK_FOR_CLARIFICATION", content: { action: "ASK" } });
   await interventionService.respond(a.id, ask.id, { kind: "USEFUL" }, wib(addDays(D0, 1), 16, 5));
 
+  const askRow = await prisma.interventionDecision.findUniqueOrThrow({ where: { id: ask.id } });
+  expect(askRow.deliveryStatus).toBe("RESPONDED");
   await session(a.id, addDays(D0, 1), 12, "walking", 17);
   await prisma.memoryItem.create({ data: { userId: a.id, category: "PREFERENCE", kind: "ACTIVITY_DISLIKE", key: "ACTIVITY_DISLIKE:walking:jalan kaki", content: "Kurang suka jalan kaki", status: "ACTIVE", sourceType: "USER", confirmedAt: new Date() } });
   const review = await interventionService.evaluate(a.id, { trigger: "COACHING_ACTION_DUE" }, wib(addDays(D0, 2), 16));
@@ -194,12 +199,13 @@ test("Refleksi mingguan: ringkasan dari catatan, penyesuaian tujuan hanya dengan
 
   const r = await J(await call("/api/me/coaching/checkins", a.token));
   expect(r).toMatchObject({ consentRequired: false, weekStart: week, done: null, nudge: true });
-  expect(r.positives).toContain("Makan tercatat di 5 dari 7 hari");
+  expect(r.positives.some((p: string) => /^Makan tercatat di 5 dari [5-7] hari$/.test(p))).toBe(true);
   expect(r.positives).toContain("45 menit aktivitas tercatat di 3 hari");
   expect(r.adjustments).toEqual([{ goalId: goal.id, title: "Aktif 150 menit", goalType: "activity_minutes", fromTarget: 150, toTarget: 80, expectedVersion: 1, basis: "Dari catatanmu: 45 menit minggu ini." }]);
   expect(r.adjustments.some((x: any) => x.goalId === glucoseGoal.id)).toBe(false);
   expect(JSON.stringify(r)).not.toMatch(/mg\/dL|kkal/);
-  expect(await interventionService.evaluate(a.id, { trigger: "WEEKLY_REVIEW_AVAILABLE" }, wib(realToday, 12))).toMatchObject({ option: "WEEKLY_REFLECTION", content: { action: "OPEN_REFLECTION" } });
+  const weeklyCard = await interventionService.evaluate(a.id, { trigger: "WEEKLY_REVIEW_AVAILABLE" }, wib(realToday, 12));
+  expect(weeklyCard).toMatchObject({ option: "WEEKLY_REFLECTION", content: { action: "OPEN_REFLECTION" } });
 
   const body = { operationId: op(), weekStart: week, mood: "HARD", hardest: ["TIME"], note: "Lembur", adjustments: [{ goalId: goal.id, toTarget: 80 }], preferredSlot: "MORNING", rememberSlot: true };
   expect((await call("/api/me/coaching/checkins", a.token, { ...body, adjustments: [{ goalId: goal.id, toTarget: 10 }] })).status).toBe(422);
@@ -208,11 +214,12 @@ test("Refleksi mingguan: ringkasan dari catatan, penyesuaian tujuan hanya dengan
   const saved = await call("/api/me/coaching/checkins", a.token, body);
   expect(saved.status).toBe(201);
   const out = await J(saved);
-  expect(out.recognition[0]).toBe("Refleksi minggu ini selesai");
+  expect(out.recognition[0]).toBe("Refleksi mingguan selesai");
   expect(out.checkin).toMatchObject({ weekStart: week, mood: "HARD", hardest: ["TIME"], preferredSlot: "MORNING", adjustments: [{ goalId: goal.id, fromTarget: 150, toTarget: 80 }] });
   expect(await J(await call("/api/me/coaching/checkins", a.token, body))).toMatchObject({ replayed: true });
   expect((await call("/api/me/coaching/checkins", a.token, { ...body, operationId: op() })).status).toBe(409);
 
+  expect((await prisma.interventionDecision.findUniqueOrThrow({ where: { id: weeklyCard.id } })).deliveryStatus).toBe("CANCELLED");
   const g = await prisma.behaviorGoal.findUniqueOrThrow({ where: { id: goal.id } });
   expect([g.targetValue.toNumber(), g.version]).toEqual([80, 2]);
   expect(await prisma.recordRevision.findFirstOrThrow({ where: { goalId: goal.id } })).toMatchObject({ version: 1, reason: "Refleksi mingguan: target disesuaikan bersama pengguna" });
