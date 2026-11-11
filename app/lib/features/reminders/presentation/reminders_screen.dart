@@ -267,9 +267,17 @@ class _ReminderSheetState extends State<_ReminderSheet> {
               style: AppTypography.headline,
             ),
           ),
+          const SizedBox(height: 2),
+          Text(
+            'Muncul di kotak masuk notifikasi; bila push aktif, juga sebagai notifikasi umum di layar kunci.',
+            style: AppTypography.caption,
+          ),
           const SizedBox(height: AppSpacing.sm),
+          Text('JENIS', style: AppTypography.overline),
+          const SizedBox(height: 4),
           Wrap(
             spacing: 8,
+            runSpacing: 4,
             children: [
               for (final e in reminderKindLabels.entries)
                 PillChip(
@@ -288,17 +296,29 @@ class _ReminderSheetState extends State<_ReminderSheet> {
             controller: title,
             maxLength: 80,
           ),
-          const SizedBox(height: AppSpacing.xs),
-          PillButton(
-            label: 'Jam $time',
-            kind: PillButtonKind.secondary,
-            icon: Icons.schedule,
-            onPressed: busy ? null : pickTime,
+          Text('WAKTU', style: AppTypography.overline),
+          const SizedBox(height: 4),
+          Material(
+            color: AppColors.surfaceMuted,
+            borderRadius: BorderRadius.circular(14),
+            child: ListTile(
+              leading: Icon(Icons.schedule, color: AppColors.brand),
+              title: Text('Jam $time', style: AppTypography.bodyStrong),
+              trailing: Text(
+                'Ubah',
+                style: AppTypography.secondaryStrong.copyWith(
+                  color: AppColors.brand,
+                ),
+              ),
+              onTap: busy ? null : pickTime,
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          Text('Hari', style: AppTypography.caption),
+          Text('HARI', style: AppTypography.overline),
+          const SizedBox(height: 4),
           Wrap(
             spacing: 8,
+            runSpacing: 4,
             children: [
               for (var d = 1; d <= 7; d++)
                 PillChip(

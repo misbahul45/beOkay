@@ -116,6 +116,28 @@ Catatan khusus:
 | GET · POST | `/api/me/push-devices` | H | `POST` → `201` baru / `200` ada; token tidak pernah dikembalikan utuh; maks 5 perangkat aktif |
 | DELETE | `/api/me/push-devices/:id` | — | menghapus token |
 
+### 8a. Notifikasi & realtime (3.0 Fase 6)
+
+| Metode | Path | Keterangan |
+|---|---|---|
+| GET | `/api/me/notifications?cursor=&limit=` | kotak masuk terbaru dulu; `limit` 1–50 (default 20); `{items[], nextCursor, unread}`; item: `id, kind, title, body, action, refId, read, createdAt` |
+| GET | `/api/me/notifications/unread-count` | `{unread}` |
+| POST | `/api/me/notifications/:id/read` | `{id, read: true, unread}`; milik pengguna lain → `404` |
+| POST | `/api/me/notifications/read-all` | `{updated, unread: 0}` |
+| GET · PATCH | `/api/me/notification-preferences` | `{pushEnabled?, mutedKinds?[]}` (minimal satu); balasan juga memuat `kinds[]`, `pushConfigured` (server punya kredensial FCM), `devices` (perangkat push aktif) |
+| GET (upgrade) | `/api/me/realtime` | WebSocket; sesi dari header `Authorization: Bearer` atau cookie; tanpa sesi terverifikasi → `401`, bukan permintaan upgrade → `426 UPGRADE_REQUIRED` |
+
+`kind`: `REMINDER`, `COACHING`, `REFLECTION`, `CHALLENGE`, `RECOGNITION`. `action`: `OPEN_HOME`, `OPEN_LOG`, `OPEN_COACHING`, `OPEN_REFLECTION`, `OPEN_CHALLENGE`, `OPEN_COMMUNITY`, `OPEN_RECOGNITIONS`, `OPEN_REMINDERS`, `OPEN_GOALS`, `OPEN_MEDICATIONS`. Jenis yang dibisukan tidak dibuat sama sekali. Setiap notifikasi punya `dedupe_key` unik per pengguna, jadi pekerja yang berjalan ulang tidak menggandakannya. Push FCM hanya membawa teks layar kunci yang umum ("Pengingat beOkay — Buka beOkay untuk mencatat.") dan data `{action, refId}`; judul dan isi aslinya hanya ada di kotak masuk.
+
+**Protokol WebSocket** (JSON per pesan, maks 4 KB, idle 120 dtk):
+
+| Arah | Pesan |
+|---|---|
+| server → klien | `hello {unread}` saat terhubung; `notification {item, unread}`; `notifications.read {ids? \| all, unread}`; `coaching.updated {actionId? \| checkinId?}`; `challenge.progress {challengeId, score, activeDays}`; `leaderboard.changed {challengeId}` (hanya ke topik tantangan); `pong {at}`; `subscribed`/`unsubscribed {topic}`; `error {code}` (`BAD_MESSAGE`, `TOPIC_FORBIDDEN`, `UNKNOWN_MESSAGE`) |
+| klien → server | `ping`; `subscribe {topic}`; `unsubscribe {topic}` |
+
+Setiap koneksi otomatis berlangganan `user:<id>`. Topik lain hanya `challenge:<uuid>` dan hanya untuk anggota aktif komunitas tantangan itu (maks 20 topik). Sesi diperiksa ulang paling lama tiap 60 dtk saat ada pesan; sesi yang dicabut/kedaluwarsa ditutup dengan kode `4401 SESSION_ENDED`. Klien Flutter mengirim `ping` tiap 25 dtk dan menyambung ulang dengan jeda bertahap.
+
 ## 9. Agen, personalisasi, rencana (P2)
 
 | Metode | Path | Consent | Keterangan |
@@ -190,8 +212,16 @@ Status per hari rencana: `PLANNED`, `OBSERVED` (ada catatan yang cocok), `USER_C
 | POST | `/api/me/challenges/:id/checkins` `{localDate?}` | `community_membership` + `challenge_participation` |
 | GET | `/api/me/challenges/:id/progress` | `challenge_participation` |
 | GET | `/api/me/challenges/:id/leaderboard?limit=&offset=` | `community_membership`; `suppressed:true` bila kohort < 5 |
+| GET | `/api/me/challenges/:id` *(Fase 6)* | `community_membership` + anggota aktif; detail: `status`, `statusLabel`, `daysLeft`, `participantsLabel`, `rules[]`, `progress`, `myResult`, `canJoin`, `canCheckin`, `checkedInToday`, `alias` |
+| GET | `/api/me/challenges/history` *(Fase 6)* | tantangan `CLOSED` yang pernah diikuti beserta `myResult` (`COMPLETED`/`PARTICIPATED`/`LEFT`, `finalActiveDays`, `finalScore`) |
+| GET | `/api/me/community/overview` *(Fase 6)* | ringkasan hub: `memberships`, `challenges` berjalan/terjadwal + progres, `recognitions` (maks 6), `upcomingRecognitions` (maks 3), `highlight` untuk Beranda (`CHALLENGE` atau `RECOGNITION` ≤ 7 hari; `null` bila dimatikan), `highlightsEnabled`; tanpa `community_membership` → `consentRequired: true` dengan pengakuan pribadi saja |
+| GET · PATCH | `/api/me/community/privacy` *(Fase 6)* | apa yang dibagikan dan tidak pernah dibagikan, alias per komunitas, papan peringkat tempat alias tampil; `PATCH {highlightsEnabled}` |
+| POST | `/api/me/community/privacy/hide-leaderboards` *(Fase 6)* | menyembunyikan alias dari semua papan peringkat sekaligus (diaudit `leaderboards_hidden`) |
+| GET | `/api/me/recognitions` *(Fase 6)* | pengakuan usaha pribadi `recognition-v1`: `items[]` (tercapai), `upcoming[]` (belum), `note`; tidak pernah tampil ke anggota lain |
 
-Kode galat khas: `INVALID_ALIAS` (422), `ALIAS_TAKEN` (409), `NOT_A_MEMBER` (403), `CHALLENGE_CLOSED` (409), `NOT_PARTICIPATING` (409), `CHECKIN_IN_FUTURE | CHECKIN_TOO_OLD | CHECKIN_OUTSIDE_WINDOW` (422).
+Sejak Fase 6, `GET /api/me/communities/:id/challenges` dan daftar `communities` memuat `status` (`SCHEDULED`/`OPEN`/`CLOSED`), `statusLabel` ("Mulai besok", "Berjalan · sisa 5 hari", "Selesai"), `daysLeft`, dan `participantsLabel` ("kurang dari 5 peserta" bila < 5). Tantangan dibuat dan ditutup otomatis oleh siklus `challenge-lifecycle-v1` (lihat `server-modules.md`).
+
+Kode galat khas: `INVALID_ALIAS` (422), `ALIAS_TAKEN` (409), `NOT_A_MEMBER` (403), `CHALLENGE_NOT_FOUND` (404), `CHALLENGE_CLOSED` (409), `NOT_PARTICIPATING` (409), `CHECKIN_IN_FUTURE | CHECKIN_TOO_OLD | CHECKIN_OUTSIDE_WINDOW` (422).
 
 ## 11. Intervensi (P3 awal) — Consent H + A
 

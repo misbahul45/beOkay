@@ -117,6 +117,10 @@ sealed class ChatPart {
           confidence: i['confidence'] as String,
         ),
     ]),
+    'challenges' => ChallengesPart([
+      for (final c in j['items'] as List? ?? const [])
+        ChatChallenge.fromJson(c as Map<String, dynamic>),
+    ]),
     'reflection' => ReflectionPart(
       weekStart: j['weekStart'] as String,
       positives: [
@@ -128,6 +132,25 @@ sealed class ChatPart {
     ),
     _ => null,
   };
+}
+
+class ChatChallenge {
+  ChatChallenge.fromJson(Map<String, dynamic> j)
+    : id = j['id'] as String,
+      title = j['title'] as String,
+      communityName = (j['communityName'] as String?) ?? '',
+      statusLabel = (j['statusLabel'] as String?) ?? '',
+      participating = j['participating'] == true,
+      activeDays = (j['progress'] as Map?)?['activeDays'] as int?,
+      targetDays = (j['progress'] as Map?)?['targetDays'] as int?;
+  final String id, title, communityName, statusLabel;
+  final bool participating;
+  final int? activeDays, targetDays;
+}
+
+class ChallengesPart extends ChatPart {
+  const ChallengesPart(this.items);
+  final List<ChatChallenge> items;
 }
 
 class ReflectionPart extends ChatPart {

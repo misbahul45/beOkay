@@ -73,6 +73,14 @@ const schema = z.object({
     .string()
     .default("true")
     .transform((value) => value === "true"),
+  NOTIFY_WORKER_ENABLED: z
+    .string()
+    .default("true")
+    .transform((value) => value === "true"),
+  CHALLENGE_LIFECYCLE_ENABLED: z
+    .string()
+    .default("true")
+    .transform((value) => value === "true"),
   // Opsional: tanpa keduanya, inferensi model Modal nonaktif. URL harus https://*.modal.run.
   MODAL_ML_URL: z.string().optional().transform((v) => (v && v.trim() ? v.trim() : undefined)),
   MODAL_ML_AUTH_TOKEN: z.string().optional().transform((v) => (v && v.trim() ? v.trim() : undefined)),

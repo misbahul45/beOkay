@@ -66,6 +66,8 @@ Tidak valid → proses gagal start dengan `Invalid environment configuration: <b
 | `FCM_PROJECT_ID` + `FCM_SERVICE_ACCOUNT_JSON` | — | — | keduanya perlu; JSON mentah **atau base64** (`base64 -w0 file.json`). Kosong → push nonaktif, pengingat tetap lokal |
 | `PUSH_DISPATCH_ENABLED` | — | `true` | dev compose: `false` |
 | `OUTBOX_WORKER_ENABLED` | — | `true` | `false` di stack uji |
+| `NOTIFY_WORKER_ENABLED` | — | `true` | pekerja notifikasi (pengingat tiap 30 dtk, ajakan refleksi tiap jam); `false` di stack uji |
+| `CHALLENGE_LIFECYCLE_ENABLED` | — | `true` | siklus tantangan (buat/buka/tutup/hasil tiap jam + penyegaran malas); `false` di stack uji, tes memanggil `runChallengeLifecycle(now)` langsung |
 | `MODAL_ML_URL` + `MODAL_ML_AUTH_TOKEN` | — | — | harus `https://*.modal.run`; kosong → inferensi model nonaktif |
 | `UPLOADTHING_TOKEN` | — | — | hanya skrip operasional |
 
@@ -105,7 +107,8 @@ Status model saat dilaporkan: `RESEARCH_ONLY` (lisensi dataset tidak tercantum);
 ## 5. Pemeliharaan dan pemantauan
 
 - **Kesehatan**: `GET /health` (200/503) dipakai healthcheck compose. Tidak ada metrik, pelacakan, atau alarm agregat.
-- **Log**: satu baris JSON per permintaan (`requestId`, `method`, `path`, `status`, `durationMs`, `userId`); tidak memuat badan/isi kesehatan. Peristiwa khas: `push_status`, `push_dispatch`, `outbox_drained`, `outbox_event_failed`, `outcomes_swept`, `ml_shadow_failed`, `food_scan_label`.
+- **Log**: satu baris JSON per permintaan (`requestId`, `method`, `path`, `status`, `durationMs`, `userId`); tidak memuat badan/isi kesehatan. Peristiwa khas: `push_status`, `push_dispatch`, `outbox_drained`, `outbox_event_failed`, `outcomes_swept`, `ml_shadow_failed`, `food_scan_label`, `challenge_lifecycle` / `challenge_lifecycle_failed`, `notification_push_failed`, `notification_worker_failed`.
+- **Realtime**: WebSocket `/api/me/realtime` dilayani proses API yang sama (Bun). Bila API diletakkan di belakang reverse proxy, proxy harus meneruskan `Upgrade`/`Connection` dan memberi idle timeout > 120 dtk; tanpa itu aplikasi tetap bekerja (kotak masuk dimuat lewat HTTP) tetapi tanpa pembaruan langsung. Langganan hanya di memori proses, sejalan dengan batas satu replika di bawah.
 - **Outbox**: antrean macet bila `outbox_events.status='DEAD'` bertambah; `outbox.stats()` mengelompokkan per status (tidak ada endpoint). Pekerja menguras tiap 3 dtk, menyapu hasil terukur tiap 60 dtk.
 - **Data lama**: tidak ada kebijakan retensi terjadwal; `audit_events` dan `agent_run_events` tumbuh tanpa batas (hanya ekspor yang membatasi 5.000 audit).
 - **Cadangan/pemulihan**: tidak ada prosedur atau otomasi di repo — `pgdata` adalah satu-satunya salinan. Siapkan `pg_dump` terjadwal sebelum pengguna nyata.
@@ -114,8 +117,8 @@ Status model saat dilaporkan: `RESEARCH_ONLY` (lisensi dataset tidak tercantum);
 ## 6. Batas operasional yang harus diketahui
 
 1. **Satu replika API.** Pembatas laju, cache, dan circuit breaker di memori proses (lihat [system-overview §9](../architecture/system-overview.md)).
-2. **Tantangan komunitas tidak diperbarui otomatis.** Satu tantangan per komunitas di-seed oleh migrasi dengan jendela `CURRENT_DATE … +27 hari`; setelah itu `CHALLENGE_CLOSED` dan tidak ada jalur untuk membuat yang baru (audit F-04). Pada DB prod baru, jendela dimulai pada hari migrasi dijalankan.
-3. **Push nyata terblokir** sampai aplikasi didaftarkan di Firebase dengan `applicationId` asli dan `google-services.json` ditempatkan di `app/android/app/`; kredensial server harus dari proyek yang sama.
+2. **Tantangan komunitas diperbarui otomatis** sejak 3.0 Fase 6 (`challenge-lifecycle-v1`): dua templat (`weekly-active-3`, `four-week-active-12`) membuat periode berjalan dan berikutnya untuk tiap komunitas, berdasarkan tanggal di `Asia/Jakarta`. Tantangan seed lama (tanpa templat) tetap ada dan ditutup saat jendelanya lewat. Menambah templat cukup dengan baris baru di `challenge_templates` (lewat migrasi). Siklus berjalan per proses; menjalankannya di beberapa replika aman (langkah bersyarat status) tetapi boros.
+3. **Push nyata terblokir** sampai aplikasi didaftarkan di Firebase dengan `applicationId` asli dan `google-services.json` ditempatkan di `app/android/app/`; kredensial server harus dari proyek yang sama. Server sudah membuat notifikasi, menyimpannya di kotak masuk, dan mengirimnya lewat WebSocket tanpa Firebase; FCM hanya menambah push saat aplikasi tertutup. Pengaturan notifikasi di aplikasi menampilkan "Belum ada perangkat terdaftar untuk push" selama perangkat belum mendaftarkan token.
 4. **Rilis Android** (sejak 10 Nov 2026): `applicationId`/namespace `id.beokay.app`; izin `INTERNET` di manifes utama. Build rilis **ditolak Gradle** bila `app/android/key.properties` tidak ada atau `API_BASE_URL` bukan `https://`. Buat kunci sekali dan simpan di luar repo:
    ```bash
    keytool -genkeypair -keystore ~/beokay-release.jks -alias beokay -keyalg RSA -keysize 2048 -validity 10000

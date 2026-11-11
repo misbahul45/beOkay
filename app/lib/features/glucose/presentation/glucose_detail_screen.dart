@@ -6,7 +6,8 @@ import '../../../core/network/error_messages.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/async_body.dart';
-import '../../../core/widgets/health_card.dart';
+import '../../../core/widgets/detail_kit.dart';
+import '../../../core/widgets/domain_style.dart';
 import '../../../core/widgets/health_error.dart';
 import '../../../core/widgets/info_card.dart';
 import '../../../core/widgets/page_scaffold.dart';
@@ -84,6 +85,8 @@ class _GlucoseDetailScreenState extends ConsumerState<GlucoseDetailScreen> {
               initial: record,
             );
           }
+          final ctxLabel =
+              glucoseContexts[record.mealContext] ?? 'Konteks tidak diketahui';
           return PageScaffold(
             title: 'Detail glukosa',
             onBack: () =>
@@ -96,108 +99,132 @@ class _GlucoseDetailScreenState extends ConsumerState<GlucoseDetailScreen> {
               ),
             ],
             children: [
-              Text(record.label, style: AppTypography.headline),
-              Text(
-                '${record.localDate} · ${record.localTime} · ${record.timezone}',
+              DetailHero(
+                style: DomainStyle.glucose,
+                eyebrow: 'Glukosa · $ctxLabel',
+                value: record.label.split(' ').first,
+                unit: record.label.contains(' ')
+                    ? record.label.substring(record.label.indexOf(' ') + 1)
+                    : null,
+                archived: record.archived,
+                chips: [
+                  '${record.localDate} · ${record.localTime}',
+                  record.qualityLabel,
+                ],
               ),
-              const SizedBox(height: 16),
-              HealthCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+              DetailSection(
+                title: 'Rincian',
+                children: [
+                  DetailRow(
+                    'Nilai asli',
+                    '${record.originalValue} ${record.originalUnit}',
+                  ),
+                  const DetailRow('Sumber', 'Glukometer manual'),
+                  const DetailRow('Jenis', 'Darah kapiler'),
+                  DetailRow('Konteks', ctxLabel),
+                  DetailRow('Zona waktu', record.timezone),
+                  if (record.version > 1 || record.archived)
+                    DetailRow(
+                      'Versi',
+                      revisionLabel(record.version, archived: record.archived),
+                    ),
+                  if (record.originalUnit != record.displayUnit)
                     Text(
-                      'Nilai asli: ${record.originalValue} ${record.originalUnit}',
+                      'Nilai tampilan dikonversi; data asli tetap tersimpan.',
+                      style: AppTypography.caption,
                     ),
-                    if (record.originalUnit != record.displayUnit)
-                      const Text(
-                        'Nilai tampilan dikonversi; data asli tetap tersimpan.',
-                      ),
-                    const Text(
-                      'Sumber: glukometer manual\nJenis: pengukuran darah kapiler',
-                    ),
-                    Text('Konteks: ${glucoseContexts[record.mealContext]}'),
-                    Text(record.qualityLabel),
-                    if (record.version > 1 || record.archived)
-                      Text(
-                        revisionLabel(
-                          record.version,
-                          archived: record.archived,
-                        ),
-                      ),
-                    if (record.notes != null) Text(record.notes!),
-                    ExpansionTile(
-                      title: const Text('Provenansi pengukuran'),
-                      children: [
-                        Text(
-                          'Diukur: ${record.measuredAt.toIso8601String()}\nDicatat: ${record.recordedAt}\nDiterima: ${record.receivedAt}\nKanonik: ${record.valueMgDl} mg/dL',
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                ],
               ),
-              const SizedBox(height: 16),
+              if (record.notes != null)
+                DetailSection(
+                  title: 'Catatan',
+                  children: [Text(record.notes!, style: AppTypography.body)],
+                ),
+              DetailActions(
+                children: [
+                  if (!record.archived)
+                    PillButton(
+                      label: 'Koreksi',
+                      icon: Icons.edit_outlined,
+                      kind: PillButtonKind.secondary,
+                      expand: false,
+                      onPressed: busy
+                          ? null
+                          : () => context.push(
+                              '${Routes.glucose}/${record.id}/edit',
+                            ),
+                    ),
+                  PillButton(
+                    label: record.archived
+                        ? 'Pulihkan catatan'
+                        : 'Arsipkan catatan',
+                    icon: record.archived
+                        ? Icons.unarchive_outlined
+                        : Icons.archive_outlined,
+                    kind: PillButtonKind.secondary,
+                    expand: false,
+                    loading: busy,
+                    onPressed: () => archive(record),
+                  ),
+                ],
+              ),
               if (error != null) ...[
+                const SizedBox(height: 8),
                 ErrorBanner(error!),
                 TextButton(
                   onPressed: () => ref.invalidate(glucoseProvider(record.id)),
                   child: const Text('Muat ulang catatan'),
                 ),
               ],
-              if (!record.archived)
-                PillButton(
-                  label: 'Koreksi pengukuran',
-                  kind: PillButtonKind.secondary,
-                  onPressed: busy
-                      ? null
-                      : () =>
-                            context.push('${Routes.glucose}/${record.id}/edit'),
-                ),
+              DetailSection(
+                title: 'Riwayat koreksi',
+                children: [
+                  ref
+                      .watch(glucoseRevisionsProvider(record.id))
+                      .when(
+                        skipLoadingOnRefresh: false,
+                        skipLoadingOnReload: false,
+                        loading: () => const SkeletonList(rows: 1),
+                        error: (e, _) => HealthError(
+                          error: e,
+                          retry: () => ref.invalidate(
+                            glucoseRevisionsProvider(record.id),
+                          ),
+                        ),
+                        data: (items) => RevisionTimeline(
+                          entries: [
+                            for (final item in items)
+                              RevisionEntry(
+                                version: item['version'] as int,
+                                reason: '${item['reason']}',
+                                createdAt: '${item['createdAt']}',
+                                before:
+                                    'Sebelumnya: ${item['snapshot']['originalValue']} ${item['snapshot']['originalUnit']} · ${friendlyStamp('${item['snapshot']['measuredAt']}')}',
+                              ),
+                          ],
+                        ),
+                      ),
+                ],
+              ),
+              DetailSection(
+                title: 'Provenansi',
+                children: [
+                  DetailRow(
+                    'Diukur',
+                    friendlyStamp(record.measuredAt.toIso8601String()),
+                  ),
+                  DetailRow('Dicatat', friendlyStamp('${record.recordedAt}')),
+                  DetailRow(
+                    'Diterima server',
+                    friendlyStamp('${record.receivedAt}'),
+                  ),
+                  DetailRow('Nilai kanonik', '${record.valueMgDl} mg/dL'),
+                ],
+              ),
               const SizedBox(height: 12),
               PillButton(
-                label: record.archived
-                    ? 'Pulihkan catatan'
-                    : 'Arsipkan catatan',
-                kind: PillButtonKind.secondary,
-                loading: busy,
-                onPressed: () => archive(record),
-              ),
-              const SizedBox(height: 24),
-              Text('Riwayat koreksi', style: AppTypography.heading),
-              ref
-                  .watch(glucoseRevisionsProvider(record.id))
-                  .when(
-                    skipLoadingOnRefresh: false,
-                    skipLoadingOnReload: false,
-                    loading: () => const SkeletonList(rows: 1),
-                    error: (e, _) => HealthError(
-                      error: e,
-                      retry: () =>
-                          ref.invalidate(glucoseRevisionsProvider(record.id)),
-                    ),
-                    data: (items) => Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (items.isEmpty) const Text('Belum ada koreksi.'),
-                        for (final item in items)
-                          ExpansionTile(
-                            title: Text(
-                              'Versi ${item['version']} · ${item['reason']}',
-                            ),
-                            subtitle: Text(item['createdAt'] as String),
-                            children: [
-                              Text(
-                                'Nilai sebelumnya: ${item['snapshot']['originalValue']} ${item['snapshot']['originalUnit']}\nWaktu sebelumnya: ${item['snapshot']['measuredAt']}',
-                              ),
-                            ],
-                          ),
-                      ],
-                    ),
-                  ),
-              const SizedBox(height: 24),
-              PillButton(
                 label: 'Lihat riwayat glukosa',
-                kind: PillButtonKind.secondary,
+                kind: PillButtonKind.ghost,
                 onPressed: () => context.go(Routes.glucose),
               ),
             ],

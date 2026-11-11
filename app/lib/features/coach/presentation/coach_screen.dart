@@ -11,6 +11,7 @@ import '../../../core/widgets/beokay_spark.dart';
 import '../../../core/widgets/info_card.dart';
 import '../../../core/widgets/pill_button.dart';
 import '../../../core/widgets/tab_root_header.dart';
+import '../../notifications/presentation/notification_widgets.dart';
 import '../../nutrition/application/nutrition_controller.dart';
 import '../../nutrition/presentation/scan/food_image_source.dart';
 import '../../nutrition/presentation/scan/scan_widgets.dart';
@@ -284,6 +285,8 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     'LOG' => context.go(Routes.log),
     'LOG_MEAL' => context.push(Routes.addMeal),
     'CONSENT' => context.push(Routes.consentManagement),
+    'COMMUNITY' => context.push(Routes.community),
+    'GOALS' => context.push(Routes.goals),
     _ => null,
   };
 
@@ -393,6 +396,7 @@ class _Header extends StatelessWidget {
             side: BorderSide(color: AppColors.border),
           ),
         ),
+        const NotificationBell(),
         const ProfileAction(),
       ],
     ),
@@ -623,6 +627,7 @@ class _AssistantTurn extends StatelessWidget {
         LinkPart() => null,
         PhotoPart() => null,
         ReflectionPart() => ReflectionCard(part: part),
+        ChallengesPart() => ChallengeSuggestionsCard(part: part),
         MealDraftPart(:final draft) =>
           draft == null
               ? null

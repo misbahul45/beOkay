@@ -2,6 +2,7 @@ import { Prisma } from "../../generated/prisma/client.ts";
 import { prisma } from "../../infrastructure/database/prisma.ts";
 import { logEvent } from "../../shared/http/logger.ts";
 import { consentService } from "../consent/consent.service.ts";
+import { pushAllowed, reminderTarget } from "../notifications/notification.service.ts";
 import { preferencesService } from "../preferences/preferences.service.ts";
 import { lockScreenText, upcomingOccurrences, type ReminderKind } from "../reminders/reminders.model.ts";
 import type { PushMessage, PushReceipt } from "./fcm.client.ts";
@@ -12,14 +13,14 @@ type Sender = { configured: boolean; send(message: PushMessage): Promise<PushRec
 export const LOOKBACK_MS = 3 * 60_000;
 const isUnique = (e: unknown) => e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002";
 
-export type DispatchStats = { users: number; due: number; sent: number; failed: number; deactivated: number; skippedNoConsent: number };
+export type DispatchStats = { users: number; due: number; sent: number; failed: number; deactivated: number; skippedNoConsent: number; skippedByPreference: number };
 
 /**
  * Satu putaran pengiriman. Idempoten: buku besar `push_deliveries` unik per (pengingat, perangkat, waktu jadwal), jadi
  * putaran ganda atau beberapa instans tidak mengirim dua kali. Isi pesan generik (tanpa judul pengguna, nama obat, atau angka).
  */
 export async function dispatchDueReminders(sender: Sender, now = new Date()): Promise<DispatchStats> {
-  const stats: DispatchStats = { users: 0, due: 0, sent: 0, failed: 0, deactivated: 0, skippedNoConsent: 0 };
+  const stats: DispatchStats = { users: 0, due: 0, sent: 0, failed: 0, deactivated: 0, skippedNoConsent: 0, skippedByPreference: 0 };
   if (!sender.configured) return stats;
   const devices = await prisma.pushDevice.findMany({ where: { active: true } });
   const byUser = new Map<string, typeof devices>();
@@ -33,7 +34,11 @@ export async function dispatchDueReminders(sender: Sender, now = new Date()): Pr
       stats.skippedNoConsent++; // consent ditarik: tidak ada push, meski token masih tersimpan
       continue;
     }
-    const reminders = await prisma.reminder.findMany({ where: { userId, enabled: true, archivedAt: null } });
+    if (!pushAllowed(await prisma.notificationPreference.findUnique({ where: { userId } }), "REMINDER")) {
+      stats.skippedByPreference++;
+      continue;
+    }
+    const reminders = await prisma.reminder.findMany({ where: { userId, enabled: true, archivedAt: null }, include: { coachingActions: { where: { status: "ACCEPTED" }, select: { id: true } } } });
     if (!reminders.length) continue;
     const { timezone } = await preferencesService.get(userId);
     const from = new Date(now.getTime() - LOOKBACK_MS);
@@ -43,7 +48,7 @@ export async function dispatchDueReminders(sender: Sender, now = new Date()): Pr
       from,
       1,
     ).filter((o) => o.at.getTime() <= now.getTime());
-    const kindOf = new Map(reminders.map((r) => [r.id, r.kind as ReminderKind]));
+    const byId = new Map(reminders.map((r) => [r.id, r]));
 
     for (const occ of due) {
       stats.due++;
@@ -56,8 +61,10 @@ export async function dispatchDueReminders(sender: Sender, now = new Date()): Pr
           if (isUnique(e)) continue; // sudah ditangani putaran/instans lain
           throw e;
         }
-        const text = lockScreenText(kindOf.get(occ.reminderId)!);
-        const receipt = await sender.send({ token: device.token, title: text.title, body: text.body, data: { type: "reminder" }, collapseKey: `reminder-${occ.reminderId}`, ttlSeconds: 1800 });
+        const reminder = byId.get(occ.reminderId)!;
+        const text = lockScreenText(reminder.kind as ReminderKind);
+        const target = reminderTarget(reminder.kind as ReminderKind, reminder.id, reminder.coachingActions[0]?.id);
+        const receipt = await sender.send({ token: device.token, title: text.title, body: text.body, data: { type: "reminder", ...target }, collapseKey: `reminder-${occ.reminderId}`, ttlSeconds: 1800 });
         await prisma.pushDelivery.update({ where: { id: ledgerId }, data: { status: receipt.status, providerMessageId: receipt.providerMessageId, errorCode: receipt.errorCode, attemptedAt: new Date() } });
         if (receipt.status === "sent") stats.sent++;
         else stats.failed++;

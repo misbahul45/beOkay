@@ -9,6 +9,8 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/choice_chips.dart';
+import '../../../core/widgets/domain_style.dart';
+import '../../../core/widgets/form_kit.dart';
 import '../../../core/widgets/discard_guard.dart';
 import '../../../core/widgets/info_card.dart';
 import '../../../core/widgets/page_scaffold.dart';
@@ -112,10 +114,13 @@ class _State extends ConsumerState<GoalFormScreen> {
       dirty: dirty && !saving,
       child: PageScaffold(
         title: editing ? 'Ubah tujuan' : 'Buat tujuan',
-        bottom: PillButton(
-          label: editing ? 'Simpan perubahan' : 'Simpan tujuan',
-          loading: saving,
-          onPressed: _save,
+        bottom: SaveBar(
+          button: PillButton(
+            label: editing ? 'Simpan perubahan' : 'Simpan tujuan',
+            loading: saving,
+            onPressed: _save,
+          ),
+          note: 'Tujuan bersifat pribadi dan tidak dibagikan.',
         ),
         children: [
           Form(
@@ -124,85 +129,101 @@ class _State extends ConsumerState<GoalFormScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                AppTextField(
-                  label: 'Nama tujuan',
-                  controller: title,
-                  hint: 'mis. Jalan kaki sore',
-                  validator: (v) => (v ?? '').trim().isEmpty
-                      ? 'Nama tujuan wajib diisi.'
-                      : null,
+                FormHero.domain(
+                  DomainStyle.goal,
+                  editing
+                      ? 'Sesuaikan tujuanmu'
+                      : 'Tujuan kecil yang kamu pilih',
+                  subtitle:
+                      'Progres dihitung dari catatanmu; hari tanpa catatan bukan kegagalan.',
                 ),
-                const SizedBox(height: AppSpacing.md),
-                Text('Jenis tujuan', style: AppTypography.secondaryStrong),
-                const SizedBox(height: AppSpacing.xs),
+                FormSection(
+                  title: 'Tujuan',
+                  children: [
+                    AppTextField(
+                      label: 'Nama tujuan',
+                      controller: title,
+                      hint: 'mis. Jalan kaki sore',
+                      validator: (v) => (v ?? '').trim().isEmpty
+                          ? 'Nama tujuan wajib diisi.'
+                          : null,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text('Jenis tujuan', style: AppTypography.secondaryStrong),
+                    const SizedBox(height: AppSpacing.xs),
+                    if (editing)
+                      Text(goalTypes[type]!, style: AppTypography.body)
+                    else
+                      Wrap(
+                        spacing: AppSpacing.xs,
+                        runSpacing: 4,
+                        children: [
+                          for (final e in goalTypes.entries)
+                            PillChip(
+                              label: e.value,
+                              selected: type == e.key,
+                              onTap: () => setState(() {
+                                type = e.key;
+                                dirty = true;
+                              }),
+                            ),
+                        ],
+                      ),
+                    FormNote(goalTypeHints[type]!),
+                  ],
+                ),
+                FormSection(
+                  title: 'Target',
+                  children: [
+                    if (!editing) ...[
+                      SegmentedPills<String>(
+                        options: const [
+                          ('weekly', 'Mingguan'),
+                          ('daily', 'Harian'),
+                        ],
+                        value: period,
+                        onChanged: (v) => setState(() {
+                          period = v;
+                          dirty = true;
+                        }),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                    ],
+                    AppTextField(
+                      label: 'Target (${targetUnits[type]})',
+                      controller: target,
+                      hint: targetHints[type],
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      validator: (v) {
+                        final n = num.tryParse(
+                          (v ?? '').trim().replaceAll(',', '.'),
+                        );
+                        return n == null || n <= 0
+                            ? 'Isi angka lebih dari 0.'
+                            : null;
+                      },
+                    ),
+                  ],
+                ),
                 if (editing)
-                  Text(goalTypes[type]!, style: AppTypography.body)
-                else
-                  Wrap(
-                    spacing: AppSpacing.xs,
+                  FormSection(
+                    title: 'Alasan',
                     children: [
-                      for (final e in goalTypes.entries)
-                        PillChip(
-                          label: e.value,
-                          selected: type == e.key,
-                          onTap: () => setState(() {
-                            type = e.key;
-                            dirty = true;
-                          }),
-                        ),
+                      AppTextField(
+                        label: 'Alasan perubahan',
+                        controller: reason,
+                        hint: 'mis. Target disesuaikan',
+                        maxLength: 300,
+                        validator: (v) => (v ?? '').trim().isEmpty
+                            ? 'Isi alasan perubahan.'
+                            : null,
+                      ),
                     ],
                   ),
-                const SizedBox(height: 4),
-                Text(goalTypeHints[type]!, style: AppTypography.caption),
-                const SizedBox(height: AppSpacing.md),
-                if (!editing) ...[
-                  Text('Periode', style: AppTypography.secondaryStrong),
-                  const SizedBox(height: AppSpacing.xs),
-                  SegmentedPills<String>(
-                    options: const [
-                      ('weekly', 'Mingguan'),
-                      ('daily', 'Harian'),
-                    ],
-                    value: period,
-                    onChanged: (v) => setState(() {
-                      period = v;
-                      dirty = true;
-                    }),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                ],
-                AppTextField(
-                  label: 'Target (${targetUnits[type]})',
-                  controller: target,
-                  hint: targetHints[type],
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  validator: (v) {
-                    final n = num.tryParse(
-                      (v ?? '').trim().replaceAll(',', '.'),
-                    );
-                    return n == null || n <= 0
-                        ? 'Isi angka lebih dari 0.'
-                        : null;
-                  },
-                ),
-                const SizedBox(height: AppSpacing.md),
-                if (editing) ...[
-                  AppTextField(
-                    label: 'Alasan perubahan',
-                    controller: reason,
-                    hint: 'mis. Target disesuaikan',
-                    maxLength: 300,
-                    validator: (v) => (v ?? '').trim().isEmpty
-                        ? 'Isi alasan perubahan.'
-                        : null,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                ],
-
                 if (error != null) ...[
-                  const SizedBox(height: AppSpacing.md),
+                  const SizedBox(height: AppSpacing.xs),
                   ErrorBanner(error!),
                 ],
               ],

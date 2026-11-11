@@ -67,6 +67,8 @@ model Users {
   coachingEvents CoachingEvent[]
   weeklyCheckins WeeklyCheckin[]
   recognitions Recognition[]
+  notifications Notification[]
+  notificationPreference NotificationPreference?
 
   @@unique([email])
   @@map("users")
@@ -1212,4 +1214,32 @@ model Recognition {
   user       Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@unique([userId, key])
   @@map("recognitions")
+}
+
+/// Kotak masuk notifikasi dalam aplikasi. Isi generik tanpa nilai klinis; push FCM memakai teks layar kunci yang lebih umum lagi.
+model Notification {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  kind       String
+  title      String
+  body       String
+  action     String
+  refId      String?   @map("ref_id")
+  dedupeKey  String    @map("dedupe_key")
+  pushedAt   DateTime? @map("pushed_at") @db.Timestamptz(6)
+  readAt     DateTime? @map("read_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  user       Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, dedupeKey])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  userId      String   @id @map("user_id") @db.Uuid
+  pushEnabled Boolean  @default(true) @map("push_enabled")
+  mutedKinds  String[] @default([]) @map("muted_kinds")
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user        Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("notification_preferences")
 }

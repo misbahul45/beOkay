@@ -8,6 +8,10 @@ import { consentService } from "../consent/consent.service.ts";
 import type { ConsentPurpose } from "../consent/consent.policy.ts";
 import { currentPolicy } from "../consent/consent.policy.ts";
 import { preferencesService } from "../preferences/preferences.service.ts";
+import { realtime } from "../../infrastructure/realtime/realtime.ts";
+import { COMPLETION_LABEL, daysLeft, participantsLabel, statusLabel, statusOn, type Completion } from "./lifecycle.model.ts";
+import { ensureFreshLifecycle } from "./lifecycle.service.ts";
+import { recognitionService } from "./recognition.service.ts";
 import { MAX_BACKFILL_DAYS, MIN_ACTIVITY_MINUTES, MIN_COHORT, SCORING_VERSION, aliasKey, aliasProblem, desiredEvents, rank, reconcile, round4, totalScore } from "./scoring.model.ts";
 
 const need = async (userId: string, ...purposes: ConsentPurpose[]) => {
@@ -72,11 +76,42 @@ export async function syncScores(userId: string, c: Chal, tz?: string) {
       }
     }
     const all = await tx.scoreEvent.findMany({ where: { challengeId: c.id, userId } });
-    return { score: Math.min(100, Math.max(0, totalScore(all.map((e) => ({ points: e.points.toNumber() }))))), activityDays: activityDays.length, checkinDays: checkinDays.length, added: toAdd.length, reversed: toReverse.length, events: all.length };
+    return { score: Math.min(100, Math.max(0, totalScore(all.map((e) => ({ points: e.points.toNumber() }))))), activityDays: activityDays.length, checkinDays: checkinDays.length, activeDays: new Set([...activityDays, ...checkinDays]).size, added: toAdd.length, reversed: toReverse.length, events: all.length };
   });
 }
 
-const publicChallenge = (c: Chal) => ({ id: c.id, communityId: c.communityId, title: c.title, description: c.description, kind: c.kind, startsOn: day(c.startsOn), endsOn: day(c.endsOn), targetDays: c.targetDays, scoringVersion: c.scoringVersion, status: c.status });
+const publicChallenge = (c: Chal, today = day(new Date())) => {
+  const p = { startsOn: day(c.startsOn), endsOn: day(c.endsOn) };
+  const status = c.status === "CLOSED" ? "CLOSED" : statusOn(p, today);
+  return { id: c.id, communityId: c.communityId, title: c.title, description: c.description, kind: c.kind, startsOn: p.startsOn, endsOn: p.endsOn, targetDays: c.targetDays, scoringVersion: c.scoringVersion, status, statusLabel: status === "CLOSED" ? "Selesai" : statusLabel(p, today), daysLeft: status === "OPEN" ? daysLeft(p, today) : null };
+};
+
+const RULES = [
+  "Hari aktif = satu sesi aktivitas tercatat minimal 10 menit atau check-in kebiasaan.",
+  "Satu hari dihitung sekali; hari istirahat tidak mengurangi skor.",
+  "Tidak ada poin untuk intensitas, berat badan, gula darah, atau nilai kesehatan lain.",
+  "Papan peringkat hanya menampilkan alias dan skor, setelah minimal 5 peserta bersedia tampil.",
+];
+
+async function todayOf(userId: string) {
+  return localRecordTime(new Date(), (await preferencesService.get(userId)).timezone).localDate;
+}
+
+async function participantCounts(ids: string[]) {
+  if (!ids.length) return new Map<string, number>();
+  const rows = await prisma.challengeParticipant.groupBy({ by: ["challengeId"], where: { challengeId: { in: ids }, leftAt: null }, _count: true });
+  return new Map(rows.map((r) => [r.challengeId, r._count]));
+}
+
+const resultView = (p: { completionStatus: string | null; finalScore: Prisma.Decimal | null; finalActiveDays: number | null } | undefined) =>
+  p?.completionStatus ? { completionStatus: p.completionStatus, label: COMPLETION_LABEL[p.completionStatus as Completion], finalScore: p.finalScore?.toNumber() ?? null, finalActiveDays: p.finalActiveDays } : null;
+
+export async function canSubscribeTopic(userId: string, topic: string) {
+  const id = topic.split(":")[1];
+  if (!id || !(await has(userId, "community_membership"))) return false;
+  const c = await prisma.challenge.findUnique({ where: { id }, select: { communityId: true } });
+  return Boolean(c && (await activeMembership(userId, c.communityId)));
+}
 
 export const communityService = {
   async regions() {
@@ -90,11 +125,16 @@ export const communityService = {
     const list = await prisma.community.findMany({ where: { regionCode }, orderBy: { name: "asc" } });
     const mine = await prisma.communityMembership.findMany({ where: { userId, communityId: { in: list.map((c) => c.id) } } });
     const counts = await prisma.communityMembership.groupBy({ by: ["communityId"], where: { communityId: { in: list.map((c) => c.id) }, status: "ACTIVE" }, _count: true });
+    await ensureFreshLifecycle();
+    const today = await todayOf(userId);
+    const live = await prisma.challenge.findMany({ where: { communityId: { in: list.map((c) => c.id) }, status: { in: ["OPEN", "SCHEDULED"] } }, orderBy: { startsOn: "asc" } });
+    const pc = await participantCounts(live.map((c) => c.id));
     return {
       region: { code: region.code, name: region.name },
       items: list.map((c) => {
         const n = counts.find((x) => x.communityId === c.id)?._count ?? 0;
-        return { id: c.id, name: c.name, description: c.description, memberCount: n < MIN_COHORT ? null : n, memberCountLabel: n < MIN_COHORT ? `kurang dari ${MIN_COHORT}` : String(n), myStatus: mine.find((m) => m.communityId === c.id)?.status ?? "NONE" };
+        const challenges = live.filter((x) => x.communityId === c.id).slice(0, 3).map((x) => ({ ...publicChallenge(x, today), participantsLabel: participantsLabel(pc.get(x.id) ?? 0) }));
+        return { id: c.id, name: c.name, description: c.description, memberCount: n < MIN_COHORT ? null : n, memberCountLabel: n < MIN_COHORT ? `kurang dari ${MIN_COHORT}` : String(n), myStatus: mine.find((m) => m.communityId === c.id)?.status ?? "NONE", challenges };
       }),
     };
   },
@@ -103,7 +143,8 @@ export const communityService = {
     const rows = await prisma.communityMembership.findMany({ where: { userId, status: "ACTIVE" }, include: { community: { include: { region: true } } }, orderBy: { joinedAt: "desc" } });
     // Tanpa persetujuan keanggotaan, keanggotaan tidak ditampilkan (penarikan berlaku segera).
     if (!(await has(userId, "community_membership"))) return { items: [], consentRequired: true };
-    return { items: rows.map((m) => ({ communityId: m.communityId, name: m.community.name, region: m.community.region.name, alias: m.alias, joinedAt: m.joinedAt.toISOString() })), consentRequired: false };
+    const open = await prisma.challenge.groupBy({ by: ["communityId"], where: { communityId: { in: rows.map((m) => m.communityId) }, status: "OPEN" }, _count: true });
+    return { items: rows.map((m) => ({ communityId: m.communityId, name: m.community.name, region: m.community.region.name, alias: m.alias, joinedAt: m.joinedAt.toISOString(), openChallenges: open.find((o) => o.communityId === m.communityId)?._count ?? 0 })), consentRequired: false };
   },
 
   async join(userId: string, communityId: string, alias: string) {
@@ -158,9 +199,46 @@ export const communityService = {
   async challenges(userId: string, communityId: string) {
     await need(userId, "community_membership");
     if (!(await activeMembership(userId, communityId))) throw forbidden("NOT_A_MEMBER", "Hanya anggota yang dapat melihat tantangan komunitas.");
-    const list = await prisma.challenge.findMany({ where: { communityId }, orderBy: { startsOn: "desc" } });
+    await ensureFreshLifecycle();
+    const today = await todayOf(userId);
+    const list = await prisma.challenge.findMany({ where: { communityId }, orderBy: { startsOn: "desc" }, take: 40 });
     const parts = await prisma.challengeParticipant.findMany({ where: { userId, challengeId: { in: list.map((c) => c.id) } } });
-    return { items: list.map((c) => ({ ...publicChallenge(c), participating: parts.some((p) => p.challengeId === c.id && !p.leftAt), leaderboardVisible: parts.find((p) => p.challengeId === c.id && !p.leftAt)?.leaderboardVisible ?? false })) };
+    const pc = await participantCounts(list.map((c) => c.id));
+    return {
+      items: list.map((c) => {
+        const mine = parts.find((p) => p.challengeId === c.id);
+        return { ...publicChallenge(c, today), participating: Boolean(mine && !mine.leftAt), leaderboardVisible: mine && !mine.leftAt ? mine.leaderboardVisible : false, participantsLabel: participantsLabel(pc.get(c.id) ?? 0), myResult: resultView(mine) };
+      }),
+    };
+  },
+
+  async challenge(userId: string, challengeId: string) {
+    await need(userId, "community_membership");
+    await ensureFreshLifecycle();
+    const c = await prisma.challenge.findUnique({ where: { id: challengeId }, include: { community: { include: { region: true } } } });
+    if (!c) throw notFound("CHALLENGE_NOT_FOUND", "Tantangan tidak ditemukan.");
+    const m = await activeMembership(userId, c.communityId);
+    if (!m) throw forbidden("NOT_A_MEMBER", "Hanya anggota yang dapat melihat tantangan komunitas.");
+    const today = await todayOf(userId);
+    const mine = await prisma.challengeParticipant.findUnique({ where: { challengeId_userId: { challengeId, userId } } });
+    const participating = Boolean(mine && !mine.leftAt);
+    const progress = participating && (await has(userId, "challenge_participation")) ? await syncScores(userId, c) : null;
+    const count = (await participantCounts([c.id])).get(c.id) ?? 0;
+    const checked = participating ? await prisma.challengeCheckin.findUnique({ where: { challengeId_userId_localDate: { challengeId, userId, localDate: new Date(today + "T00:00:00Z") } }, select: { id: true } }) : null;
+    return {
+      ...publicChallenge(c, today),
+      community: { id: c.communityId, name: c.community.name, region: c.community.region.name },
+      alias: m.alias,
+      participating,
+      leaderboardVisible: participating ? mine!.leaderboardVisible : false,
+      participantsLabel: participantsLabel(count),
+      rules: RULES,
+      progress: progress ? { score: progress.score, activeDays: progress.activeDays, activityDays: progress.activityDays, checkinDays: progress.checkinDays } : null,
+      myResult: resultView(mine ?? undefined),
+      canJoin: !participating && c.status !== "CLOSED" && day(c.endsOn) >= today,
+      canCheckin: participating && day(c.startsOn) <= today && today <= day(c.endsOn),
+      checkedInToday: Boolean(checked),
+    };
   },
 
   async joinChallenge(userId: string, challengeId: string, leaderboardVisible: boolean) {
@@ -169,10 +247,14 @@ export const communityService = {
     const c = await prisma.challenge.findUnique({ where: { id: challengeId } });
     if (!c) throw notFound("CHALLENGE_NOT_FOUND", "Tantangan tidak ditemukan.");
     if (!(await activeMembership(userId, c.communityId))) throw forbidden("NOT_A_MEMBER", "Bergabunglah dengan komunitasnya dulu.");
-    if (c.status !== "OPEN" || c.endsOn.getTime() < Date.parse(day(new Date()) + "T00:00:00Z")) throw conflict("CHALLENGE_CLOSED", "Tantangan ini sudah ditutup.");
+    if (c.status === "CLOSED" || day(c.endsOn) < (await todayOf(userId))) throw conflict("CHALLENGE_CLOSED", "Tantangan ini sudah ditutup.");
     await prisma.challengeParticipant.upsert({ where: { challengeId_userId: { challengeId, userId } }, create: { challengeId, userId, leaderboardVisible }, update: { leftAt: null, leaderboardVisible } });
     await recordAudit(prisma, { userId, eventType: "challenge_joined", metadata: { challengeId } });
-    return { joined: true, leaderboardVisible, progress: await syncScores(userId, c) };
+    const progress = await syncScores(userId, c);
+    await recognitionService.refresh(userId);
+    realtime.toUser(userId, { type: "challenge.progress", challengeId, score: progress.score, activeDays: progress.activeDays });
+    if (leaderboardVisible) realtime.toTopic(`challenge:${challengeId}`, { type: "leaderboard.changed", challengeId });
+    return { joined: true, leaderboardVisible, progress };
   },
 
   async leaveChallenge(userId: string, challengeId: string) {
@@ -186,6 +268,7 @@ export const communityService = {
     const p = await prisma.challengeParticipant.findUnique({ where: { challengeId_userId: { challengeId, userId } } });
     if (!p || p.leftAt) throw conflict("NOT_PARTICIPATING", "Kamu belum ikut tantangan ini.");
     await prisma.challengeParticipant.update({ where: { id: p.id }, data: { leaderboardVisible: visible } });
+    realtime.toTopic(`challenge:${challengeId}`, { type: "leaderboard.changed", challengeId });
     return { leaderboardVisible: visible };
   },
 
@@ -209,7 +292,10 @@ export const communityService = {
       if (!isUnique(e)) throw e;
       created = false; // idempoten
     }
-    return { created, localDate: target, progress: await syncScores(userId, c, timezone) };
+    const progress = await syncScores(userId, c, timezone);
+    realtime.toUser(userId, { type: "challenge.progress", challengeId, score: progress.score, activeDays: progress.activeDays });
+    if (p.leaderboardVisible) realtime.toTopic(`challenge:${challengeId}`, { type: "leaderboard.changed", challengeId });
+    return { created, localDate: target, progress };
   },
 
   async progress(userId: string, challengeId: string) {
@@ -265,5 +351,80 @@ export const communityService = {
       items: page.map((r) => ({ rank: r.rank, alias: r.alias, score: r.score, isMe: r.userId === userId })),
       nextOffset: q.offset + q.limit < ranked.length ? q.offset + q.limit : null,
     };
+  },
+
+  async history(userId: string) {
+    const rows = await prisma.challengeParticipant.findMany({ where: { userId, challenge: { status: "CLOSED" } }, include: { challenge: { include: { community: true } } }, orderBy: { challenge: { endsOn: "desc" } }, take: 50 });
+    return { items: rows.map((p) => ({ ...publicChallenge(p.challenge), communityName: p.challenge.community.name, myResult: resultView(p) })) };
+  },
+
+  async overview(userId: string) {
+    const settings = await prisma.userSettings.findUnique({ where: { userId }, select: { communityHighlights: true } });
+    const highlightsEnabled = settings?.communityHighlights ?? true;
+    const recognitions = await recognitionService.list(userId);
+    if (!(await has(userId, "community_membership"))) {
+      return { consentRequired: true, memberships: [], challenges: [], recognitions: recognitions.items.slice(0, 6), upcomingRecognitions: recognitions.upcoming.slice(0, 3), highlight: null, highlightsEnabled };
+    }
+    await ensureFreshLifecycle();
+    const today = await todayOf(userId);
+    const memberships = (await this.mine(userId)).items;
+    const parts = await prisma.challengeParticipant.findMany({ where: { userId, leftAt: null, challenge: { status: { in: ["OPEN", "SCHEDULED"] }, community: { memberships: { some: { userId, status: "ACTIVE" } } } } }, include: { challenge: true }, orderBy: { challenge: { endsOn: "asc" } } });
+    const challenges = [];
+    for (const p of parts) {
+      const s = await syncScores(userId, p.challenge);
+      challenges.push({ ...publicChallenge(p.challenge, today), leaderboardVisible: p.leaderboardVisible, progress: { score: s.score, activeDays: s.activeDays } });
+    }
+    const recent = recognitions.items.find((r) => Date.now() - Date.parse(r.achievedAt) < 7 * 86_400_000);
+    const running = challenges.find((c) => c.status === "OPEN");
+    const highlight = !highlightsEnabled
+      ? null
+      : running
+        ? { type: "CHALLENGE", challengeId: running.id, title: running.title, detail: `${running.progress.activeDays} dari ${running.targetDays} hari aktif`, ratio: Math.min(1, running.progress.activeDays / running.targetDays), statusLabel: running.statusLabel }
+        : recent
+          ? { type: "RECOGNITION", key: recent.key, title: recent.title, detail: recent.detail, ratio: null, statusLabel: null }
+          : null;
+    return { consentRequired: false, memberships, challenges, recognitions: recognitions.items.slice(0, 6), upcomingRecognitions: recognitions.upcoming.slice(0, 3), highlight, highlightsEnabled };
+  },
+
+  async privacy(userId: string) {
+    const memberships = await prisma.communityMembership.findMany({ where: { userId, status: "ACTIVE" }, include: { community: true } });
+    const visible = await prisma.challengeParticipant.findMany({ where: { userId, leftAt: null, leaderboardVisible: true }, include: { challenge: true } });
+    const settings = await prisma.userSettings.findUnique({ where: { userId }, select: { communityHighlights: true } });
+    return {
+      memberships: memberships.map((m) => ({ communityId: m.communityId, name: m.community.name, alias: m.alias })),
+      visibleOn: visible.map((p) => ({ challengeId: p.challengeId, title: p.challenge.title })),
+      highlightsEnabled: settings?.communityHighlights ?? true,
+      shared: ["Alias yang kamu pilih", "Skor tantangan, hanya bila kamu menyalakan papan peringkat"],
+      neverShared: ["Nama asli, surel, dan foto", "Gula darah, obat, diagnosis, dan ukuran tubuh", "Catatan makan dan aktivitas", "Lokasi tepat (hanya provinsi yang kamu pilih)"],
+    };
+  },
+
+  async hideFromAllLeaderboards(userId: string) {
+    const visible = await prisma.challengeParticipant.findMany({ where: { userId, leaderboardVisible: true }, select: { challengeId: true } });
+    await prisma.challengeParticipant.updateMany({ where: { userId, leaderboardVisible: true }, data: { leaderboardVisible: false } });
+    for (const v of visible) realtime.toTopic(`challenge:${v.challengeId}`, { type: "leaderboard.changed", challengeId: v.challengeId });
+    await recordAudit(prisma, { userId, eventType: "leaderboards_hidden", metadata: { count: visible.length } });
+    return this.privacy(userId);
+  },
+
+  async setHighlights(userId: string, enabled: boolean) {
+    await prisma.userSettings.upsert({ where: { userId }, create: { userId, communityHighlights: enabled }, update: { communityHighlights: enabled } });
+    return this.privacy(userId);
+  },
+
+  async chatSuggestions(userId: string) {
+    if (!(await has(userId, "community_membership"))) return { consentRequired: true, joinedCommunities: 0, items: [], mine: [] };
+    await ensureFreshLifecycle();
+    const today = await todayOf(userId);
+    const memberships = await prisma.communityMembership.findMany({ where: { userId, status: "ACTIVE" }, include: { community: true } });
+    const list = await prisma.challenge.findMany({ where: { communityId: { in: memberships.map((m) => m.communityId) }, status: { in: ["OPEN", "SCHEDULED"] } }, orderBy: { startsOn: "asc" }, take: 10 });
+    const parts = await prisma.challengeParticipant.findMany({ where: { userId, leftAt: null, challengeId: { in: list.map((c) => c.id) } } });
+    const items = list.map((c) => ({ ...publicChallenge(c, today), communityName: memberships.find((m) => m.communityId === c.communityId)?.community.name ?? "", participating: parts.some((p) => p.challengeId === c.id) }));
+    const mine = [];
+    for (const c of list.filter((x) => parts.some((p) => p.challengeId === x.id))) {
+      const s = await syncScores(userId, c);
+      mine.push({ id: c.id, title: c.title, activeDays: s.activeDays, targetDays: c.targetDays, score: s.score, statusLabel: publicChallenge(c, today).statusLabel });
+    }
+    return { consentRequired: false, joinedCommunities: memberships.length, items, mine };
   },
 };

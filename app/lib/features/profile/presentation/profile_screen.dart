@@ -150,6 +150,12 @@ class ProfileScreen extends ConsumerWidget {
           title: 'Aplikasi',
           children: [
             SettingsRow(
+              icon: Icons.notifications_none_rounded,
+              title: 'Notifikasi',
+              subtitle: 'Kotak masuk, jenis notifikasi, dan push',
+              onTap: () => context.push(Routes.notifications),
+            ),
+            SettingsRow(
               icon: Icons.tune,
               title: 'Pengaturan aplikasi',
               subtitle: appSummary,

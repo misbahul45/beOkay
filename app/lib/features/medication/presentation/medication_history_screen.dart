@@ -10,6 +10,9 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/async_body.dart';
+import '../../../core/widgets/detail_kit.dart';
+import '../../../core/widgets/domain_style.dart';
+import '../../../core/widgets/pill_button.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/page_scaffold.dart';
 import '../application/medication_controller.dart';
@@ -116,48 +119,72 @@ class MedicationHistoryScreen extends ConsumerWidget {
       onBack: () =>
           context.canPop() ? context.pop() : context.go(Routes.medications),
       children: [
-        if (regimen.subtitle.isNotEmpty)
-          Text(regimen.subtitle, style: AppTypography.secondary),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: () =>
-                context.push('/medications/${regimen.id}/edit', extra: regimen),
-            icon: const Icon(Icons.edit_outlined, size: 18),
-            label: const Text('Ubah data obat'),
-          ),
+        DetailHero(
+          style: DomainStyle.medication,
+          eyebrow: 'Obat',
+          value: regimen.name,
+          chips: [
+            if (regimen.subtitle.isNotEmpty) regimen.subtitle,
+            'Dari resep atau label milikmu',
+          ],
         ),
-        const SizedBox(height: AppSpacing.xs),
-        Semantics(
-          header: true,
-          child: Text('Riwayat konfirmasi', style: AppTypography.heading),
+        DetailActions(
+          children: [
+            PillButton(
+              label: 'Ubah data obat',
+              icon: Icons.edit_outlined,
+              kind: PillButtonKind.secondary,
+              expand: false,
+              onPressed: () => context.push(
+                '/medications/${regimen.id}/edit',
+                extra: regimen,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: AppSpacing.xs),
-        AsyncBody<List<IntakeRecord>>(
-          value: intakes,
-          onRetry: () => ref.invalidate(medicationIntakesProvider(regimen.id)),
-          skeletonRows: 3,
-          data: (items) => items.isEmpty
-              ? const EmptyState(
-                  icon: Icons.history_rounded,
-                  title: 'Belum ada konfirmasi',
-                  message: 'Konfirmasi yang kamu catat akan muncul di sini.',
-                )
-              : Column(
-                  children: [
-                    for (final r in items)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                        child: Material(
-                          color: AppColors.surface,
-                          borderRadius: AppRadius.cardRadius,
-                          child: ListTile(
+        DetailSection(
+          title: 'Riwayat konfirmasi',
+          children: [
+            Text(
+              'Belum dikonfirmasi tidak berarti terlewat.',
+              style: AppTypography.caption,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            AsyncBody<List<IntakeRecord>>(
+              value: intakes,
+              onRetry: () =>
+                  ref.invalidate(medicationIntakesProvider(regimen.id)),
+              skeletonRows: 3,
+              data: (items) => items.isEmpty
+                  ? const EmptyState(
+                      icon: Icons.history_rounded,
+                      title: 'Belum ada konfirmasi',
+                      message:
+                          'Konfirmasi yang kamu catat akan muncul di sini.',
+                    )
+                  : Column(
+                      children: [
+                        for (final (index, r) in items.indexed) ...[
+                          if (index > 0)
+                            Divider(height: 1, color: AppColors.border),
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(
+                              switch (r.status) {
+                                'taken' => Icons.check_circle_outline,
+                                'skipped' => Icons.remove_circle_outline,
+                                _ => Icons.help_outline,
+                              },
+                              color: r.status == 'taken'
+                                  ? AppColors.medicationInk
+                                  : AppColors.textSecondary,
+                            ),
                             title: Text(
                               _label(r.status),
                               style: AppTypography.bodyStrong,
                             ),
                             subtitle: Text(
-                              '${DateFormat('EEE, d MMM · HH:mm', 'id_ID').format(r.eventAt.toLocal())}${r.version > 1 ? ' · dikoreksi' : ''}',
+                              '${DateFormat('EEE, d MMM · HH.mm', 'id_ID').format(r.eventAt.toLocal())}${r.version > 1 ? ' · dikoreksi' : ''}',
                               style: AppTypography.secondary,
                             ),
                             trailing: TextButton(
@@ -165,10 +192,11 @@ class MedicationHistoryScreen extends ConsumerWidget {
                               child: const Text('Koreksi'),
                             ),
                           ),
-                        ),
-                      ),
-                  ],
-                ),
+                        ],
+                      ],
+                    ),
+            ),
+          ],
         ),
       ],
     );

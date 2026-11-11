@@ -42,6 +42,12 @@ class _FakePush implements PushClient {
   Stream<String> get onTokenRefresh => refresh.stream;
   @override
   Future<void> deleteToken() async => deleted++;
+
+  @override
+  Stream<Map<String, dynamic>> get onOpened => const Stream.empty();
+
+  @override
+  Future<Map<String, dynamic>?> openedAtLaunch() async => null;
 }
 
 http.Response _json(Object body, [int status = 200]) => http.Response(

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/application/auth_controller.dart';
+import '../../features/notifications/presentation/notification_widgets.dart';
 import '../format/greeting.dart';
 import '../router/routes.dart';
 import '../theme/app_colors.dart';
@@ -82,6 +83,7 @@ class TabRootHeader extends StatelessWidget {
                 child: Text(title, style: AppTypography.headline),
               ),
             ),
+            const NotificationBell(),
             const ProfileAction(),
           ],
         ),

@@ -11,6 +11,8 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/async_body.dart';
 import '../../../core/widgets/discard_guard.dart';
+import '../../../core/widgets/form_kit.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/info_card.dart';
 import '../../../core/widgets/page_scaffold.dart';
 import '../../../core/widgets/pill_button.dart';
@@ -140,14 +142,25 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
             ),
             const SizedBox(height: AppSpacing.xs),
           ],
-          Text(
-            'Beberapa informasi dasar membantu menyesuaikan pengalaman aplikasi.',
-            style: AppTypography.secondary,
-          ),
-          const SizedBox(height: AppSpacing.lg),
+          if (widget.onboarding) ...[
+            Text(
+              'Beberapa informasi dasar membantu menyesuaikan pengalaman aplikasi.',
+              style: AppTypography.secondary,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+          ] else
+            FormHero(
+              icon: Icons.badge_outlined,
+              tint: AppColors.brandTint,
+              ink: AppColors.brand,
+              title: 'Beberapa informasi dasar',
+              subtitle:
+                  'Membantu menyesuaikan pengalaman aplikasi. Nama tampil hanya untukmu.',
+            ),
           Form(
             key: _form,
-            child: Column(
+            child: FormSection(
+              title: 'Tentang kamu',
               children: [
                 AppTextField(
                   label: 'Nama panggilan',

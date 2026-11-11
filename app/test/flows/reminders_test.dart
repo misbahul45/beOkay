@@ -204,12 +204,16 @@ void main() {
 
       await tester.tap(find.text('Tambah pengingat').last);
       await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Simpan'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Simpan'));
       await tester.pumpAndSettle();
       expect(find.text('Beri nama pengingat.'), findsOneWidget);
       expect(seen.where((r) => r.method == 'POST'), isEmpty);
 
       await tester.enterText(find.byType(TextField).first, 'Catat gula pagi');
+      await tester.ensureVisible(find.text('Simpan'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Simpan'));
       await tester.pumpAndSettle();
       expect(created, {

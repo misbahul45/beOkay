@@ -6,6 +6,7 @@ import type { RecommendationPayload } from "../agent/agent.graph.ts";
 import { agentService } from "../agent/agent.service.ts";
 import { identityMatch, identityTokens } from "../agent/food-identity.ts";
 import { coachingService } from "../coaching/coaching.service.ts";
+import { communityService } from "../community/community.service.ts";
 import { consentService } from "../consent/consent.service.ts";
 import { statisticsService } from "../insights/statistics.service.ts";
 import { mealDraftService, type DraftInputItem } from "../meal-drafts/meal-draft.service.ts";
@@ -239,6 +240,34 @@ async function mealDraftReply(userId: string, thread: Thread, body: string, msg:
   };
 }
 
+const COMMUNITY_RULES_TEXT =
+  "Cara kerja tantangan: hari aktif = satu sesi aktivitas tercatat minimal 10 menit atau check-in kebiasaan. Satu hari dihitung sekali dan hari istirahat tidak mengurangi skor. Tidak ada poin untuk intensitas, gula darah, atau nilai kesehatan lain. Anggota lain hanya melihat aliasmu, dan skormu hanya tampil di papan peringkat bila kamu menyalakannya.";
+
+async function communityReply(userId: string, topic: "DISCOVER" | "RULES" | "PROGRESS"): Promise<Reply> {
+  const out = (parts: Part[]): Reply => ({ parts, route: "COMMUNITY", runId: null, continuesRun: false, basis: { sources: [{ kind: "GOALS", label: "Tantangan di komunitasmu" }], memories: [] } });
+  const community: Part = { type: "link", label: "Buka Komunitas", target: "COMMUNITY" };
+  if (topic === "RULES") return out([text(COMMUNITY_RULES_TEXT), community]);
+  const s = await communityService.chatSuggestions(userId);
+  if (s.consentRequired) return out([text("Komunitas bersifat opsional dan memakai alias, bukan namamu."), ...consentReply("community_membership"), community]);
+  if (s.joinedCommunities === 0) return out([text("Kamu belum bergabung dengan komunitas. Pilih provinsimu lalu gabung dengan alias. Data kesehatanmu tidak pernah dibagikan."), community]);
+  const item = (c: (typeof s.items)[number]) => {
+    const mine = s.mine.find((m) => m.id === c.id);
+    return { id: c.id, title: c.title, communityName: c.communityName, startsOn: c.startsOn, endsOn: c.endsOn, status: c.status, statusLabel: c.statusLabel, participating: c.participating, progress: mine ? { activeDays: mine.activeDays, targetDays: mine.targetDays } : null };
+  };
+  if (topic === "PROGRESS") {
+    if (s.mine.length === 0) return out([text("Kamu belum ikut tantangan yang sedang berjalan atau akan dimulai."), ...(s.items.length ? [{ type: "challenges" as const, items: s.items.map(item) }] : []), community]);
+    const lines = s.mine.map((m) => `${m.title}: ${m.activeDays} dari ${m.targetDays} hari aktif (${m.statusLabel.toLowerCase()}).`);
+    return out([text(["Progres tantanganmu dari catatan:", ...lines, "Hari tanpa catatan bukan kegagalan; skor hanya bertambah."].join(" ")), { type: "challenges", items: s.items.filter((c) => c.participating).map(item) }]);
+  }
+  const open = s.items.filter((c) => !c.participating);
+  if (open.length === 0) return out([text("Semua tantangan yang terbuka di komunitasmu sudah kamu ikuti. Kalau mau, buat tujuan pribadi yang tidak dibagikan ke siapa pun."), { type: "link", label: "Buat tujuan pribadi", target: "GOALS" }]);
+  return out([
+    text("Ini tantangan di komunitasmu yang bisa kamu ikuti. Kamu baru ikut setelah mengonfirmasi di halaman tantangan."),
+    { type: "challenges", items: open.map(item) },
+    { type: "link", label: "Buat tujuan pribadi", target: "GOALS" },
+  ]);
+}
+
 async function reflectionReply(userId: string): Promise<Reply> {
   const open = await coachingService.reflection(userId);
   if (open.consentRequired) {
@@ -284,6 +313,8 @@ async function compose(userId: string, thread: Thread, msg: Message): Promise<Re
       return fixed(SUPPORT_REPLY);
     case "REFLECTION":
       return reflectionReply(userId);
+    case "COMMUNITY":
+      return communityReply(userId, route.topic);
     case "HELP":
       return fixed(HELP_REPLY);
     case "CLARIFY_FOOD":

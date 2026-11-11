@@ -13,6 +13,9 @@ import { zonedToUtc } from "../medication/medication.model.ts";
 import { memoryService } from "../memory/memory.service.ts";
 import { preferencesService } from "../preferences/preferences.service.ts";
 import { MAX_ACTIVE_REMINDERS } from "../reminders/reminders.service.ts";
+import { realtime } from "../../infrastructure/realtime/realtime.ts";
+import { recognitionService } from "../community/recognition.service.ts";
+import { notificationService } from "../notifications/notification.service.ts";
 import * as M from "./coaching.model.ts";
 import type { CheckinInput, ConfirmInput, DecisionInput, FeedbackInput } from "./coaching.schema.ts";
 
@@ -344,6 +347,7 @@ export const coachingService = {
       if (isUnique(e) && (await replayOf(userId, input.operationId, id, "DECISION", input.decision))) return { ...actionView(await loadAction(userId, id), today, true), replayed: true };
       throw e;
     }
+    realtime.toUser(userId, { type: "coaching.updated", actionId: id });
     return { ...actionView(await loadAction(userId, id), today, true), replayed: false };
   },
 
@@ -449,6 +453,7 @@ export const coachingService = {
       if (isUnique(e) && (await replayOf(userId, input.operationId, id, "FEEDBACK", input.kind))) return { ...actionView(await loadAction(userId, id), today, true), replayed: true };
       throw e;
     }
+    realtime.toUser(userId, { type: "coaching.updated", actionId: id });
     return { ...actionView(await loadAction(userId, id), today, true), replayed: false };
   },
 
@@ -470,6 +475,7 @@ export const coachingService = {
       if (isUnique(e) && (await replayOf(userId, input.operationId, id, "CONFIRMATION", input.date))) return { ...actionView(await loadAction(userId, id), today, true), replayed: true };
       throw e;
     }
+    realtime.toUser(userId, { type: "coaching.updated", actionId: id });
     return { ...actionView(await loadAction(userId, id), today, true), replayed: false };
   },
 
@@ -646,6 +652,8 @@ export const coachingService = {
         await outbox.enqueue(tx, { userId, type: "coaching.checkin", payload: { checkinId: row.id, weekStart: r.weekStart }, dedupeKey: `coaching-checkin:${row.id}` });
         return row;
       });
+      realtime.toUser(userId, { type: "coaching.updated", checkinId: saved.id });
+      void recognitionService.refresh(userId).catch(() => {});
       return { checkin: checkinView(saved), recognition, replayed: false };
     } catch (e) {
       if (isUnique(e)) {
@@ -655,6 +663,22 @@ export const coachingService = {
       }
       throw e;
     }
+  },
+
+  async nudgeReflections(now = new Date()) {
+    const since = new Date(now.getTime() - 7 * 86_400_000);
+    const users = await prisma.mealLog.findMany({ where: { archivedAt: null, consumedAt: { gte: since } }, distinct: ["userId"], select: { userId: true }, take: 500 });
+    let sent = 0;
+    for (const { userId } of users) {
+      const { minute } = await clock(userId, now);
+      if (minute < 18 * 60) continue;
+      if (!(await hasConsent(userId, ["health_data_processing", "descriptive_summaries", "personalized_ai"]))) continue;
+      const status = await this.reflectionStatus(userId, now);
+      if (!status || status.done || !status.available) continue;
+      const made = await notificationService.notify(userId, { kind: "REFLECTION", title: "Refleksi mingguan siap", body: "Lihat yang sudah berjalan dan atur langkah minggu depan. Sekitar 2 menit.", action: "OPEN_REFLECTION", refId: status.weekStart, dedupeKey: `reflection:${status.weekStart}` });
+      if (made) sent++;
+    }
+    return { candidates: users.length, sent };
   },
 };
 

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import '../../../core/ids/record_id.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/account_scoped_repository.dart';
@@ -12,6 +11,8 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/async_body.dart';
 import '../../../core/widgets/choice_chips.dart';
 import '../../../core/widgets/discard_guard.dart';
+import '../../../core/widgets/domain_style.dart';
+import '../../../core/widgets/form_kit.dart';
 import '../../../core/widgets/health_error.dart';
 import '../../../core/widgets/info_card.dart';
 import '../../../core/widgets/page_scaffold.dart';
@@ -170,124 +171,143 @@ class _GlucoseFormState extends ConsumerState<_GlucoseForm> {
       dirty: dirty,
       child: PageScaffold(
         title: widget.initial == null ? 'Catat glukosa' : 'Koreksi glukosa',
+        bottom: SaveBar(
+          button: PillButton(
+            label: widget.initial == null ? 'Simpan glukosa' : 'Simpan koreksi',
+            loading: busy,
+            onPressed: conflict ? null : save,
+          ),
+          note: widget.initial == null
+              ? 'Tanpa koneksi, catatan disimpan di perangkat dan dikirim nanti.'
+              : 'Koreksi perlu koneksi.',
+        ),
         children: [
           Form(
             key: form,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Hasil glukometer darah kapiler · dilaporkan sendiri.',
-                  style: AppTypography.secondary,
+                FormHero.domain(
+                  DomainStyle.glucose,
+                  'Glukometer darah kapiler',
+                  subtitle:
+                      'Dilaporkan sendiri · angka tidak dikonversi otomatis',
                 ),
-                const SizedBox(height: 16),
-                AppTextField(
-                  label: 'Nilai pengukuran',
-                  hint: 'mis. 110',
-                  controller: value,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  enabled: !locked,
-                  validator: (v) => validateGlucoseInput(v, unit),
-                  onChanged: (_) => setState(() => dirty = true),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
+                FormSection(
+                  title: 'Nilai',
                   children: [
-                    for (final u in ['mg/dL', 'mmol/L'])
-                      PillChip(
-                        label: u,
-                        selected: unit == u,
-                        onTap: locked
-                            ? null
-                            : () => setState(() {
-                                unit = u;
-                                dirty = true;
-                              }),
+                    AppTextField(
+                      label: 'Nilai pengukuran',
+                      hint: 'mis. 110',
+                      controller: value,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
                       ),
+                      enabled: !locked,
+                      validator: (v) => validateGlucoseInput(v, unit),
+                      onChanged: (_) => setState(() => dirty = true),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        for (final u in ['mg/dL', 'mmol/L'])
+                          PillChip(
+                            label: u,
+                            selected: unit == u,
+                            onTap: locked
+                                ? null
+                                : () => setState(() {
+                                    unit = u;
+                                    dirty = true;
+                                  }),
+                          ),
+                      ],
+                    ),
+                    const FormNote(
+                      'Pilih satuan yang tertera di alat. Angka tidak dikonversi otomatis.',
+                    ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Pilih satuan yang tertera di alat. Angka tidak dikonversi otomatis.',
-                ),
-                const SizedBox(height: 16),
-                PillButton(
-                  label:
-                      'Waktu: ${DateFormat('d MMM y, HH:mm', 'id_ID').format(time)}',
-                  kind: PillButtonKind.secondary,
-                  onPressed: locked ? null : pickTime,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Zona waktu perangkat: ${time.timeZoneName}.',
-                  style: AppTypography.secondary,
-                ),
-                const SizedBox(height: 24),
-                Text('Konteks pengukuran', style: AppTypography.title),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                FormSection(
+                  title: 'Waktu & konteks',
                   children: [
-                    for (final entry in glucoseContexts.entries)
-                      PillChip(
-                        label: entry.value,
-                        selected: mealContext == entry.key,
-                        onTap: locked
-                            ? null
-                            : () => setState(() {
-                                mealContext = entry.key;
-                                dirty = true;
-                              }),
+                    DateTimeTile(
+                      label: 'Waktu pengukuran',
+                      value: time,
+                      detail: time.timeZoneName,
+                      onTap: locked ? null : pickTime,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Konteks pengukuran',
+                      style: AppTypography.secondaryStrong,
+                    ),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        for (final entry in glucoseContexts.entries)
+                          PillChip(
+                            label: entry.value,
+                            selected: mealContext == entry.key,
+                            onTap: locked
+                                ? null
+                                : () => setState(() {
+                                    mealContext = entry.key;
+                                    dirty = true;
+                                  }),
+                          ),
+                      ],
+                    ),
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Tandai untuk ditinjau'),
+                      subtitle: const Text(
+                        'Tetap disimpan; tidak disertakan dalam rata-rata.',
                       ),
+                      value: review,
+                      onChanged: locked
+                          ? null
+                          : (v) => setState(() {
+                              review = v!;
+                              dirty = true;
+                            }),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Tandai untuk ditinjau'),
-                  subtitle: const Text(
-                    'Tetap disimpan; tidak disertakan dalam rata-rata.',
-                  ),
-                  value: review,
-                  onChanged: locked
-                      ? null
-                      : (v) => setState(() {
-                          review = v!;
-                          dirty = true;
-                        }),
-                ),
-                AppTextField(
-                  label: 'Catatan (opsional)',
-                  hint: 'mis. sebelum sarapan',
-                  controller: notes,
-                  maxLength: 2000,
-                  enabled: !locked,
-                  onChanged: (_) => setState(() => dirty = true),
-                ),
-                if (widget.initial != null) ...[
-                  const SizedBox(height: 16),
-                  AppTextField(
-                    label: 'Alasan koreksi',
-                    hint: 'mis. salah ketik angka',
-                    controller: reason,
-                    maxLength: 300,
-                    enabled: !locked,
-                    validator: (v) => v == null || v.trim().isEmpty
-                        ? 'Isi alasan koreksi.'
-                        : null,
-                    onChanged: (_) => setState(() => dirty = true),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                const Text(
-                  'Tanpa koneksi, catatan baru disimpan di perangkat dan dikirim nanti. Koreksi perlu koneksi.',
+                FormSection(
+                  title: widget.initial == null
+                      ? 'Catatan'
+                      : 'Catatan & alasan',
+                  children: [
+                    AppTextField(
+                      label: 'Catatan (opsional)',
+                      hint: 'mis. sebelum sarapan',
+                      controller: notes,
+                      maxLength: 2000,
+                      enabled: !locked,
+                      onChanged: (_) => setState(() => dirty = true),
+                    ),
+                    if (widget.initial != null) ...[
+                      const SizedBox(height: 8),
+                      AppTextField(
+                        label: 'Alasan koreksi',
+                        hint: 'mis. salah ketik angka',
+                        controller: reason,
+                        maxLength: 300,
+                        enabled: !locked,
+                        validator: (v) => v == null || v.trim().isEmpty
+                            ? 'Isi alasan koreksi.'
+                            : null,
+                        onChanged: (_) => setState(() => dirty = true),
+                      ),
+                    ],
+                  ],
                 ),
                 if (error != null) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
                   ErrorBanner(error!),
                 ],
                 if (uncertain) ...[
@@ -310,14 +330,6 @@ class _GlucoseFormState extends ConsumerState<_GlucoseForm> {
                     ),
                   ),
                 ],
-                const SizedBox(height: 24),
-                PillButton(
-                  label: widget.initial == null
-                      ? 'Simpan glukosa'
-                      : 'Simpan koreksi',
-                  loading: busy,
-                  onPressed: conflict ? null : save,
-                ),
               ],
             ),
           ),

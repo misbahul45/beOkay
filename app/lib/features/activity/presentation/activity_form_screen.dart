@@ -11,6 +11,8 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/choice_chips.dart';
 import '../../../core/widgets/discard_guard.dart';
+import '../../../core/widgets/domain_style.dart';
+import '../../../core/widgets/form_kit.dart';
 import '../../../core/widgets/info_card.dart';
 import '../../../core/widgets/page_scaffold.dart';
 import '../../../core/widgets/pill_button.dart';
@@ -156,160 +158,180 @@ class _ActivityFormState extends ConsumerState<ActivityFormScreen> {
   Widget build(BuildContext context) {
     final locked = busy || uncertain;
     final minutes = int.tryParse(duration.text.trim());
+    final validMinutes = minutes != null && minutes >= 1 && minutes <= 1440;
     return DiscardGuard(
       dirty: dirty,
       child: PageScaffold(
         title: widget.initial == null ? 'Catat aktivitas' : 'Koreksi aktivitas',
+        bottom: SaveBar(
+          button: PillButton(
+            label: widget.initial == null
+                ? 'Simpan aktivitas'
+                : 'Simpan koreksi',
+            loading: busy,
+            onPressed: conflict ? null : save,
+          ),
+          note: widget.initial == null
+              ? 'Tanpa koneksi, catatan disimpan di perangkat dan dikirim nanti.'
+              : 'Koreksi perlu koneksi.',
+        ),
         children: [
           Form(
             key: form,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Sesi yang sudah selesai · dilaporkan sendiri.',
-                  style: AppTypography.secondary,
+                FormHero.domain(
+                  DomainStyle.activity,
+                  'Sesi yang sudah selesai',
+                  subtitle:
+                      'Dilaporkan sendiri · hari tanpa catatan bukan hari tanpa gerak',
                 ),
-                const SizedBox(height: 16),
-                Text('Jenis aktivitas', style: AppTypography.title),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                FormSection(
+                  title: 'Jenis aktivitas',
                   children: [
-                    for (final entry in activityTypes.entries)
-                      PillChip(
-                        label: entry.value,
-                        selected: type == entry.key,
-                        onTap: locked
-                            ? null
-                            : () => setState(() {
-                                type = entry.key;
-                                dirty = true;
-                              }),
-                      ),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        for (final entry in activityTypes.entries)
+                          PillChip(
+                            label: entry.value,
+                            selected: type == entry.key,
+                            onTap: locked
+                                ? null
+                                : () => setState(() {
+                                    type = entry.key;
+                                    dirty = true;
+                                  }),
+                          ),
+                      ],
+                    ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                PillButton(
-                  label:
-                      'Mulai: ${DateFormat('d MMM y, HH:mm', 'id_ID').format(start)}',
-                  kind: PillButtonKind.secondary,
-                  onPressed: locked ? null : pickTime,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Zona waktu perangkat: ${start.timeZoneName}.',
-                  style: AppTypography.secondary,
-                ),
-                const SizedBox(height: 16),
-                AppTextField(
-                  label: 'Durasi (menit)',
-                  hint: 'mis. 30',
-                  controller: duration,
-                  enabled: !locked,
-                  keyboardType: TextInputType.number,
-                  validator: validateActivityDuration,
-                  onChanged: changed,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  minutes != null && minutes >= 1 && minutes <= 1440
-                      ? 'Selesai: ${DateFormat('d MMM y, HH:mm', 'id_ID').format(start.add(Duration(minutes: minutes)))}'
-                      : 'Waktu selesai dihitung dari waktu mulai dan durasi.',
-                ),
-                const SizedBox(height: 24),
-                AppTextField(
-                  label: 'Jarak (km, opsional)',
-                  hint: 'mis. 2.5',
-                  controller: distance,
-                  enabled: !locked,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  validator: (v) => validateActivityMetric(v, steps: false),
-                  onChanged: changed,
-                ),
-                const SizedBox(height: 16),
-                AppTextField(
-                  label: 'Langkah (opsional)',
-                  hint: 'mis. 4000',
-                  controller: steps,
-                  enabled: !locked,
-                  keyboardType: TextInputType.number,
-                  validator: (v) => validateActivityMetric(v, steps: true),
-                  onChanged: changed,
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Kosongkan bila tidak diketahui. Nilai tidak diisi otomatis.',
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Intensitas yang kamu rasakan',
-                  style: AppTypography.title,
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                FormSection(
+                  title: 'Waktu & durasi',
                   children: [
-                    for (final entry in activityIntensities.entries)
-                      PillChip(
-                        label: entry.value,
-                        selected: intensity == entry.key,
-                        onTap: locked
-                            ? null
-                            : () => setState(() {
-                                intensity = entry.key;
-                                dirty = true;
-                              }),
-                      ),
+                    DateTimeTile(
+                      label: 'Mulai',
+                      value: start,
+                      detail: start.timeZoneName,
+                      onTap: locked ? null : pickTime,
+                    ),
+                    const SizedBox(height: 12),
+                    AppTextField(
+                      label: 'Durasi (menit)',
+                      hint: 'mis. 30',
+                      controller: duration,
+                      enabled: !locked,
+                      keyboardType: TextInputType.number,
+                      validator: validateActivityDuration,
+                      onChanged: changed,
+                    ),
+                    FormNote(
+                      validMinutes
+                          ? 'Selesai: ${DateFormat('EEEE, d MMM · HH.mm', 'id_ID').format(start.add(Duration(minutes: minutes)))}'
+                          : 'Waktu selesai dihitung dari waktu mulai dan durasi.',
+                      icon: Icons.schedule,
+                    ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Tandai untuk ditinjau'),
-                  subtitle: const Text(
-                    'Tetap disimpan; tidak masuk total durasi ringkasan.',
-                  ),
-                  value: review,
-                  onChanged: locked
-                      ? null
-                      : (v) => setState(() {
-                          review = v!;
-                          dirty = true;
-                        }),
+                FormSection(
+                  title: 'Detail opsional',
+                  subtitle:
+                      'Kosongkan bila tidak diketahui. Nilai tidak diisi otomatis.',
+                  children: [
+                    AppTextField(
+                      label: 'Jarak (km, opsional)',
+                      hint: 'mis. 2.5',
+                      controller: distance,
+                      enabled: !locked,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      validator: (v) => validateActivityMetric(v, steps: false),
+                      onChanged: changed,
+                    ),
+                    const SizedBox(height: 8),
+                    AppTextField(
+                      label: 'Langkah (opsional)',
+                      hint: 'mis. 4000',
+                      controller: steps,
+                      enabled: !locked,
+                      keyboardType: TextInputType.number,
+                      validator: (v) => validateActivityMetric(v, steps: true),
+                      onChanged: changed,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Intensitas yang kamu rasakan',
+                      style: AppTypography.secondaryStrong,
+                    ),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        for (final entry in activityIntensities.entries)
+                          PillChip(
+                            label: entry.value,
+                            selected: intensity == entry.key,
+                            onTap: locked
+                                ? null
+                                : () => setState(() {
+                                    intensity = entry.key;
+                                    dirty = true;
+                                  }),
+                          ),
+                      ],
+                    ),
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Tandai untuk ditinjau'),
+                      subtitle: const Text(
+                        'Tetap disimpan; tidak masuk total durasi ringkasan.',
+                      ),
+                      value: review,
+                      onChanged: locked
+                          ? null
+                          : (v) => setState(() {
+                              review = v!;
+                              dirty = true;
+                            }),
+                    ),
+                  ],
                 ),
-                AppTextField(
-                  label: 'Catatan (opsional)',
-                  hint: 'mis. jalan sore di taman',
-                  controller: notes,
-                  maxLength: 2000,
-                  enabled: !locked,
-                  onChanged: changed,
-                ),
-                if (widget.initial != null) ...[
-                  const SizedBox(height: 16),
-                  AppTextField(
-                    label: 'Alasan koreksi',
-                    hint: 'mis. durasi salah',
-                    controller: reason,
-                    maxLength: 300,
-                    enabled: !locked,
-                    validator: (v) => v == null || v.trim().isEmpty
-                        ? 'Isi alasan koreksi.'
-                        : null,
-                    onChanged: changed,
-                  ),
-                ],
-                const SizedBox(height: 16),
-                const Text(
-                  'Tanpa koneksi, catatan baru disimpan di perangkat dan dikirim nanti. Koreksi perlu koneksi.',
+                FormSection(
+                  title: widget.initial == null
+                      ? 'Catatan'
+                      : 'Catatan & alasan',
+                  children: [
+                    AppTextField(
+                      label: 'Catatan (opsional)',
+                      hint: 'mis. jalan sore di taman',
+                      controller: notes,
+                      maxLength: 2000,
+                      enabled: !locked,
+                      onChanged: changed,
+                    ),
+                    if (widget.initial != null) ...[
+                      const SizedBox(height: 8),
+                      AppTextField(
+                        label: 'Alasan koreksi',
+                        hint: 'mis. durasi salah',
+                        controller: reason,
+                        maxLength: 300,
+                        enabled: !locked,
+                        validator: (v) => v == null || v.trim().isEmpty
+                            ? 'Isi alasan koreksi.'
+                            : null,
+                        onChanged: changed,
+                      ),
+                    ],
+                  ],
                 ),
                 if (error != null) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
                   ErrorBanner(error!),
                 ],
                 if (uncertain) ...[
@@ -334,14 +356,6 @@ class _ActivityFormState extends ConsumerState<ActivityFormScreen> {
                     ),
                   ),
                 ],
-                const SizedBox(height: 24),
-                PillButton(
-                  label: widget.initial == null
-                      ? 'Simpan aktivitas'
-                      : 'Simpan koreksi',
-                  loading: busy,
-                  onPressed: conflict ? null : save,
-                ),
               ],
             ),
           ),

@@ -2,12 +2,14 @@ import { z } from "zod";
 import { authenticated } from "../auth/guard.ts";
 import { readJson } from "../../shared/http/handler.ts";
 import { communityService } from "./community.service.ts";
+import { recognitionService } from "./recognition.service.ts";
 
 const id = (req: Request, i: number) => z.uuid().parse(new URL(req.url).pathname.split("/")[i]);
 const alias = z.object({ alias: z.string().trim().min(3).max(20) }).strict();
 const join = z.object({ leaderboardVisible: z.boolean().default(false) }).strict();
 const vis = z.object({ visible: z.boolean() }).strict();
 const checkin = z.object({ localDate: z.iso.date().optional() }).strict();
+const highlights = z.object({ highlightsEnabled: z.boolean() }).strict();
 const page = z.object({ limit: z.coerce.number().int().min(1).max(50).default(20), offset: z.coerce.number().int().min(0).max(5000).default(0) });
 
 export const communityRoutes = {
@@ -20,6 +22,15 @@ export const communityRoutes = {
   "/api/me/communities/:id/alias": { PATCH: authenticated(async ({ req, session }) => ({ body: await communityService.setAlias(session.userId, id(req, 4), (await readJson(req, alias)).alias) })) },
   "/api/me/communities/:id/leave": { POST: authenticated(async ({ req, session }) => ({ body: await communityService.leave(session.userId, id(req, 4)) })) },
   "/api/me/communities/:id/challenges": { GET: authenticated(async ({ req, session }) => ({ body: await communityService.challenges(session.userId, id(req, 4)) })) },
+  "/api/me/community/overview": { GET: authenticated(async ({ session }) => ({ body: await communityService.overview(session.userId) })) },
+  "/api/me/community/privacy": {
+    GET: authenticated(async ({ session }) => ({ body: await communityService.privacy(session.userId) })),
+    PATCH: authenticated(async ({ req, session }) => ({ body: await communityService.setHighlights(session.userId, (await readJson(req, highlights)).highlightsEnabled) })),
+  },
+  "/api/me/community/privacy/hide-leaderboards": { POST: authenticated(async ({ session }) => ({ body: await communityService.hideFromAllLeaderboards(session.userId) })) },
+  "/api/me/recognitions": { GET: authenticated(async ({ session }) => ({ body: await recognitionService.list(session.userId) })) },
+  "/api/me/challenges/history": { GET: authenticated(async ({ session }) => ({ body: await communityService.history(session.userId) })) },
+  "/api/me/challenges/:id": { GET: authenticated(async ({ req, session }) => ({ body: await communityService.challenge(session.userId, id(req, 4)) })) },
   "/api/me/challenges/:id/join": { POST: authenticated(async ({ req, session }) => ({ status: 201, body: await communityService.joinChallenge(session.userId, id(req, 4), (await readJson(req, join)).leaderboardVisible) })) },
   "/api/me/challenges/:id/leave": { POST: authenticated(async ({ req, session }) => ({ body: await communityService.leaveChallenge(session.userId, id(req, 4)) })) },
   "/api/me/challenges/:id/visibility": { PATCH: authenticated(async ({ req, session }) => ({ body: await communityService.setVisibility(session.userId, id(req, 4), (await readJson(req, vis)).visible) })) },

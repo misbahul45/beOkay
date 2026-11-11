@@ -52,6 +52,9 @@ export const EXPORTED_TABLES = [
   "coaching_outcomes",
   "coaching_events",
   "weekly_checkins",
+  "recognitions",
+  "notifications",
+  "notification_preferences",
   "audit_events",
 ] as const;
 
@@ -88,7 +91,7 @@ export const exportService = {
       user, profile, healthProfile, settings, onboarding, consents, foods, portionMeasures, meals, glucose, activities, regimens, goals, revisions,
       foodPreferences, reminders, pushDevices, pushDeliveries, agentRuns, recommendations, plannedMeals, activityPlans, personalization,
       personalizationEvents, communityMemberships, challengeParticipants, challengeCheckins, scoreEvents, interventionPreference, interventionDecisions,
-      mlInferenceRuns, conversationThreads, mealDrafts, memoryItems, coachingActions, coachingEvents, weeklyCheckins, audit,
+      mlInferenceRuns, conversationThreads, mealDrafts, memoryItems, coachingActions, coachingEvents, weeklyCheckins, recognitions, notifications, notificationPreference, audit,
     ] = await prisma.$transaction(
       [
         prisma.users.findUniqueOrThrow({ where: { id: userId }, select: { id: true, name: true, email: true, emailVerified: true, createdAt: true } }),
@@ -132,6 +135,9 @@ export const exportService = {
         prisma.coachingAction.findMany({ where: own, include: { outcomes: { orderBy: { localDate: "asc" } } }, orderBy: asc }),
         prisma.coachingEvent.findMany({ where: own, orderBy: asc }),
         prisma.weeklyCheckin.findMany({ where: own, orderBy: { weekStart: "asc" } }),
+        prisma.recognition.findMany({ where: own, orderBy: { achievedAt: "asc" } }),
+        prisma.notification.findMany({ where: own, orderBy: asc }),
+        prisma.notificationPreference.findUnique({ where: own }),
         prisma.auditEvent.findMany({ where: own, orderBy: { occurredAt: "asc" } }),
       ],
       { isolationLevel: "RepeatableRead" },
@@ -175,6 +181,9 @@ export const exportService = {
       coachingActions,
       coachingEvents,
       weeklyCheckins,
+      recognitions,
+      notifications,
+      notificationPreference,
       auditEvents: audit,
     });
     const counts = Object.fromEntries(Object.entries(data).map(([k, v]) => [k, Array.isArray(v) ? v.length : v ? 1 : 0]));

@@ -15,6 +15,8 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/async_body.dart';
 import '../../../core/widgets/choice_chips.dart';
 import '../../../core/widgets/discard_guard.dart';
+import '../../../core/widgets/domain_style.dart';
+import '../../../core/widgets/form_kit.dart';
 import '../../../core/widgets/info_card.dart';
 import '../../../core/widgets/page_scaffold.dart';
 import '../../../core/widgets/pill_button.dart';
@@ -198,11 +200,19 @@ class _HealthFormState extends ConsumerState<_HealthForm> {
             ),
             const SizedBox(height: AppSpacing.xs),
           ],
-          Text(
-            'Informasi ini berdasarkan yang kamu ketahui atau pernah disampaikan oleh tenaga kesehatan.',
-            style: AppTypography.secondary,
-          ),
-          const SizedBox(height: AppSpacing.md),
+          if (widget.onboarding) ...[
+            Text(
+              'Informasi ini berdasarkan yang kamu ketahui atau pernah disampaikan oleh tenaga kesehatan.',
+              style: AppTypography.secondary,
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ] else
+            FormHero.domain(
+              DomainStyle.glucose,
+              'Dilaporkan sendiri',
+              subtitle:
+                  'Berdasarkan yang kamu ketahui atau pernah disampaikan tenaga kesehatan. Bukan diagnosis.',
+            ),
 
           Semantics(
             header: true,

@@ -6,7 +6,8 @@ import '../../../core/network/error_messages.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/async_body.dart';
-import '../../../core/widgets/health_card.dart';
+import '../../../core/widgets/detail_kit.dart';
+import '../../../core/widgets/domain_style.dart';
 import '../../../core/widgets/health_error.dart';
 import '../../../core/widgets/info_card.dart';
 import '../../../core/widgets/page_scaffold.dart';
@@ -97,116 +98,148 @@ class _ActivityDetailState extends ConsumerState<ActivityDetailScreen> {
               ),
             ],
             children: [
-              Text(
-                activityTypes[record.activityType] ?? record.activityType,
-                style: AppTypography.headline,
+              DetailHero(
+                style: DomainStyle.activity,
+                eyebrow:
+                    activityTypes[record.activityType] ?? record.activityType,
+                value: '${record.durationMinutes}',
+                unit: 'menit',
+                archived: record.archived,
+                chips: [
+                  '${record.localDate} · ${record.localTime}–${record.endLocalTime}',
+                  record.qualityLabel,
+                ],
               ),
-              Text(
-                '${record.durationMinutes} menit',
-                style: AppTypography.heading,
+              DetailSection(
+                title: 'Rincian',
+                children: [
+                  DetailRow(
+                    'Mulai',
+                    '${record.localDate} · ${record.localTime}',
+                  ),
+                  DetailRow(
+                    'Selesai',
+                    '${record.endLocalDate} · ${record.endLocalTime}',
+                  ),
+                  DetailRow(
+                    'Jarak',
+                    record.distanceKm == null
+                        ? 'Belum diketahui'
+                        : '${record.distanceKm} km',
+                  ),
+                  DetailRow(
+                    'Langkah',
+                    record.steps == null
+                        ? 'Belum diketahui'
+                        : '${record.steps}',
+                  ),
+                  DetailRow(
+                    'Intensitas',
+                    activityIntensities[record.reportedIntensity] ??
+                        record.reportedIntensity,
+                  ),
+                  const DetailRow('Sumber', 'Manual'),
+                  DetailRow('Zona waktu', record.timezone),
+                  if (record.version > 1 || record.archived)
+                    DetailRow(
+                      'Versi',
+                      revisionLabel(record.version, archived: record.archived),
+                    ),
+                ],
               ),
-              const SizedBox(height: 16),
-              HealthCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Mulai: ${record.localDate} · ${record.localTime}'),
-                    Text(
-                      'Selesai: ${record.endLocalDate} · ${record.endLocalTime}',
-                    ),
-                    Text(record.timezone),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Jarak: ${record.distanceKm == null ? 'Belum diketahui' : '${record.distanceKm} km'}',
-                    ),
-                    Text('Langkah: ${record.steps ?? 'Belum diketahui'}'),
-                    Text(
-                      'Intensitas: ${activityIntensities[record.reportedIntensity]}',
-                    ),
-                    const Text('Sumber: manual'),
-                    Text(record.qualityLabel),
-                    if (record.version > 1 || record.archived)
-                      Text(
-                        revisionLabel(
-                          record.version,
-                          archived: record.archived,
-                        ),
-                      ),
-                    if (record.notes != null) Text(record.notes!),
-                    ExpansionTile(
-                      title: const Text('Provenansi sesi'),
-                      children: [
-                        Text(
-                          'Mulai (UTC): ${record.startedAt.toIso8601String()}\nSelesai (UTC): ${record.endedAt.toIso8601String()}\nDicatat: ${record.recordedAt}\nDiterima: ${record.receivedAt}',
-                        ),
-                      ],
-                    ),
-                  ],
+              if (record.notes != null)
+                DetailSection(
+                  title: 'Catatan',
+                  children: [Text(record.notes!, style: AppTypography.body)],
                 ),
+              DetailActions(
+                children: [
+                  if (!record.archived)
+                    PillButton(
+                      label: 'Koreksi aktivitas',
+                      icon: Icons.edit_outlined,
+                      kind: PillButtonKind.secondary,
+                      expand: false,
+                      onPressed: busy
+                          ? null
+                          : () => context.push(
+                              '${Routes.activities}/${record.id}/edit',
+                            ),
+                    ),
+                  PillButton(
+                    label: record.archived
+                        ? 'Pulihkan catatan'
+                        : 'Arsipkan catatan',
+                    icon: record.archived
+                        ? Icons.unarchive_outlined
+                        : Icons.archive_outlined,
+                    kind: PillButtonKind.secondary,
+                    expand: false,
+                    loading: busy,
+                    onPressed: () => archive(record),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
               if (error != null) ...[
+                const SizedBox(height: 8),
                 ErrorBanner(error!),
                 TextButton(
                   onPressed: () => ref.invalidate(activityProvider(record.id)),
                   child: const Text('Muat ulang catatan'),
                 ),
               ],
-              if (!record.archived)
-                PillButton(
-                  label: 'Koreksi aktivitas',
-                  kind: PillButtonKind.secondary,
-                  onPressed: busy
-                      ? null
-                      : () => context.push(
-                          '${Routes.activities}/${record.id}/edit',
+              DetailSection(
+                title: 'Riwayat koreksi',
+                children: [
+                  ref
+                      .watch(activityRevisionsProvider(record.id))
+                      .when(
+                        skipLoadingOnRefresh: false,
+                        skipLoadingOnReload: false,
+                        loading: () => const SkeletonList(rows: 1),
+                        error: (e, _) => HealthError(
+                          error: e,
+                          retry: () => ref.invalidate(
+                            activityRevisionsProvider(record.id),
+                          ),
                         ),
-                ),
+                        data: (items) => RevisionTimeline(
+                          entries: [
+                            for (final item in items)
+                              RevisionEntry(
+                                version: item['version'] as int,
+                                reason: '${item['reason']}',
+                                createdAt: '${item['createdAt']}',
+                                before:
+                                    'Sebelumnya: ${item['snapshot']['durationMinutes']} menit · ${friendlyStamp('${item['snapshot']['startedAt']}')}',
+                              ),
+                          ],
+                        ),
+                      ),
+                ],
+              ),
+              DetailSection(
+                title: 'Provenansi',
+                children: [
+                  DetailRow(
+                    'Mulai',
+                    friendlyStamp(record.startedAt.toIso8601String()),
+                  ),
+                  DetailRow(
+                    'Selesai',
+                    friendlyStamp(record.endedAt.toIso8601String()),
+                  ),
+                  DetailRow('Dicatat', friendlyStamp('${record.recordedAt}')),
+                  DetailRow(
+                    'Diterima server',
+                    friendlyStamp('${record.receivedAt}'),
+                  ),
+                ],
+              ),
               const SizedBox(height: 12),
               PillButton(
-                label: record.archived
-                    ? 'Pulihkan catatan'
-                    : 'Arsipkan catatan',
-                kind: PillButtonKind.secondary,
-                loading: busy,
-                onPressed: () => archive(record),
-              ),
-              const SizedBox(height: 24),
-              Text('Riwayat koreksi', style: AppTypography.heading),
-              ref
-                  .watch(activityRevisionsProvider(record.id))
-                  .when(
-                    skipLoadingOnRefresh: false,
-                    skipLoadingOnReload: false,
-                    loading: () => const SkeletonList(rows: 1),
-                    error: (e, _) => HealthError(
-                      error: e,
-                      retry: () =>
-                          ref.invalidate(activityRevisionsProvider(record.id)),
-                    ),
-                    data: (items) => Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (items.isEmpty) const Text('Belum ada koreksi.'),
-                        for (final item in items)
-                          ExpansionTile(
-                            title: Text(
-                              'Versi ${item['version']} · ${item['reason']}',
-                            ),
-                            subtitle: Text(item['createdAt'] as String),
-                            children: [
-                              Text(
-                                'Durasi sebelumnya: ${item['snapshot']['durationMinutes']} menit\nMulai sebelumnya: ${item['snapshot']['startedAt']}',
-                              ),
-                            ],
-                          ),
-                      ],
-                    ),
-                  ),
-              const SizedBox(height: 24),
-              PillButton(
                 label: 'Lihat riwayat aktivitas',
-                kind: PillButtonKind.secondary,
+                kind: PillButtonKind.ghost,
                 onPressed: () => context.go(Routes.activities),
               ),
             ],

@@ -6,6 +6,8 @@ import 'package:app/core/notifications/reminder_scheduler.dart';
 import 'package:app/core/providers.dart';
 import 'package:app/core/storage/token_storage.dart';
 import 'package:app/core/widgets/app_text_field.dart';
+import 'package:app/features/notifications/application/realtime_controller.dart';
+import 'package:app/features/notifications/data/realtime_connector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -50,6 +52,9 @@ class TestHarness {
           tokenStorageProvider.overrideWithValue(tokens),
           reminderSchedulerProvider.overrideWithValue(FakeReminderScheduler()),
           httpClientProvider.overrideWithValue(backend.client),
+          realtimeConnectorProvider.overrideWithValue(
+            SilentRealtimeConnector(),
+          ),
         ],
         child: RepaintBoundary(key: boundary, child: const BeOkayApp()),
       ),

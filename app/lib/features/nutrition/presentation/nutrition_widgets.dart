@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/async_body.dart';
+import '../../../core/widgets/detail_kit.dart';
 import '../../../core/widgets/info_card.dart';
 import '../../../core/widgets/pill_button.dart';
 import '../data/nutrition_models.dart';
@@ -48,26 +49,20 @@ class NutritionTotals extends StatelessWidget {
   const NutritionTotals({super.key, required this.totals});
   final Map<String, NutrientTotal> totals;
   @override
-  Widget build(BuildContext context) => NutritionCard(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Informasi gizi', style: AppTypography.title),
-        const SizedBox(height: 8),
-        for (final key in nutrientLabels.keys)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Text(
-              '${nutrientLabels[key]}: ${totals[key]?.label(key == 'calories' ? 'kkal' : 'g') ?? 'Belum tersedia'}',
-              style: AppTypography.body,
-            ),
-          ),
-        const SizedBox(height: 8),
-        Text(
-          'Perhitungan dari nilai referensi dan gram yang dicatat. Total sebagian hanya mencakup item yang memiliki data.',
-          style: AppTypography.secondary,
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      for (final key in nutrientLabels.keys)
+        DetailRow(
+          nutrientLabels[key]!,
+          totals[key]?.label(key == 'calories' ? 'kkal' : 'g') ??
+              'Belum tersedia',
         ),
-      ],
-    ),
+      const SizedBox(height: AppSpacing.xs),
+      Text(
+        'Perhitungan dari nilai referensi dan gram yang dicatat. Total sebagian hanya mencakup item yang memiliki data.',
+        style: AppTypography.caption,
+      ),
+    ],
   );
 }

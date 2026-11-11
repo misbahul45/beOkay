@@ -51,9 +51,10 @@ import '../../features/coach/presentation/coach_screen.dart';
 import '../../features/memory/presentation/memory_screen.dart';
 import '../../features/coaching/presentation/coaching_screen.dart';
 import '../../features/coaching/presentation/reflection_screen.dart';
-import '../../features/community/data/community_repository.dart';
 import '../../features/community/presentation/challenge_screen.dart';
 import '../../features/community/presentation/community_screen.dart';
+import '../../features/community/presentation/community_privacy_screen.dart';
+import '../../features/notifications/presentation/notifications_screen.dart';
 import 'redirect.dart';
 import 'routes.dart';
 
@@ -129,15 +130,21 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _, child) => HomeShell(child: child),
         routes: [
           GoRoute(path: Routes.home, builder: (_, _) => const HomeScreen()),
-          GoRoute(path: Routes.log, builder: (_, _) => const LogScreen()),
-          GoRoute(path: Routes.coach, builder: (_, _) => const CoachScreen()),
+          GoRoute(
+            path: Routes.log,
+            builder: (_, _) => const BackToHome(child: LogScreen()),
+          ),
+          GoRoute(
+            path: Routes.coach,
+            builder: (_, _) => const BackToHome(child: CoachScreen()),
+          ),
           GoRoute(
             path: Routes.insights,
-            builder: (_, _) => const InsightsScreen(),
+            builder: (_, _) => const BackToHome(child: InsightsScreen()),
           ),
           GoRoute(
             path: Routes.profile,
-            builder: (_, _) => const ProfileScreen(),
+            builder: (_, _) => const BackToHome(child: ProfileScreen()),
           ),
         ],
       ),
@@ -166,18 +173,28 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const CommunityScreen(),
       ),
       GoRoute(
+        path: Routes.communityPrivacy,
+        builder: (_, _) => const CommunityPrivacyScreen(),
+      ),
+      GoRoute(
         path: '/community/:id',
-        builder: (_, s) => ChallengeListScreen(
+        builder: (_, s) => CommunityDetailScreen(
           communityId: s.pathParameters['id']!,
           communityName: (s.extra as String?) ?? 'Komunitas',
         ),
       ),
       GoRoute(
         path: '/challenge/:id',
-        // `extra` hilang bila rute dibangun ulang (mis. setelah proses dipulihkan); kembali ke daftar komunitas, bukan crash.
-        redirect: (_, s) => s.extra is Challenge ? null : Routes.community,
         builder: (_, s) =>
-            ChallengeDetailScreen(challenge: s.extra! as Challenge),
+            ChallengeDetailScreen(challengeId: s.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: Routes.notifications,
+        builder: (_, _) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: Routes.notificationSettings,
+        builder: (_, _) => const NotificationSettingsScreen(),
       ),
       GoRoute(
         path: Routes.reminders,

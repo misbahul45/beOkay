@@ -24,19 +24,26 @@ import { startPushDispatcher } from "./features/push/push-dispatcher.ts";
 import { startAgentWorker } from "./features/agent/agent-worker.ts";
 import { agentRoutes } from "./features/agent/agent.routes.ts";
 import { communityRoutes } from "./features/community/community.routes.ts";
+import { canSubscribeTopic } from "./features/community/community.service.ts";
+import { startChallengeLifecycle } from "./features/community/lifecycle.service.ts";
 import { mlRoutes } from "./features/ml/ml.routes.ts";
 import { interventionRoutes } from "./features/interventions/intervention.routes.ts";
 import { coachingRoutes } from "./features/coaching/coaching.routes.ts";
+import { coachingService } from "./features/coaching/coaching.service.ts";
 import { syncRoutes } from "./features/sync/sync.routes.ts";
 import { insightsRoutes } from "./features/insights/insights.routes.ts";
 import { conversationRoutes } from "./features/conversation/conversation.routes.ts";
 import { mealDraftRoutes } from "./features/meal-drafts/meal-draft.routes.ts";
 import { memoryRoutes } from "./features/memory/memory.routes.ts";
+import { notificationRoutes, realtimeUpgrade } from "./features/notifications/notification.routes.ts";
+import { notificationService, startNotificationWorker } from "./features/notifications/notification.service.ts";
 import { checkDatabase, prisma } from "./infrastructure/database/prisma.ts";
+import { realtime, websocket, type SocketData } from "./infrastructure/realtime/realtime.ts";
 import { route } from "./shared/http/handler.ts";
 import { logEvent } from "./shared/http/logger.ts";
 
-const server = Bun.serve({
+const server = Bun.serve<SocketData>({
+  websocket,
   port: env.PORT,
   idleTimeout: 60, // SSE: peristiwa/detak jantung lebih jarang dari 60 dtk
   routes: {
@@ -70,6 +77,8 @@ const server = Bun.serve({
     ...timelineRoutes,
     ...syncRoutes,
     ...insightsRoutes,
+    ...notificationRoutes,
+    "/api/me/realtime": realtimeUpgrade,
     "/health": route(async () => {
       const db = await checkDatabase();
       return { status: db ? 200 : 503, body: { status: db ? "ok" : "degraded", db } };
@@ -78,16 +87,34 @@ const server = Bun.serve({
   fetch: route(async () => ({ status: 404, body: { error: { code: "NOT_FOUND", message: "Rute tidak ditemukan." } } })),
 });
 
+realtime.attach(server);
+realtime.setTopicGuard(canSubscribeTopic);
+realtime.onOpen = async (ws) => {
+  ws.send(JSON.stringify({ type: "hello", ...(await notificationService.unreadCount(ws.data.userId)) }));
+};
+
 const fcm = createFcmClient({ projectId: env.FCM_PROJECT_ID, serviceAccountJson: env.FCM_SERVICE_ACCOUNT_JSON });
+notificationService.setPushSender(fcm);
 const dispatcher = env.PUSH_DISPATCH_ENABLED ? startPushDispatcher(fcm) : { stop() {} };
 logEvent("info", "push_status", { fcmConfigured: fcm.configured, dispatcher: env.PUSH_DISPATCH_ENABLED && fcm.configured });
 
 const agentWorker = env.OUTBOX_WORKER_ENABLED ? startAgentWorker() : { stop() {} };
+let lastNudge = 0;
+const notifyWorker = env.NOTIFY_WORKER_ENABLED
+  ? startNotificationWorker(30_000, async () => {
+      if (Date.now() - lastNudge < 60 * 60_000) return;
+      lastNudge = Date.now();
+      await coachingService.nudgeReflections();
+    })
+  : { stop() {} };
+const lifecycle = env.CHALLENGE_LIFECYCLE_ENABLED ? startChallengeLifecycle() : { stop() {} };
 logEvent("info", "server_started", { port: server.port, env: env.NODE_ENV });
 
 async function shutdown() {
   dispatcher.stop();
   agentWorker.stop();
+  notifyWorker.stop();
+  lifecycle.stop();
   await server.stop();
   await prisma.$disconnect();
   process.exit(0);

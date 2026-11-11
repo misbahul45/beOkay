@@ -31,7 +31,8 @@
 | export | (baca semua milik sendiri) | tidak ada | — | `export` |
 | agent | `agent_runs/events/tool_calls`, `recommendations`, `recommendation_*`, `planned_meals`, `activity_plans`, `personalization_*`, `recommendation_outcomes` | H + A | `agent-safety`, `activity-graph`, `llm-text` | `agent`, `agent-activity`, `p2-closed-loop` |
 | conversation | `conversation_threads`, `conversation_messages` | H (+ A/S per rute) | `conversation` | `conversation` |
-| community | `regions`, `communities`, `community_memberships`, `challenges`, `challenge_*`, `score_events` | tujuan komunitas | `scoring` | `community` |
+| community | `regions`, `communities`, `community_memberships`, `challenges`, `challenge_*`, `score_events`, `recognitions` | tujuan komunitas | `scoring`, `community-lifecycle` | `community`, `lifecycle-realtime` |
+| notifications | `notifications`, `notification_preferences` | — (isi berasal dari modul ber-consent) | — | `lifecycle-realtime` |
 | ml | `model_versions`, `ml_inference_runs` | `model_inference` | `modal-client` | `ml` |
 | interventions | `intervention_decisions`, `intervention_preferences` | H + A | `intervention-policy` | `interventions` |
 
@@ -103,7 +104,7 @@ Lihat [overview §7.2](../architecture/system-overview.md). Kode: `sync.service.
 
 ## Pengingat dan push
 - **reminders**: `kind ∈ {medication, glucose, meal, activity, goal, custom}`, jam lokal + hari; `upcomingOccurrences()` menangani zona waktu/DST (jam yang tidak ada dimajukan).
-- **push**: `PushDevice.token` unik global (token pindah akun bila didaftarkan akun lain); `unregister` **menghapus** token dan tidak butuh consent. Klien FCM (`fcm.client.ts`) menandatangani JWT RS256, host Google dipaku, mendukung `validate_only`.
+- **push**: `PushDevice.token` unik global (token pindah akun bila didaftarkan akun lain); `unregister` **menghapus** token dan tidak butuh consent. Klien FCM (`fcm.client.ts`) menandatangani JWT RS256, host Google dipaku, mendukung `validate_only`. Pengirim pengingat (`push-dispatcher.ts`) sejak Fase 6 melewati pengguna yang mematikan push atau membisukan `REMINDER` di `notification_preferences` (`skippedByPreference`) dan mengirim data `{type: "reminder", action, refId}` (pengingat rencana kecil → `OPEN_COACHING` dengan ID rencana); notifikasi kotak masuk untuk pengingat dibuat tanpa push sehingga tidak ganda.
 
 ## Ekspor
 `exportService.build` membaca 17 koleksi milik sendiri dalam satu transaksi `RepeatableRead`. Tidak menyertakan sesi, akun/kata sandi, token, `createHash`/`payloadHash`. **Cakupannya belum mencakup data P2/P3** (audit F-02).
@@ -148,7 +149,23 @@ Berkas: `conversation.router.ts` (router deterministik `router-v1`, murni), `con
 - Percakapan `router-v2`: rute `REFLECTION` ("minggu ini aku merasa gagal", "refleksi") dengan bagian `reflection` berisi fakta minggu berjalan.
 
 ## Komunitas
-Lihat [overview §7.8](../architecture/system-overview.md). Aturan tambahan: check-in hanya hari ini atau ≤ 2 hari ke belakang (`MAX_BACKFILL_DAYS`), tidak di masa depan, dan dalam jendela tantangan; join tantangan memerlukan keanggotaan komunitas aktif; `memberCount` disembunyikan (`kurang dari 5`) bila kohort < 5. **Tidak ada kode untuk membuat/menutup tantangan** — hanya seed migrasi (audit F-04).
+Lihat [overview §7.8](../architecture/system-overview.md). Aturan tambahan: check-in hanya hari ini atau ≤ 2 hari ke belakang (`MAX_BACKFILL_DAYS`), tidak di masa depan, dan dalam jendela tantangan; join tantangan memerlukan keanggotaan komunitas aktif; `memberCount` disembunyikan (`kurang dari 5`) bila kohort < 5.
+
+### Siklus tantangan dan pengakuan (3.0 Fase 6)
+
+Menutup audit F-04 (sebelumnya tantangan hanya dari seed migrasi).
+
+- `community/lifecycle.model.ts` (murni, `challenge-lifecycle-v1`, zona bisnis `Asia/Jakarta`): `periodsToEnsure` menghitung periode berjalan dan berikutnya dari `anchor_date` + `cadence_days` templat; `statusOn`, `daysLeft`, `statusLabel` ("Mulai besok", "Mulai N hari lagi", "Berjalan · sisa N hari", "Berjalan · hari terakhir", "Selesai"); `completionFor` (`COMPLETED` bila hari aktif ≥ target, selain itu `PARTICIPATED`; `LEFT` bila keluar); `participantsLabel` ("kurang dari 5 peserta" bila < 5).
+- `community/lifecycle.service.ts`: `runChallengeLifecycle(now)` membuat periode untuk semua komunitas × templat aktif (`createMany` + `skipDuplicates` pada unik `(community_id, template_id, starts_on)`), membuka `SCHEDULED` yang sudah mulai (notifikasi "Tantangan dimulai" ke peserta), menutup yang sudah lewat (`closed_at`), lalu membekukan hasil peserta (`completion_status`, `final_active_days`, `final_score`) dan mengirim "Tantangan selesai: Tuntas/Ikut serta" serta menyegarkan pengakuan. Setiap langkah memakai `updateMany` bersyarat status, jadi aman dijalankan bersamaan atau diulang. Berjalan tiap jam (`startChallengeLifecycle`) dan secara malas lewat `ensureFreshLifecycle()` (paling sering tiap 10 menit) saat daftar/detail/overview dibuka. Dimatikan dengan `CHALLENGE_LIFECYCLE_ENABLED=false` (stack uji).
+- `community/recognition.model.ts` + `recognition.service.ts` (`recognition-v1`): tujuh aturan usaha (tantangan pertama, tantangan tuntas, 3 tantangan diikuti sampai selesai, refleksi pertama, 4 minggu refleksi berturut-turut, 5 hari rencana terlaksana, 7 hari berturut-turut ada catatan). `refresh` menyimpan yang baru tercapai (unik per pengguna) dan mengirim notifikasi `RECOGNITION`; dipanggil setelah join/check-in/hasil tantangan dan setelah refleksi. Tidak ada aturan berbasis nilai klinis, berat badan, atau peringkat.
+- `community.service.ts` menambah `challenge()` (detail + `checkedInToday`), `history()`, `overview()` (sorotan Beranda: tantangan berjalan, atau pengakuan ≤ 7 hari), `privacy()`, `hideFromAllLeaderboards()`, `setHighlights()`, `chatSuggestions()` (bagian `challenges` di percakapan, rute `COMMUNITY` pada `router-v3`), dan `canSubscribeTopic()` untuk WebSocket. Join/check-in/visibilitas memancarkan `challenge.progress` ke pemilik dan `leaderboard.changed` ke topik tantangan (hanya bila alias tampil).
+
+## Notifikasi dan realtime (3.0 Fase 6)
+
+- `infrastructure/realtime/realtime.ts`: handler `websocket` untuk `Bun.serve<SocketData>`; topik `user:<id>` otomatis, topik lain lewat `setTopicGuard` (komunitas: anggota aktif saja), maks 20 topik per koneksi, sesi diperiksa ulang tiap ≤ 60 dtk (`4401 SESSION_ENDED`). `realtime.toUser`/`toTopic` dipakai modul lain; tanpa server (tes unit) keduanya no-op.
+- `notifications/notification.service.ts`: `notify()` menghormati `muted_kinds`, menyimpan dengan `dedupe_key` (bentrok unik = sudah ada, dilewati), memancarkan `notification` lewat WebSocket, dan mengirim push FCM ke perangkat aktif bila `push_enabled` dan server terkonfigurasi. Push hanya membawa teks layar kunci umum per jenis dan data `{type, notificationId, action, refId}`; isi asli tidak pernah keluar ke Google. `notifyDueReminders()` membuat notifikasi `REMINDER` untuk kejadian pengingat dalam 3 menit terakhir (zona waktu pengguna, `upcomingOccurrences`); pengingat dari rencana kecil memakai teks "Rencana kecilmu hari ini."
+- `startNotificationWorker(30_000, extra)` di `server.ts`: tiap 30 dtk memproses pengingat; tiap jam menjalankan `coachingService.nudgeReflections()` (notifikasi `REFLECTION` sekali per minggu sasaran, setelah pukul 18.00 lokal, untuk pengguna yang mencatat makan dalam 7 hari terakhir, memberi consent H + S + A, dan belum mengisi refleksi). Dimatikan dengan `NOTIFY_WORKER_ENABLED=false`.
+- `coachingService` memancarkan `coaching.updated` setelah keputusan, umpan balik, konfirmasi, dan refleksi. Ekspor menyertakan `recognitions`, `notifications`, dan `notification_preferences`.
 
 ## ML
 `dish.service.ts` + `modal.client.ts`. Tata kelola status model (`model_versions.status`):

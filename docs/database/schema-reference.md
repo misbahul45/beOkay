@@ -74,6 +74,13 @@ Indeks: GIN trigram `food_reference_name_trgm_idx` (kata) dan **HNSW** `food_ref
 | `push_devices` | `token` **unik global**, `platform`, `app_version`, `active`, `last_error`, `last_seen_at`; indeks `(user_id, active)` |
 | `push_deliveries` | `reminder_id`, `device_id`, `scheduled_at`, `status`, `provider_message_id`, `error_code`; **`UNIQUE(reminder_id, device_id, scheduled_at)`** (buku besar pengiriman) |
 
+### Notifikasi (3.0 Fase 6)
+
+| Tabel | Kolom penting |
+|---|---|
+| `notifications` | kotak masuk: `kind` (`REMINDER`, `COACHING`, `REFLECTION`, `CHALLENGE`, `RECOGNITION`), `title` (1–80), `body` (1–240), `action` (10 tujuan `OPEN_*`), `ref_id`, `dedupe_key` (**unik `(user_id, dedupe_key)`**, jadi pekerja yang diulang tidak menggandakan), `pushed_at`, `read_at`; indeks `(user_id, created_at DESC)`; CHECK `notifications_valid` |
+| `notification_preferences` | satu baris per pengguna: `push_enabled` (default `true`), `muted_kinds TEXT[]` (CHECK subset dari lima jenis) |
+
 ## 7. Agen dan rekomendasi (P2)
 
 | Tabel | Fungsi |
@@ -128,6 +135,16 @@ CHECK `intervention_decisions_valid` diperluas dengan pemicu `COACHING_ACTION_DU
 | `challenge_checkins` | `UNIQUE(challenge_id, user_id, local_date)` |
 | `score_events` | buku besar skor **append-only**: trigger `score_events_no_update` menolak UPDATE; koreksi = baris dengan `reversal_of`; indeks unik parsial `score_events_original_unique` pada `(challenge_id, user_id, event_type, source_key) WHERE reversal_of IS NULL` |
 
+Perubahan 3.0 Fase 6 (`challenge-lifecycle-v1`, `recognition-v1`):
+
+| Tabel / kolom | Fungsi |
+|---|---|
+| `challenge_templates` | `key` unik, `title`, `description`, `kind='ACTIVE_DAYS'`, `duration_days` (2–90), `target_days` (≤ durasi), `cadence_days` (≥ durasi), `anchor_date`; di-seed `weekly-active-3` (7 hari, target 3, tiap 7 hari) dan `four-week-active-12` (28 hari, target 12, tiap 28 hari), jangkar Senin 2 Nov 2026 |
+| `challenges.template_id`, `closed_at`, `results_at` | FK ke templat (SET NULL); **unik `(community_id, template_id, starts_on)`** sehingga pembuatan periode idempoten; CHECK `challenges_valid` kini `status IN ('SCHEDULED','OPEN','CLOSED')` dan `results_at` hanya untuk `CLOSED` |
+| `challenge_participants.completion_status`, `final_active_days`, `final_score` | hasil beku saat ditutup: `COMPLETED`, `PARTICIPATED`, `LEFT` (CHECK `challenge_participants_result_valid`) |
+| `recognitions` | pengakuan usaha pribadi: `key` (unik per pengguna), `category` (`CHALLENGE`, `REFLECTION`, `PLAN`, `LOGGING`), `title`, `detail`, `achieved_at`; tidak pernah ditampilkan ke anggota lain |
+| `user_settings.community_highlights` | sakelar kartu sorotan komunitas di Beranda (default `true`) |
+
 ## 9. ML dan intervensi
 
 | Tabel | Fungsi |
@@ -165,6 +182,8 @@ CHECK `intervention_decisions_valid` diperluas dengan pemicu `COACHING_ACTION_DU
 | 22 | `20261110132120_conversations` | thread & pesan percakapan Asisten + CHECK |
 | 23 | `20261110162503_memory_meal_drafts` | draf makan, memori, sakelar memori, `basis`/`context` percakapan + CHECK dan indeks parsial |
 | 24 | `20261111065804_coaching` | rencana kecil, bukti per hari, kuitansi, refleksi mingguan + CHECK dan indeks parsial; perluasan CHECK intervensi |
+| 25 | `20261111120000_community_lifecycle` | templat tantangan + seed, status `SCHEDULED/OPEN/CLOSED`, hasil peserta, pengakuan, sakelar sorotan + CHECK |
+| 26 | `20261111140000_notifications` | kotak masuk notifikasi dan preferensinya + CHECK |
 
 ## 11. Membuat migrasi baru (ringkas)
 

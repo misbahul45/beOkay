@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:app/core/storage/token_storage.dart';
 import 'package:app/core/widgets/pill_button.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/fake_backend.dart';
@@ -590,6 +591,58 @@ void main() {
       expect(await tokens.read(), isNull);
       expect(find.text('Akun dan datamu sudah dihapus.'), findsOneWidget);
       expect(find.text('Mulai Sekarang'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'O. system back on Wawasan (Tren) returns to Beranda instead of leaving the app; back on Beranda is left to the system',
+    (tester) async {
+      final backend = FakeBackend();
+      final tokens = MemoryTokenStorage();
+      await tokens.write(
+        await seedVerifiedUser(
+          backend,
+          consent: true,
+          profile: true,
+          health: true,
+          prefs: true,
+          complete: true,
+        ),
+      );
+      final handlesBack = <bool>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'SystemNavigator.setFrameworkHandlesBack') {
+            handlesBack.add(call.arguments as bool);
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      final h = TestHarness(backend: backend, tokens: tokens);
+      await h.pump(tester);
+      await h.tapText(tester, 'Wawasan');
+      await h.tapText(tester, 'Tren');
+      expect(find.textContaining('Halo, Rina!'), findsNothing);
+      expect(handlesBack.last, isTrue);
+      final handled = await tester.binding.handlePopRoute();
+      await h.settle(tester);
+      expect(handled, isTrue);
+      expect(find.textContaining('Halo, Rina!'), findsOneWidget);
+      await h.tapText(tester, 'Wawasan');
+      expect(find.text('Tren'), findsOneWidget);
+      await h.tapText(tester, 'Beranda');
+      expect(handlesBack.last, isFalse);
+      final leaves = await tester.binding.handlePopRoute();
+      await h.settle(tester);
+      expect(leaves, isFalse);
     },
   );
 }

@@ -14,6 +14,9 @@ abstract interface class PushClient {
 
   /// Mencabut token di perangkat (dipakai saat pengguna mematikan push atau keluar akun).
   Future<void> deleteToken();
+
+  Stream<Map<String, dynamic>> get onOpened;
+  Future<Map<String, dynamic>?> openedAtLaunch();
 }
 
 // Catatan: firebase_messaging 17 menandai getToken/onTokenRefresh/deleteToken usang demi register()/onRegistered (FID).
@@ -55,6 +58,16 @@ class FirebasePushClient implements PushClient {
   @override
   Future<void> deleteToken() async {
     if (await available()) await FirebaseMessaging.instance.deleteToken();
+  }
+
+  @override
+  Stream<Map<String, dynamic>> get onOpened =>
+      FirebaseMessaging.onMessageOpenedApp.map((m) => m.data);
+
+  @override
+  Future<Map<String, dynamic>?> openedAtLaunch() async {
+    if (!await available()) return null;
+    return (await FirebaseMessaging.instance.getInitialMessage())?.data;
   }
 }
 

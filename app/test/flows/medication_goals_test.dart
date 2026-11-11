@@ -149,7 +149,7 @@ void main() {
         ]),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Riwayat konfirmasi'), findsOneWidget);
+      expect(find.text('RIWAYAT KONFIRMASI'), findsOneWidget);
       expect(find.text('Sudah diminum'), findsOneWidget);
       expect(find.textContaining('dikoreksi'), findsOneWidget);
       await tester.tap(find.text('Koreksi'));

@@ -10,6 +10,7 @@
 | F-01 Hapus akun/data | **DITUTUP** | `POST /api/me/account/delete`, layar Pengaturan → Privasi & data; `tests/integration/account.test.ts` memeriksa setiap tabel ber-`user_id` kosong setelah hapus; `identity_flows_test.dart` (N) |
 | F-02 Ekspor tidak lengkap | **DITUTUP** | `beokay-export-v2`; tes membandingkan semua tabel ber-`user_id` dengan daftar ekspor + pengecualian beralasan |
 | F-10 `requiredPermissions` alat | **DITUTUP** | `executeTool` memeriksa consent setiap alat; tanpa consent → `PERMISSION_DENIED` dan tercatat `DENIED` (`tests/integration/conversation.test.ts`) |
+| F-04 Siklus tantangan | **DITUTUP** (11 Nov 2026, 3.0 Fase 6) | `challenge_templates` + `challenge-lifecycle-v1` membuat, membuka, menutup, dan membekukan hasil secara idempoten (unik `(community_id, template_id, starts_on)`); jadwal tiap jam + penyegaran malas; `tests/unit/community-lifecycle.test.ts`, `tests/integration/lifecycle-realtime.test.ts` |
 | F-03 Rilis Android | **SEBAGIAN DITUTUP** | `id.beokay.app`, `INTERNET` di manifes utama, penandatanganan via `key.properties`, guard `API_BASE_URL=https://` — terverifikasi pada APK rilis. Tersisa: kunci rilis milik pemilik dan pendaftaran Firebase |
 
 

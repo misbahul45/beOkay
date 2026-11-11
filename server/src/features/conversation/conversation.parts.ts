@@ -16,12 +16,15 @@ export type Part =
   | { type: "meal_draft"; draftId: string }
   | { type: "memory_proposal"; memoryId: string }
   | { type: "photo"; items: { name: string; confidence: "high" | "medium" | "low" }[] }
-  | { type: "reflection"; weekStart: string; positives: string[]; actionsDone: number; canAdjust: boolean; done: boolean };
+  | { type: "reflection"; weekStart: string; positives: string[]; actionsDone: number; canAdjust: boolean; done: boolean }
+  | { type: "challenges"; items: ChallengeItem[] };
+
+export type ChallengeItem = { id: string; title: string; communityName: string; startsOn: string; endsOn: string; status: string; statusLabel: string; participating: boolean; progress: { activeDays: number; targetDays: number } | null };
 
 export type BasisSource = { kind: "STATISTICS" | "FOOD_REFERENCE" | "USER_CATALOG" | "FOOD_PREFERENCES" | "ACTIVITY_HISTORY" | "GOALS" | "SAFETY_POLICY" | "MESSAGE" | "PHOTO" | "PORTION_MEASURES"; label: string };
 export type Basis = { sources: BasisSource[]; memories: { id: string; content: string }[] };
 
-export type LinkTarget = "INSIGHTS" | "LOG" | "LOG_MEAL" | "CONSENT";
+export type LinkTarget = "INSIGHTS" | "LOG" | "LOG_MEAL" | "CONSENT" | "COMMUNITY" | "GOALS";
 
 export const STARTERS: Suggestion[] = [
   { label: "Bagaimana aktivitasku minggu ini?", message: "Bagaimana aktivitasku minggu ini?" },
@@ -151,6 +154,7 @@ export function consentReply(purpose: string): Part[] {
     personalized_ai: "Saran personal dari asisten beOkay",
     descriptive_summaries: "Membuat ringkasan dan insight deskriptif",
     health_data_processing: "Mencatat data kesehatan yang kamu masukkan",
+    community_membership: "Bergabung dengan komunitas memakai alias",
   };
   return [{ type: "consent_required", purpose, text: `Untuk ini, aktifkan "${label[purpose] ?? purpose}" di Persetujuan data.` }];
 }

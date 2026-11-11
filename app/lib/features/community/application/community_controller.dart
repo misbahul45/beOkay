@@ -30,7 +30,34 @@ final communitiesInRegionProvider = FutureProvider.autoDispose
       (ref, code) => ref.watch(communityRepositoryProvider).communities(code),
     );
 final challengesProvider = FutureProvider.autoDispose
-    .family<List<Challenge>, String>(
+    .family<List<ChallengeSummary>, String>(
       (ref, communityId) =>
           ref.watch(communityRepositoryProvider).challenges(communityId),
     );
+final challengeDetailProvider = FutureProvider.autoDispose
+    .family<ChallengeDetail, String>(
+      (ref, id) => ref.watch(communityRepositoryProvider).challenge(id),
+    );
+final leaderboardProvider = FutureProvider.autoDispose
+    .family<Leaderboard, String>(
+      (ref, id) => ref.watch(communityRepositoryProvider).leaderboard(id),
+    );
+final challengeHistoryProvider =
+    FutureProvider.autoDispose<List<ChallengeSummary>>(
+      (ref) => ref.watch(communityRepositoryProvider).history(),
+    );
+final communityOverviewProvider = FutureProvider.autoDispose<CommunityOverview>(
+  (ref) => ref.watch(communityRepositoryProvider).overview(),
+);
+final communityPrivacyProvider = FutureProvider.autoDispose<CommunityPrivacy>(
+  (ref) => ref.watch(communityRepositoryProvider).privacy(),
+);
+final homeHighlightProvider = FutureProvider.autoDispose<Highlight?>((
+  ref,
+) async {
+  try {
+    return (await ref.watch(communityRepositoryProvider).overview()).highlight;
+  } catch (_) {
+    return null;
+  }
+});

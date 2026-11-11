@@ -4,8 +4,11 @@ import 'package:go_router/go_router.dart';
 import '../../../core/format/formatters.dart';
 import '../../../core/network/error_messages.dart';
 import '../../../core/router/routes.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/async_body.dart';
+import '../../../core/widgets/detail_kit.dart';
+import '../../../core/widgets/domain_style.dart';
 import '../../../core/widgets/info_card.dart';
 import '../../../core/widgets/page_scaffold.dart';
 import '../../../core/widgets/pill_button.dart';
@@ -77,6 +80,8 @@ class _MealDetailScreenState extends ConsumerState<MealDetailScreen> {
       ),
       data: (meal) {
         if (widget.edit) return MealFormScreen(initial: meal);
+        final kcal = meal.totals['calories'];
+        final itemsLabel = '${meal.items.length} makanan';
         return PageScaffold(
           title: mealCategories[meal.category],
           onBack: () =>
@@ -89,122 +94,130 @@ class _MealDetailScreenState extends ConsumerState<MealDetailScreen> {
             ),
           ],
           children: [
-            Text(
-              '${meal.localDate} · ${meal.localTime}',
-              style: AppTypography.headline,
-            ),
-            Text(meal.timezone, style: AppTypography.secondary),
-            const SizedBox(height: 12),
-            Text(
-              [
+            DetailHero(
+              style: DomainStyle.meal,
+              eyebrow: '${mealCategories[meal.category]} · $itemsLabel',
+              value: kcal?.value == null
+                  ? '–'
+                  : kcal!.value!.round().toString(),
+              unit: kcal?.value == null
+                  ? 'energi belum tersedia'
+                  : 'kkal tercatat',
+              archived: meal.archived,
+              chips: [
+                '${meal.localDate} · ${meal.localTime}',
                 'Dilaporkan sendiri',
-                revisionLabel(meal.version, archived: meal.archived),
-              ].where((s) => s.isNotEmpty).join(' · '),
-              style: AppTypography.secondary,
+                if (revisionLabel(meal.version, archived: false).isNotEmpty)
+                  revisionLabel(meal.version, archived: false),
+              ],
             ),
-            const SizedBox(height: 24),
-            for (final item in meal.items)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: NutritionCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(item.name, style: AppTypography.title),
-                      Text(
-                        '${item.quantity} ${portionUnits[item.unit] ?? item.unit}${item.unit != 'g' && item.grams != null ? ' · ${item.grams} g' : ''}',
-                        style: AppTypography.body,
-                      ),
-                      Text(
-                        'Sumber: ${item.source == 'user_reported' ? 'Dilaporkan sendiri' : item.source}',
-                        style: AppTypography.secondary,
-                      ),
-                      Text(
-                        item.status == 'unknown'
-                            ? 'Nilai gizi belum tersedia'
-                            : item.status == 'estimated'
-                            ? 'Estimasi'
-                            : 'Referensi dilaporkan pengguna',
-                        style: AppTypography.secondary,
-                      ),
-                      if (item.gramsBasis == 'user_estimate')
-                        const Text('Berat merupakan perkiraan pengguna.'),
-                    ],
+            DetailSection(
+              title: 'Makanan',
+              children: [
+                for (final (index, item) in meal.items.indexed) ...[
+                  if (index > 0) Divider(height: 16, color: AppColors.border),
+                  Text(item.name, style: AppTypography.bodyStrong),
+                  Text(
+                    '${item.quantity} ${portionUnits[item.unit] ?? item.unit}${item.unit != 'g' && item.grams != null ? ' · ${item.grams} g' : ''}',
+                    style: AppTypography.body,
                   ),
-                ),
-              ),
-            NutritionTotals(totals: meal.totals),
-            const SizedBox(height: 16),
+                  Text(
+                    [
+                      item.source == 'user_reported'
+                          ? 'Dilaporkan sendiri'
+                          : item.source,
+                      item.status == 'unknown'
+                          ? 'Nilai gizi belum tersedia'
+                          : item.status == 'estimated'
+                          ? 'Estimasi'
+                          : 'Referensi dilaporkan pengguna',
+                      if (item.gramsBasis == 'user_estimate') 'berat perkiraan',
+                    ].join(' · '),
+                    style: AppTypography.caption,
+                  ),
+                ],
+              ],
+            ),
+            DetailSection(
+              title: 'Ringkasan gizi',
+              children: [NutritionTotals(totals: meal.totals)],
+            ),
             if (meal.notes != null)
-              Text(meal.notes!, style: AppTypography.body),
-            const SizedBox(height: 16),
-            if (error != null) ErrorBanner(error!),
-            if (!meal.archived)
-              PillButton(
-                label: 'Koreksi catatan',
-                kind: PillButtonKind.secondary,
-                onPressed: busy
-                    ? null
-                    : () => context.push('${Routes.meals}/${meal.id}/edit'),
+              DetailSection(
+                title: 'Catatan',
+                children: [Text(meal.notes!, style: AppTypography.body)],
               ),
-            const SizedBox(height: 12),
-            PillButton(
-              label: meal.archived ? 'Pulihkan catatan' : 'Arsipkan catatan',
-              kind: PillButtonKind.secondary,
-              loading: busy,
-              onPressed: () => archive(meal),
-            ),
-            const SizedBox(height: 24),
-            Text('Riwayat koreksi', style: AppTypography.heading),
-            const SizedBox(height: 12),
-            ref
-                .watch(mealRevisionsProvider(meal.id))
-                .when(
-                  skipLoadingOnRefresh: false,
-                  skipLoadingOnReload: false,
-                  loading: () => const SkeletonList(rows: 1),
-                  error: (e, _) => NutritionError(
-                    error: e,
-                    retry: () => ref.invalidate(mealRevisionsProvider(meal.id)),
+            DetailActions(
+              children: [
+                if (!meal.archived)
+                  PillButton(
+                    label: 'Koreksi catatan',
+                    icon: Icons.edit_outlined,
+                    kind: PillButtonKind.secondary,
+                    expand: false,
+                    onPressed: busy
+                        ? null
+                        : () => context.push('${Routes.meals}/${meal.id}/edit'),
                   ),
-                  data: (items) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (items.isEmpty) const Text('Belum ada koreksi.'),
-                      for (final item in items)
-                        ExpansionTile(
-                          title: Text(
-                            'Versi ${item['version']} · ${item['reason']}',
-                          ),
-                          subtitle: Text(item['createdAt'] as String),
-                          children: [
-                            if (item['snapshot'] is Map)
-                              Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    for (final old
-                                        in ((item['snapshot'] as Map)['items']
-                                            as List))
-                                      Text(
-                                        '${old['name']}: ${old['quantity']} ${old['unit']}',
-                                      ),
-                                    Text(
-                                      'Waktu sebelumnya: ${(item['snapshot'] as Map)['consumedAt']}',
-                                    ),
-                                  ],
-                                ),
-                              ),
-                          ],
-                        ),
-                    ],
-                  ),
+                PillButton(
+                  label: meal.archived
+                      ? 'Pulihkan catatan'
+                      : 'Arsipkan catatan',
+                  icon: meal.archived
+                      ? Icons.unarchive_outlined
+                      : Icons.archive_outlined,
+                  kind: PillButtonKind.secondary,
+                  expand: false,
+                  loading: busy,
+                  onPressed: () => archive(meal),
                 ),
-            const SizedBox(height: 24),
+              ],
+            ),
+            if (error != null) ...[
+              const SizedBox(height: 8),
+              ErrorBanner(error!),
+            ],
+            DetailSection(
+              title: 'Riwayat koreksi',
+              children: [
+                ref
+                    .watch(mealRevisionsProvider(meal.id))
+                    .when(
+                      skipLoadingOnRefresh: false,
+                      skipLoadingOnReload: false,
+                      loading: () => const SkeletonList(rows: 1),
+                      error: (e, _) => NutritionError(
+                        error: e,
+                        retry: () =>
+                            ref.invalidate(mealRevisionsProvider(meal.id)),
+                      ),
+                      data: (items) => RevisionTimeline(
+                        entries: [
+                          for (final item in items)
+                            RevisionEntry(
+                              version: item['version'] as int,
+                              reason: '${item['reason']}',
+                              createdAt: '${item['createdAt']}',
+                              before: item['snapshot'] is Map
+                                  ? [
+                                      for (final old
+                                          in ((item['snapshot'] as Map)['items']
+                                                  as List? ??
+                                              const []))
+                                        '${old['name']}: ${old['quantity']} ${old['unit']}',
+                                      'Waktu sebelumnya: ${friendlyStamp('${(item['snapshot'] as Map)['consumedAt']}')}',
+                                    ].join('\n')
+                                  : null,
+                            ),
+                        ],
+                      ),
+                    ),
+              ],
+            ),
+            const SizedBox(height: 12),
             PillButton(
               label: 'Lihat histori makanan',
-              kind: PillButtonKind.secondary,
+              kind: PillButtonKind.ghost,
               onPressed: () => context.go(Routes.meals),
             ),
           ],

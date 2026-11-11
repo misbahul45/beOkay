@@ -2,7 +2,7 @@ import { classifyFollowUp, classifyIntent, extractQuery } from "../agent/agent.i
 import { screenRequest } from "../agent/agent.safety.ts";
 import { isMealLogStatement } from "../meal-drafts/meal-text.parser.ts";
 
-export const ROUTER_VERSION = "router-v2";
+export const ROUTER_VERSION = "router-v3";
 
 export type StatsDomain = "activity" | "glucose" | "nutrition" | "medication" | "logging";
 export type StatsDays = 7 | 14 | 30;
@@ -13,6 +13,7 @@ export type Route =
   | { kind: "THANKS" }
   | { kind: "SUPPORT" }
   | { kind: "REFLECTION" }
+  | { kind: "COMMUNITY"; topic: "DISCOVER" | "RULES" | "PROGRESS" }
   | { kind: "HELP" }
   | { kind: "STATS"; domain: StatsDomain; days: StatsDays }
   | { kind: "FOLLOW_UP"; follow: "WHY" | "MORE" }
@@ -46,6 +47,9 @@ const SUPPORT = /(susah konsisten|sulit konsisten|gak konsisten|ga konsisten|ngg
 const WEEK = /(minggu ini|seminggu ini|seminggu terakhir|minggu kemarin|minggu lalu|pekan ini)/;
 const WEEK_FEELING = /(gagal|berat(?! badan)|kacau|buruk|berantakan|(nggak|gak|ga|tidak) (jalan|berhasil|konsisten)|kurang berhasil|jelek|payah|nyerah|menyerah|capek|lelah)/;
 const REFLECT = /\brefleksi\b/;
+const COMMUNITY = /\b(tantangan|challenge|komunitas)/;
+const COMMUNITY_PROGRESS = /(progres|progress|skor|peringkat|sejauh mana|sudah berapa)/;
+const COMMUNITY_RULES = /(aturan|cara kerja|dihitung|poin|syarat|bagaimana cara)/;
 const HELP = /(bisa apa|bisa bantu apa|kamu siapa|siapa kamu|apa itu beokay|bantuan|cara pakai|cara menggunakan|^help$|^tolong$|^menu$)/;
 
 const DOMAINS: [StatsDomain, RegExp][] = [
@@ -129,6 +133,7 @@ export function routeMessage(text: string, ctx: RouteContext): Route {
   if (activityContext && BUSY_NOW.test(body)) return { kind: "ACTIVITY_PLAN", busy: true, maxMinutes: minutesOf(body) ?? 10 };
   if (activityContext && MINUTES.test(body) && words.length <= 8 && minutesOf(body)) return { kind: "ACTIVITY_PLAN", maxMinutes: minutesOf(body) };
   if (REFLECT.test(body) || (WEEK.test(body) && WEEK_FEELING.test(body))) return { kind: "REFLECTION" };
+  if (COMMUNITY.test(body)) return { kind: "COMMUNITY", topic: COMMUNITY_PROGRESS.test(body) ? "PROGRESS" : COMMUNITY_RULES.test(body) ? "RULES" : "DISCOVER" };
   if (SUPPORT.test(body)) return { kind: "SUPPORT" };
   if (HELP.test(body)) return { kind: "HELP" };
   const follow = classifyFollowUp(body);

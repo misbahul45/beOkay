@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import '../../../core/network/account_scoped_repository.dart';
 import '../../../core/network/error_messages.dart';
 import '../../../core/network/api_exception.dart';
@@ -10,6 +9,8 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/choice_chips.dart';
 import '../../../core/widgets/discard_guard.dart';
+import '../../../core/widgets/domain_style.dart';
+import '../../../core/widgets/form_kit.dart';
 import '../../../core/widgets/info_card.dart';
 import '../../../core/widgets/page_scaffold.dart';
 import '../../../core/widgets/pill_button.dart';
@@ -178,123 +179,162 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
           );
         }(),
     };
+    final locked = busy || uncertain;
     return DiscardGuard(
       dirty: dirty,
       child: PageScaffold(
         title: widget.initial == null ? 'Catat makanan' : 'Koreksi catatan',
+        bottom: SaveBar(
+          button: PillButton(
+            label: widget.initial == null ? 'Simpan makanan' : 'Simpan koreksi',
+            loading: busy,
+            onPressed: conflict ? null : save,
+          ),
+          note: items.isEmpty
+              ? 'Tambahkan minimal satu makanan.'
+              : '${items.length} makanan · gizi hanya dari item yang beratnya diketahui',
+        ),
         children: [
           Form(
             key: form,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                FormHero.domain(
+                  DomainStyle.meal,
+                  'Apa yang kamu makan?',
+                  subtitle:
+                      'Nilai gizi hanya dihitung dari porsi yang diketahui; tidak ada angka yang ditebak.',
+                ),
+                FormSection(
+                  title: 'Waktu makan',
                   children: [
-                    for (final entry in mealCategories.entries)
-                      PillChip(
-                        label: entry.value,
-                        selected: category == entry.key,
-                        onTap: busy || uncertain
-                            ? null
-                            : () => setState(() {
-                                category = entry.key;
-                                dirty = true;
-                              }),
-                      ),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        for (final entry in mealCategories.entries)
+                          PillChip(
+                            label: entry.value,
+                            selected: category == entry.key,
+                            onTap: locked
+                                ? null
+                                : () => setState(() {
+                                    category = entry.key;
+                                    dirty = true;
+                                  }),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    DateTimeTile(
+                      label: 'Waktu',
+                      value: time,
+                      detail: time.timeZoneName,
+                      onTap: locked ? null : pickTime,
+                    ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                PillButton(
-                  label:
-                      'Waktu: ${DateFormat('d MMM y, HH:mm', 'id_ID').format(time)}',
-                  kind: PillButtonKind.secondary,
-                  onPressed: busy || uncertain ? null : pickTime,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Zona waktu perangkat: ${time.timeZoneName}.',
-                  style: AppTypography.secondary,
-                ),
-                const SizedBox(height: 24),
-                for (var i = 0; i < items.length; i++)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: NutritionCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(items[i].name, style: AppTypography.title),
-                          Text(
-                            '${items[i].quantity} ${portionUnits[items[i].unit] ?? items[i].unit}',
-                            style: AppTypography.body,
-                          ),
-                          Wrap(
+                FormSection(
+                  title: 'Makanan',
+                  subtitle: items.isEmpty
+                      ? 'Cari dari referensi atau tambah item tanpa nilai gizi.'
+                      : null,
+                  children: [
+                    for (var i = 0; i < items.length; i++)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: NutritionCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              TextButton(
-                                onPressed: busy || uncertain
-                                    ? null
-                                    : () => addItem(index: i),
-                                child: const Text('Ubah porsi'),
+                              Text(items[i].name, style: AppTypography.title),
+                              Text(
+                                '${items[i].quantity} ${portionUnits[items[i].unit] ?? items[i].unit}',
+                                style: AppTypography.body,
                               ),
-                              TextButton(
-                                onPressed: busy || uncertain
-                                    ? null
-                                    : () => setState(() {
-                                        items.removeAt(i);
-                                        dirty = true;
-                                      }),
-                                child: const Text('Hapus item'),
+                              Wrap(
+                                children: [
+                                  TextButton(
+                                    onPressed: locked
+                                        ? null
+                                        : () => addItem(index: i),
+                                    child: const Text('Ubah porsi'),
+                                  ),
+                                  TextButton(
+                                    onPressed: locked
+                                        ? null
+                                        : () => setState(() {
+                                            items.removeAt(i);
+                                            dirty = true;
+                                          }),
+                                    child: const Text('Hapus item'),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
+                        ),
+                      ),
+                    if (items.length < 30)
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          PillButton(
+                            label: 'Cari makanan',
+                            icon: Icons.search_rounded,
+                            kind: PillButtonKind.secondary,
+                            expand: false,
+                            onPressed: locked
+                                ? null
+                                : () => addItem(catalog: true),
+                          ),
+                          PillButton(
+                            label: 'Tambah item tanpa nilai gizi',
+                            kind: PillButtonKind.ghost,
+                            expand: false,
+                            onPressed: locked ? null : () => addItem(),
+                          ),
                         ],
                       ),
-                    ),
-                  ),
-                if (items.length < 30) ...[
-                  PillButton(
-                    label: 'Cari makanan',
-                    kind: PillButtonKind.secondary,
-                    onPressed: busy || uncertain
-                        ? null
-                        : () => addItem(catalog: true),
-                  ),
-                  const SizedBox(height: 12),
-                  PillButton(
-                    label: 'Tambah item tanpa nilai gizi',
-                    kind: PillButtonKind.secondary,
-                    onPressed: busy || uncertain ? null : () => addItem(),
-                  ),
-                ],
-                const SizedBox(height: 24),
-                NutritionTotals(totals: totals),
-                const SizedBox(height: 24),
-                AppTextField(
-                  label: 'Catatan (opsional)',
-                  hint: 'mis. makan di kantor',
-                  controller: notes,
-                  maxLength: 2000,
-                  enabled: !busy && !uncertain,
-                  onChanged: (_) => setState(() => dirty = true),
+                  ],
                 ),
-                if (widget.initial != null) ...[
-                  const SizedBox(height: 16),
-                  AppTextField(
-                    label: 'Alasan koreksi',
-                    hint: 'mis. porsi salah',
-                    controller: reason,
-                    maxLength: 300,
-                    enabled: !busy && !uncertain,
-                    validator: (v) => v == null || v.trim().isEmpty
-                        ? 'Isi alasan koreksi.'
-                        : null,
-                    onChanged: (_) => setState(() => dirty = true),
-                  ),
-                ],
+                FormSection(
+                  title: 'Ringkasan gizi',
+                  children: [NutritionTotals(totals: totals)],
+                ),
+                FormSection(
+                  title: widget.initial == null
+                      ? 'Catatan'
+                      : 'Catatan & alasan',
+                  children: [
+                    AppTextField(
+                      label: 'Catatan (opsional)',
+                      hint: 'mis. makan di kantor',
+                      controller: notes,
+                      maxLength: 2000,
+                      enabled: !locked,
+                      onChanged: (_) => setState(() => dirty = true),
+                    ),
+                    if (widget.initial != null) ...[
+                      const SizedBox(height: 8),
+                      AppTextField(
+                        label: 'Alasan koreksi',
+                        hint: 'mis. porsi salah',
+                        controller: reason,
+                        maxLength: 300,
+                        enabled: !locked,
+                        validator: (v) => v == null || v.trim().isEmpty
+                            ? 'Isi alasan koreksi.'
+                            : null,
+                        onChanged: (_) => setState(() => dirty = true),
+                      ),
+                    ],
+                  ],
+                ),
                 if (error != null) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
                   ErrorBanner(error!),
                 ],
                 if (uncertain) ...[
@@ -322,15 +362,6 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
                     ),
                   ),
                 ],
-                const SizedBox(height: 24),
-                PillButton(
-                  label: widget.initial == null
-                      ? 'Simpan makanan'
-                      : 'Simpan koreksi',
-                  loading: busy,
-                  onPressed: conflict ? null : save,
-                ),
-                const SizedBox(height: 16),
               ],
             ),
           ),

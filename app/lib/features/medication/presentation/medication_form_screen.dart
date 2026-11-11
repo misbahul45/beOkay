@@ -6,10 +6,11 @@ import 'package:intl/intl.dart';
 import '../../../core/ids/record_id.dart';
 import '../../../core/network/error_messages.dart';
 import '../../../core/theme/app_spacing.dart';
-import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/choice_chips.dart';
 import '../../../core/widgets/discard_guard.dart';
+import '../../../core/widgets/domain_style.dart';
+import '../../../core/widgets/form_kit.dart';
 import '../../../core/widgets/info_card.dart';
 import '../../../core/widgets/page_scaffold.dart';
 import '../../../core/widgets/pill_button.dart';
@@ -128,10 +129,13 @@ class _State extends ConsumerState<MedicationFormScreen> {
       dirty: dirty && !saving,
       child: PageScaffold(
         title: editing ? 'Ubah obat' : 'Tambah obat',
-        bottom: PillButton(
-          label: editing ? 'Simpan perubahan' : 'Simpan obat',
-          loading: saving,
-          onPressed: _save,
+        bottom: SaveBar(
+          button: PillButton(
+            label: editing ? 'Simpan perubahan' : 'Simpan obat',
+            loading: saving,
+            onPressed: _save,
+          ),
+          note: 'beOkay tidak memberi atau mengubah dosis.',
         ),
         children: [
           Form(
@@ -140,98 +144,110 @@ class _State extends ConsumerState<MedicationFormScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Salin dari resep atau label yang kamu terima.',
-                  style: AppTypography.secondary,
+                FormHero.domain(
+                  DomainStyle.medication,
+                  'Salin dari resep atau label',
+                  subtitle: 'Hanya untuk pencatatan dan pengingat milikmu.',
                 ),
-                const SizedBox(height: AppSpacing.md),
-                AppTextField(
-                  label: 'Nama obat',
-                  controller: name,
-                  hint: 'mis. Metformin',
-                  validator: (v) => (v ?? '').trim().isEmpty
-                      ? 'Nama obat wajib diisi.'
-                      : null,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                AppTextField(
-                  label: 'Kekuatan (opsional)',
-                  controller: strength,
-                  hint: 'mis. 500 mg',
-                ),
-                const SizedBox(height: AppSpacing.md),
-                AppTextField(
-                  label: 'Bentuk sediaan (opsional)',
-                  controller: dosageForm,
-                  hint: 'mis. tablet',
-                ),
-                const SizedBox(height: AppSpacing.md),
-                AppTextField(
-                  label: 'Instruksi dari resep (opsional)',
-                  controller: instructions,
-                  hint: 'mis. 1 tablet sesudah makan malam',
-                  helper: 'beOkay tidak memberi atau mengubah dosis.',
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                if (editing) ...[
-                  AppTextField(
-                    label: 'Alasan perubahan',
-                    controller: reason,
-                    hint: 'mis. Dosis diganti dokter',
-                    maxLength: 300,
-                    validator: (v) => (v ?? '').trim().isEmpty
-                        ? 'Isi alasan perubahan.'
-                        : null,
-                  ),
-                ] else ...[
-                  Text(
-                    'Jadwal pengingat (opsional)',
-                    style: AppTypography.title,
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  PillButton(
-                    label: time == null ? 'Pilih jam' : time!.format(context),
-                    icon: Icons.schedule_rounded,
-                    kind: PillButtonKind.secondary,
-                    expand: false,
-                    onPressed: () async {
-                      final picked = await showTimePicker(
-                        context: context,
-                        initialTime:
-                            time ?? const TimeOfDay(hour: 8, minute: 0),
-                      );
-                      if (picked != null) {
-                        setState(() {
-                          time = picked;
-                          dirty = true;
-                        });
-                      }
-                    },
-                  ),
-                  if (time != null) ...[
-                    const SizedBox(height: AppSpacing.sm),
-                    Wrap(
-                      spacing: AppSpacing.xs,
-                      children: [
-                        for (final d in dayNames.entries)
-                          PillChip(
-                            label: d.value,
-                            selected: days.contains(d.key),
-                            onTap: () => setState(() {
-                              if (days.contains(d.key)) {
-                                if (days.length > 1) days.remove(d.key);
-                              } else {
-                                days.add(d.key);
-                              }
-                              dirty = true;
-                            }),
-                          ),
-                      ],
+                FormSection(
+                  title: 'Obat',
+                  children: [
+                    AppTextField(
+                      label: 'Nama obat',
+                      controller: name,
+                      hint: 'mis. Metformin',
+                      validator: (v) => (v ?? '').trim().isEmpty
+                          ? 'Nama obat wajib diisi.'
+                          : null,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    AppTextField(
+                      label: 'Kekuatan (opsional)',
+                      controller: strength,
+                      hint: 'mis. 500 mg',
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    AppTextField(
+                      label: 'Bentuk sediaan (opsional)',
+                      controller: dosageForm,
+                      hint: 'mis. tablet',
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    AppTextField(
+                      label: 'Instruksi dari resep (opsional)',
+                      controller: instructions,
+                      hint: 'mis. 1 tablet sesudah makan malam',
+                      helper: 'beOkay tidak memberi atau mengubah dosis.',
                     ),
                   ],
-                ],
+                ),
+                if (editing)
+                  FormSection(
+                    title: 'Alasan',
+                    children: [
+                      AppTextField(
+                        label: 'Alasan perubahan',
+                        controller: reason,
+                        hint: 'mis. Dosis diganti dokter',
+                        maxLength: 300,
+                        validator: (v) => (v ?? '').trim().isEmpty
+                            ? 'Isi alasan perubahan.'
+                            : null,
+                      ),
+                    ],
+                  )
+                else
+                  FormSection(
+                    title: 'Jadwal pengingat (opsional)',
+                    subtitle:
+                        'Pengingat hanya mengingatkan; tidak ada yang dianggap terlewat.',
+                    children: [
+                      PillButton(
+                        label: time == null
+                            ? 'Pilih jam'
+                            : time!.format(context),
+                        icon: Icons.schedule_rounded,
+                        kind: PillButtonKind.secondary,
+                        expand: false,
+                        onPressed: () async {
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime:
+                                time ?? const TimeOfDay(hour: 8, minute: 0),
+                          );
+                          if (picked != null) {
+                            setState(() {
+                              time = picked;
+                              dirty = true;
+                            });
+                          }
+                        },
+                      ),
+                      if (time != null) ...[
+                        const SizedBox(height: AppSpacing.sm),
+                        Wrap(
+                          spacing: AppSpacing.xs,
+                          children: [
+                            for (final d in dayNames.entries)
+                              PillChip(
+                                label: d.value,
+                                selected: days.contains(d.key),
+                                onTap: () => setState(() {
+                                  if (days.contains(d.key)) {
+                                    if (days.length > 1) days.remove(d.key);
+                                  } else {
+                                    days.add(d.key);
+                                  }
+                                  dirty = true;
+                                }),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
                 if (error != null) ...[
-                  const SizedBox(height: AppSpacing.md),
+                  const SizedBox(height: AppSpacing.xs),
                   ErrorBanner(error!),
                 ],
               ],

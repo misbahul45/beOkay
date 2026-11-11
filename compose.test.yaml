@@ -13,6 +13,8 @@ x-server: &server
   environment: &server-env
     NODE_ENV: test
     OUTBOX_WORKER_ENABLED: "false" # tes memanggil outbox.drain() sendiri agar deterministik
+    NOTIFY_WORKER_ENABLED: "false"
+    CHALLENGE_LIFECYCLE_ENABLED: "false"
     HOME: /tmp
     PORT: "3000"
     DATABASE_URL: postgresql://beokay_test:beokay_test@postgres-test:5432/beokay_test

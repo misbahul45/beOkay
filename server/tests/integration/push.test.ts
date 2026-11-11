@@ -91,7 +91,7 @@ test("Pengirim: mengirim pengingat yang jatuh tempo sekali saja, dengan isi gene
   for (const m of s.sent) {
     expect(m.title).toBe("Pengingat beOkay");
     expect(JSON.stringify(m)).not.toMatch(/Metformin|Rahasia|obat|mg\/dL/i); // judul pengguna dan nama obat tidak ikut
-    expect(m.data).toEqual({ type: "reminder" });
+    expect(m.data).toEqual({ type: "reminder", action: "OPEN_MEDICATIONS", refId: r.id });
   }
 
   // Putaran ulang (atau instans lain) tidak mengirim dua kali.
@@ -148,7 +148,33 @@ test("Pengirim: pengingat basi, nonaktif, belum waktunya, atau consent ditarik t
 
 test("Pengirim: tidak dikonfigurasi = tidak melakukan apa pun", async () => {
   const stats = await dispatchDueReminders({ configured: false, async send() { throw new Error("tidak boleh dipanggil"); } });
-  expect(stats).toEqual({ users: 0, due: 0, sent: 0, failed: 0, deactivated: 0, skippedNoConsent: 0 });
+  expect(stats).toEqual({ users: 0, due: 0, sent: 0, failed: 0, deactivated: 0, skippedNoConsent: 0, skippedByPreference: 0 });
+});
+
+test("Pengirim: push dimatikan atau jenis Pengingat dibisukan di pengaturan notifikasi = tidak dikirim; pengingat rencana kecil membuka rencananya", async () => {
+  if (!api || process.env.NODE_ENV !== "test") throw new Error("Isolated API required");
+  const now = new Date();
+  const off = await actor();
+  const muted = await actor();
+  for (const u of [off, muted]) {
+    await prisma.pushDevice.create({ data: { userId: u.id, token: tok("p"), platform: "android" } });
+    await withReminder(u.id, new Date(now.getTime() - 45_000));
+  }
+  expect((await call("/api/me/notification-preferences", off.token, { pushEnabled: false }, "PATCH")).status).toBe(200);
+  expect((await call("/api/me/notification-preferences", muted.token, { mutedKinds: ["REMINDER"] }, "PATCH")).status).toBe(200);
+  const s = sender();
+  const out = await dispatchDueReminders(s, now);
+  const theirs = new Set((await prisma.pushDevice.findMany({ where: { userId: { in: [off.id, muted.id] } } })).map((d) => d.token));
+  expect(s.sent.filter((m) => theirs.has(m.token))).toHaveLength(0);
+  expect(out.skippedByPreference).toBeGreaterThanOrEqual(2);
+
+  expect((await call("/api/me/notification-preferences", off.token, { pushEnabled: true }, "PATCH")).status).toBe(200);
+  const plan = await prisma.coachingAction.create({ data: { userId: off.id, opportunityKey: `ROUTINE_START:${crypto.randomUUID()}`, source: "ROUTINE_START", kind: "MEAL_LOGGING", title: "Catat makan siang", rationale: "uji", evidence: {}, params: {}, slot: "MIDDAY", startDate: new Date(now.toISOString().slice(0, 10) + "T00:00:00Z"), days: 3, status: "ACCEPTED", decidedAt: now, reminderId: (await prisma.reminder.findFirstOrThrow({ where: { userId: off.id } })).id, policyVersion: "coach-rules-v1", expiresAt: new Date(now.getTime() + 86_400_000) } });
+  const again = sender();
+  await dispatchDueReminders(again, new Date(now.getTime() + 1000));
+  const mine = again.sent.filter((m) => theirs.has(m.token));
+  expect(mine).toHaveLength(1);
+  expect(mine[0]!.data).toEqual({ type: "reminder", action: "OPEN_COACHING", refId: plan.id });
 });
 
 test("Hapus akun menghapus perangkat dan buku besar pengiriman (cascade)", async () => {

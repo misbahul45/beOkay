@@ -9,6 +9,9 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/adaptive_hero_card.dart';
 import '../../../core/widgets/beokay_avatar.dart';
 import '../../../core/widgets/beokay_logo.dart';
+import '../../notifications/presentation/notification_widgets.dart';
+import '../../community/application/community_controller.dart';
+import '../../community/presentation/community_highlight_card.dart';
 import '../../../core/widgets/tab_root_header.dart';
 import '../../interventions/presentation/intervention_card.dart';
 import '../../medication/application/medication_controller.dart';
@@ -37,6 +40,7 @@ class HomeScreen extends ConsumerWidget {
       showBack: false,
       onRefresh: () async {
         ref.invalidate(todayProvider);
+        ref.invalidate(homeHighlightProvider);
         await ref.read(todayProvider.future).catchError((_) => null);
       },
       children: [
@@ -51,6 +55,7 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
             ),
+            const NotificationBell(),
             const ProfileAction(),
           ],
         ),
@@ -110,6 +115,7 @@ class HomeScreen extends ConsumerWidget {
           const SizedBox(height: AppSpacing.md),
         ],
         const TodaySection(),
+        if (!consentBlocked) const CommunityHighlightCard(),
       ],
     );
   }

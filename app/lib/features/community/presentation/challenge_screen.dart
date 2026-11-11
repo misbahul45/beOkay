@@ -9,117 +9,77 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/async_body.dart';
+import '../../../core/widgets/detail_kit.dart';
 import '../../../core/widgets/info_card.dart';
 import '../../../core/widgets/page_scaffold.dart';
 import '../../../core/widgets/pill_button.dart';
+import '../../notifications/application/realtime_controller.dart';
 import '../application/community_controller.dart';
 import '../data/community_repository.dart';
+import 'community_widgets.dart';
 
-/// Tantangan hari aktif untuk satu komunitas. Skor hanya bertambah; tanpa poin untuk intensitas atau nilai kesehatan.
-class ChallengeListScreen extends ConsumerWidget {
-  const ChallengeListScreen({
+String _errorText(Object e) => e is ApiException
+    ? switch (e.code) {
+        'CONSENT_REQUIRED' =>
+          'Aktifkan persetujuan ikut tantangan di Persetujuan data.',
+        'CHALLENGE_CLOSED' => 'Tantangan ini sudah ditutup.',
+        'NOT_A_MEMBER' => 'Bergabunglah dengan komunitasnya dulu.',
+        _ => messageFor(e),
+      }
+    : messageFor(e);
+
+void _snack(BuildContext context, String text) {
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+}
+
+class CommunityDetailScreen extends ConsumerStatefulWidget {
+  const CommunityDetailScreen({
     super.key,
     required this.communityId,
     required this.communityName,
   });
+
   final String communityId, communityName;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final list = ref.watch(challengesProvider(communityId));
-    return PageScaffold(
-      title: communityName,
-      onBack: () =>
-          context.canPop() ? context.pop() : context.go(Routes.community),
-      onRefresh: () async => ref.invalidate(challengesProvider(communityId)),
-      children: [
-        AsyncBody<List<Challenge>>(
-          value: list,
-          onRetry: () => ref.invalidate(challengesProvider(communityId)),
-          data: (items) => items.isEmpty
-              ? Text('Belum ada tantangan.', style: AppTypography.secondary)
-              : Column(
-                  children: [
-                    for (final c in items)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Material(
-                          color: AppColors.surface,
-                          borderRadius: AppRadius.cardRadius,
-                          clipBehavior: Clip.antiAlias,
-                          child: ListTile(
-                            onTap: () =>
-                                context.push('/challenge/${c.id}', extra: c),
-                            title: Text(
-                              c.title,
-                              style: AppTypography.bodyStrong,
-                            ),
-                            subtitle: Text(
-                              '${c.startsOn} – ${c.endsOn} · target ${c.targetDays} hari aktif${c.participating ? ' · kamu ikut' : ''}',
-                              style: AppTypography.caption,
-                            ),
-                            trailing: const Icon(Icons.chevron_right),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-        ),
-      ],
-    );
-  }
+  ConsumerState<CommunityDetailScreen> createState() =>
+      _CommunityDetailScreenState();
 }
 
-class ChallengeDetailScreen extends ConsumerStatefulWidget {
-  const ChallengeDetailScreen({super.key, required this.challenge});
-  final Challenge challenge;
-  @override
-  ConsumerState<ChallengeDetailScreen> createState() => _ChallengeDetailState();
-}
-
-class _ChallengeDetailState extends ConsumerState<ChallengeDetailScreen> {
-  late bool participating = widget.challenge.participating;
-  bool visible = false;
+class _CommunityDetailScreenState extends ConsumerState<CommunityDetailScreen> {
   bool busy = false;
-  ChallengeProgress? progress;
-  Leaderboard? board;
-  Object? error;
 
-  @override
-  void initState() {
-    super.initState();
-    if (participating) refresh();
-  }
-
-  CommunityRepository get repo => ref.read(communityRepositoryProvider);
-
-  Future<void> refresh() async {
+  Future<void> _leave() async {
+    final ok =
+        await showDialog<bool>(
+          context: context,
+          builder: (d) => AlertDialog(
+            title: const Text('Keluar dari komunitas?'),
+            content: const Text(
+              'Partisipasimu di tantangan komunitas ini berhenti dan aliasmu hilang dari papan peringkat.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(d).pop(false),
+                child: const Text('Batal'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(d).pop(true),
+                child: const Text('Keluar'),
+              ),
+            ],
+          ),
+        ) ==
+        true;
+    if (!ok || !mounted) return;
+    setState(() => busy = true);
     try {
-      final p = await repo.progress(widget.challenge.id);
-      final b = await repo.leaderboard(widget.challenge.id);
-      if (mounted) {
-        setState(() {
-          progress = p;
-          board = b;
-          visible = p.leaderboardVisible;
-          error = null;
-        });
-      }
+      await ref.read(communityRepositoryProvider).leave(widget.communityId);
+      ref.invalidate(communityOverviewProvider);
+      ref.invalidate(myCommunitiesProvider);
+      if (mounted) context.pop();
     } catch (e) {
-      if (mounted) setState(() => error = e);
-    }
-  }
-
-  Future<void> act(Future<void> Function() fn) async {
-    setState(() {
-      busy = true;
-      error = null;
-    });
-    try {
-      await fn();
-      await refresh();
-    } catch (e) {
-      if (mounted) setState(() => error = e);
+      if (mounted) _snack(context, _errorText(e));
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -127,156 +87,460 @@ class _ChallengeDetailState extends ConsumerState<ChallengeDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final c = widget.challenge;
+    final value = ref.watch(challengesProvider(widget.communityId));
     return PageScaffold(
-      title: c.title,
-      onBack: () => context.pop(),
-      onRefresh: refresh,
-      children: [
-        Text(c.description, style: AppTypography.secondary),
-        const SizedBox(height: AppSpacing.md),
-        if (error != null) ...[
-          if (error is ApiException &&
-              (error! as ApiException).code == 'CONSENT_REQUIRED')
-            InfoCard(
-              tone: InfoTone.warning,
-              title: 'Persetujuan diperlukan',
-              text:
-                  'Persetujuan yang dibutuhkan belum aktif: "Ikut tantangan kebiasaan" untuk ikut, "Tampil di papan peringkat" untuk menampilkan aliasmu. Atur di Persetujuan data.',
-              action: PillButton(
-                label: 'Buka persetujuan',
-                kind: PillButtonKind.secondary,
-                expand: false,
-                onPressed: () => context.push(Routes.consentManagement),
-              ),
-            )
-          else
-            ErrorBanner(messageFor(error!)),
-          const SizedBox(height: AppSpacing.sm),
-        ],
-        if (!participating) ...[
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Tampilkan aliasku di papan peringkat'),
-            subtitle: const Text(
-              'Opsional. Bisa dimatikan kapan saja dan berlaku segera.',
-            ),
-            value: visible,
-            onChanged: busy ? null : (v) => setState(() => visible = v),
-          ),
-          PillButton(
-            label: 'Ikut tantangan',
-            loading: busy,
-            onPressed: () => act(() async {
-              await repo.joinChallenge(c.id, visible: visible);
-              participating = true;
-            }),
-          ),
-        ] else ...[
-          if (progress != null) ...[
-            Material(
-              color: AppColors.surface,
-              borderRadius: AppRadius.cardRadius,
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.cardPadding),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Skormu: ${progress!.score.toStringAsFixed(1)}',
-                      style: AppTypography.title,
-                    ),
-                    Text(
-                      'Hari aktif: ${progress!.activityDays} dari target ${progress!.targetDays} · Check-in: ${progress!.checkinDays}',
-                      style: AppTypography.secondary,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(progress!.note, style: AppTypography.caption),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
+      title: widget.communityName,
+      actions: [
+        PopupMenuButton<String>(
+          tooltip: 'Lainnya',
+          onSelected: (v) =>
+              v == 'leave' ? _leave() : context.push(Routes.communityPrivacy),
+          itemBuilder: (_) => const [
+            PopupMenuItem(value: 'privacy', child: Text('Privasi komunitas')),
+            PopupMenuItem(value: 'leave', child: Text('Keluar dari komunitas')),
           ],
-          PillButton(
-            label: 'Check-in hari ini',
-            icon: Icons.check_circle_outline,
-            kind: PillButtonKind.secondary,
-            loading: busy,
-            onPressed: () => act(() => repo.checkin(c.id)),
-          ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Tampilkan aliasku di papan peringkat'),
-            value: visible,
-            onChanged: busy
-                ? null
-                : (v) => act(() async {
-                    await repo.setVisibility(c.id, v);
-                  }),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Semantics(
-            header: true,
-            child: Text('Papan peringkat', style: AppTypography.title),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          if (board == null)
-            const LinearProgressIndicator()
-          else if (board!.suppressed)
-            InfoCard(
-              tone: InfoTone.neutral,
-              text:
-                  board!.reason ??
-                  'Papan peringkat tampil setelah cukup peserta bersedia tampil.',
-            )
-          else
-            Column(
+        ),
+      ],
+      onRefresh: () async {
+        ref.invalidate(challengesProvider(widget.communityId));
+        await ref
+            .read(challengesProvider(widget.communityId).future)
+            .then<void>((_) {}, onError: (_) {});
+      },
+      children: [
+        value.when(
+          loading: () => const SkeletonList(rows: 3),
+          error: (e, _) =>
+              InfoCard(tone: InfoTone.warning, text: _errorText(e)),
+          data: (items) {
+            final groups = [
+              ('Sedang berjalan', items.where((c) => c.open).toList()),
+              ('Segera dimulai', items.where((c) => c.scheduled).toList()),
+              ('Riwayat', items.where((c) => c.closed).toList()),
+            ];
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (final r in board!.items)
-                  ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    leading: CircleAvatar(
-                      radius: 14,
-                      backgroundColor: r.isMe
-                          ? AppColors.primary
-                          : AppColors.surfaceMuted,
-                      child: Text(
-                        '${r.rank}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: r.isMe
-                              ? AppColors.onPrimary
-                              : AppColors.textPrimary,
+                for (final (title, list) in groups)
+                  if (list.isNotEmpty) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        left: 4,
+                        bottom: AppSpacing.xs,
+                        top: AppSpacing.sm,
+                      ),
+                      child: Semantics(
+                        header: true,
+                        child: Text(
+                          title.toUpperCase(),
+                          style: AppTypography.overline,
                         ),
                       ),
                     ),
-                    title: Text(
-                      r.isMe ? '${r.alias} (kamu)' : r.alias,
-                      style: AppTypography.bodyStrong,
-                    ),
-                    trailing: Text(
-                      r.score.toStringAsFixed(1),
-                      style: AppTypography.secondaryStrong,
-                    ),
+                    for (final c in list)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                        child: ChallengeCard(
+                          challenge: c,
+                          onTap: () => context.push('/challenge/${c.id}'),
+                        ),
+                      ),
+                  ],
+                if (items.isEmpty)
+                  Text(
+                    'Belum ada tantangan di komunitas ini.',
+                    style: AppTypography.secondary,
                   ),
               ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class ChallengeDetailScreen extends ConsumerStatefulWidget {
+  const ChallengeDetailScreen({super.key, required this.challengeId});
+
+  final String challengeId;
+
+  @override
+  ConsumerState<ChallengeDetailScreen> createState() =>
+      _ChallengeDetailScreenState();
+}
+
+class _ChallengeDetailScreenState extends ConsumerState<ChallengeDetailScreen> {
+  bool busy = false;
+  RealtimeController? _rt;
+  String get _topic => 'challenge:${widget.challengeId}';
+
+  @override
+  void initState() {
+    super.initState();
+    try {
+      final rt = ref.read(realtimeProvider.notifier);
+      rt.subscribe(_topic);
+      _rt = rt;
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    try {
+      _rt?.unsubscribe(_topic);
+    } catch (_) {}
+    super.dispose();
+  }
+
+  void _refresh() {
+    ref.invalidate(challengeDetailProvider(widget.challengeId));
+    ref.invalidate(leaderboardProvider(widget.challengeId));
+    ref.invalidate(communityOverviewProvider);
+    ref.invalidate(homeHighlightProvider);
+  }
+
+  Future<void> _run(Future<void> Function() action, String done) async {
+    setState(() => busy = true);
+    try {
+      await action();
+      _refresh();
+      if (mounted) _snack(context, done);
+    } catch (e) {
+      if (mounted) _snack(context, _errorText(e));
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> _join(ChallengeDetail c) async {
+    var visible = false;
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: AppColors.surface,
+      builder: (s) => StatefulBuilder(
+        builder: (s, set) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              0,
+              AppSpacing.lg,
+              AppSpacing.lg,
             ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Ikut "${c.title}"?', style: AppTypography.title),
+                const SizedBox(height: 4),
+                Text(
+                  '${dateRange(c.startsOn, c.endsOn)} · target ${c.targetDays} hari aktif. Kamu bisa keluar kapan saja.',
+                  style: AppTypography.secondary,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Material(
+                  color: AppColors.surfaceMuted,
+                  borderRadius: BorderRadius.circular(16),
+                  clipBehavior: Clip.antiAlias,
+                  child: SwitchListTile(
+                    value: visible,
+                    onChanged: (v) => set(() => visible = v),
+                    title: Text(
+                      'Tampilkan aliasku di papan peringkat',
+                      style: AppTypography.body,
+                    ),
+                    subtitle: Text(
+                      'Hanya alias (${c.alias}) dan skor. Bisa dimatikan kapan saja.',
+                      style: AppTypography.caption,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                PillButton(
+                  label: 'Ikut tantangan',
+                  onPressed: () => Navigator.of(s).pop(true),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (ok != true || !mounted) return;
+    await _run(
+      () => ref
+          .read(communityRepositoryProvider)
+          .joinChallenge(c.id, visible: visible),
+      'Kamu ikut tantangan ini.',
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final value = ref.watch(challengeDetailProvider(widget.challengeId));
+    return PageScaffold(
+      title: 'Tantangan',
+      onRefresh: () async {
+        _refresh();
+        await ref
+            .read(challengeDetailProvider(widget.challengeId).future)
+            .then<void>((_) {}, onError: (_) {});
+      },
+      children: [
+        value.when(
+          loading: () => const SkeletonList(rows: 4),
+          error: (e, _) =>
+              InfoCard(tone: InfoTone.warning, text: _errorText(e)),
+          data: (c) => _Body(
+            c: c,
+            busy: busy,
+            onJoin: () => _join(c),
+            onCheckin: () => _run(
+              () => ref.read(communityRepositoryProvider).checkin(c.id),
+              'Check-in hari ini tersimpan.',
+            ),
+            onLeave: () => _run(
+              () => ref.read(communityRepositoryProvider).leaveChallenge(c.id),
+              'Kamu keluar dari tantangan ini.',
+            ),
+            onVisible: (v) => _run(
+              () =>
+                  ref.read(communityRepositoryProvider).setVisibility(c.id, v),
+              v
+                  ? 'Aliasmu tampil di papan peringkat.'
+                  : 'Aliasmu disembunyikan.',
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _Body extends StatelessWidget {
+  const _Body({
+    required this.c,
+    required this.busy,
+    required this.onJoin,
+    required this.onCheckin,
+    required this.onLeave,
+    required this.onVisible,
+  });
+
+  final ChallengeDetail c;
+  final bool busy;
+  final VoidCallback onJoin, onCheckin, onLeave;
+  final ValueChanged<bool> onVisible;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = statusColors(c);
+    final r = c.myResult;
+    final active = c.activeDays ?? 0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: colors.tint,
+            borderRadius: BorderRadius.circular(AppRadius.hero),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              StatusPill(
+                label: c.statusLabel,
+                tint: AppColors.surface,
+                ink: colors.ink,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(c.title, style: AppTypography.heading),
+              Text(
+                '${dateRange(c.startsOn, c.endsOn)} · ${c.communityName2} · ${c.participantsLabel ?? ''}',
+                style: AppTypography.secondary,
+              ),
+            ],
+          ),
+        ),
+        if (r != null)
+          DetailSection(
+            title: 'Hasilmu',
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    r.completed
+                        ? Icons.check_circle_rounded
+                        : Icons.flag_outlined,
+                    color: r.completed ? AppColors.brand : AppColors.goalInk,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(r.label, style: AppTypography.title),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${r.finalActiveDays ?? 0} hari aktif dari target ${c.targetDays}${r.finalScore == null ? '' : ' · skor ${r.finalScore!.round()}'}',
+                style: AppTypography.secondary,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                r.completed
+                    ? 'Usaha yang konsisten.'
+                    : 'Ikut serta tetap dihitung sebagai usaha. Tantangan berikutnya sudah dibuka.',
+                style: AppTypography.caption,
+              ),
+            ],
+          ),
+        if (c.participating && !c.closed)
+          DetailSection(
+            title: 'Progresmu',
+            children: [
+              Text(
+                '$active dari ${c.targetDays} hari aktif',
+                style: AppTypography.title,
+              ),
+              const SizedBox(height: 6),
+              ProgressBar(ratio: c.targetDays == 0 ? 0 : active / c.targetDays),
+              const SizedBox(height: 6),
+              Text(
+                'Skor ${(c.score ?? 0).round()} · ${c.activityDays ?? 0} hari dari aktivitas, ${c.checkinDays ?? 0} check-in. Hari istirahat tidak mengurangi skor.',
+                style: AppTypography.caption,
+              ),
+              if (c.canCheckin) ...[
+                const SizedBox(height: AppSpacing.sm),
+                c.checkedInToday
+                    ? PillButton(
+                        label: 'Sudah check-in hari ini',
+                        icon: Icons.check_circle_rounded,
+                        kind: PillButtonKind.secondary,
+                        expand: false,
+                        onPressed: null,
+                      )
+                    : PillButton(
+                        label: 'Check-in hari ini',
+                        icon: Icons.check_rounded,
+                        expand: false,
+                        onPressed: busy ? null : onCheckin,
+                      ),
+              ],
+            ],
+          ),
+        DetailSection(
+          title: 'Cara kerja',
+          children: [
+            for (final rule in c.rules)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('•  ', style: AppTypography.body),
+                    Expanded(child: Text(rule, style: AppTypography.secondary)),
+                  ],
+                ),
+              ),
+          ],
+        ),
+        if (c.participating || c.closed)
+          _LeaderboardSection(c: c, busy: busy, onVisible: onVisible),
+        if (c.canJoin) ...[
           const SizedBox(height: AppSpacing.md),
-          PillButton(
-            label: 'Keluar dari tantangan',
-            kind: PillButtonKind.ghost,
-            onPressed: busy
-                ? null
-                : () => act(() async {
-                    await repo.leaveChallenge(c.id);
-                    participating = false;
-                    progress = null;
-                    board = null;
-                  }),
+          PillButton(label: 'Ikut tantangan', onPressed: busy ? null : onJoin),
+        ],
+        if (c.participating && !c.closed) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Center(
+            child: TextButton(
+              onPressed: busy ? null : onLeave,
+              child: const Text('Keluar dari tantangan'),
+            ),
           ),
         ],
+      ],
+    );
+  }
+}
+
+class _LeaderboardSection extends ConsumerWidget {
+  const _LeaderboardSection({
+    required this.c,
+    required this.busy,
+    required this.onVisible,
+  });
+
+  final ChallengeDetail c;
+  final bool busy;
+  final ValueChanged<bool> onVisible;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final board = ref.watch(leaderboardProvider(c.id));
+    return DetailSection(
+      title: 'Papan peringkat',
+      children: [
+        board.when(
+          loading: () => const LinearProgressIndicator(),
+          error: (e, _) => Text(_errorText(e), style: AppTypography.secondary),
+          data: (b) => b.suppressed
+              ? Text(
+                  b.reason ?? 'Papan peringkat belum tampil.',
+                  style: AppTypography.secondary,
+                )
+              : Column(
+                  children: [
+                    for (final row in b.items)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: row.isMe
+                              ? AppColors.brandTint
+                              : AppColors.surfaceMuted,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 28,
+                              child: Text(
+                                '${row.rank}',
+                                style: AppTypography.bodyStrong,
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                row.isMe ? '${row.alias} (kamu)' : row.alias,
+                                style: AppTypography.body,
+                              ),
+                            ),
+                            Text(
+                              row.score.round().toString(),
+                              style: AppTypography.bodyStrong,
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+        ),
+        if (c.participating && !c.closed)
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: c.leaderboardVisible,
+            onChanged: busy ? null : onVisible,
+            title: Text('Tampilkan aliasku', style: AppTypography.body),
+            subtitle: Text(
+              'Hanya alias dan skor. Berlaku segera.',
+              style: AppTypography.caption,
+            ),
+          ),
       ],
     );
   }

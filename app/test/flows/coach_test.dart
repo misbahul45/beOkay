@@ -1040,4 +1040,62 @@ void main() {
       expect(find.text('Buka refleksi mingguan'), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'A community question lists challenges to look at; joining happens only on the challenge page',
+    (tester) async {
+      _tall(tester);
+      final (app, seen) = await _app((r) {
+        if (_isSend(r)) {
+          return _json(
+            _exchange(
+              r.url.pathSegments[3],
+              'Tantangan apa yang bisa aku ikuti?',
+              [
+                {
+                  'type': 'text',
+                  'text':
+                      'Ini tantangan di komunitasmu yang bisa kamu ikuti. Kamu baru ikut setelah mengonfirmasi di halaman tantangan.',
+                },
+                {
+                  'type': 'challenges',
+                  'items': [
+                    {
+                      'id': 'ch1',
+                      'title': '3 hari aktif minggu ini',
+                      'communityName': 'Hidup Seimbang Jawa Timur',
+                      'startsOn': '2026-11-09',
+                      'endsOn': '2026-11-15',
+                      'status': 'OPEN',
+                      'statusLabel': 'Berjalan · sisa 5 hari',
+                      'participating': false,
+                      'progress': null,
+                    },
+                  ],
+                },
+                {
+                  'type': 'link',
+                  'label': 'Buat tujuan pribadi',
+                  'target': 'GOALS',
+                },
+              ],
+            ),
+            201,
+          );
+        }
+        return null;
+      });
+      await tester.pumpWidget(app);
+      await tester.pumpAndSettle();
+      await _type(tester, 'Tantangan apa yang bisa aku ikuti?');
+      expect(find.text('3 hari aktif minggu ini'), findsOneWidget);
+      expect(
+        find.text('Berjalan · sisa 5 hari · Hidup Seimbang Jawa Timur'),
+        findsOneWidget,
+      );
+      expect(find.text('Lihat'), findsOneWidget);
+      expect(find.text('Buat tujuan pribadi'), findsOneWidget);
+      expect(seen.where((r) => r.url.path.contains('/join')), isEmpty);
+    },
+  );
 }

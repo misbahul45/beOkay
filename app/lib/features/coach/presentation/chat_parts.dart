@@ -1493,3 +1493,55 @@ class ReflectionCard extends StatelessWidget {
     );
   }
 }
+
+class ChallengeSuggestionsCard extends StatelessWidget {
+  const ChallengeSuggestionsCard({super.key, required this.part});
+
+  final ChallengesPart part;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(AppSpacing.cardPadding),
+    decoration: BoxDecoration(
+      color: AppColors.surface,
+      borderRadius: AppRadius.cardRadius,
+      border: Border.all(color: AppColors.border),
+    ),
+    child: Column(
+      children: [
+        for (final (i, c) in part.items.indexed) ...[
+          if (i > 0) Divider(height: AppSpacing.md, color: AppColors.border),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(c.title, style: AppTypography.bodyStrong),
+                    Text(
+                      [
+                        c.statusLabel,
+                        if (c.activeDays != null && c.targetDays != null)
+                          '${c.activeDays} dari ${c.targetDays} hari aktif',
+                        c.communityName,
+                      ].where((s) => s.isNotEmpty).join(' · '),
+                      style: AppTypography.caption,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              PillButton(
+                label: 'Lihat',
+                kind: PillButtonKind.secondary,
+                expand: false,
+                onPressed: () => context.push('/challenge/${c.id}'),
+              ),
+            ],
+          ),
+        ],
+      ],
+    ),
+  );
+}

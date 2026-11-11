@@ -28,10 +28,10 @@ async function communityOf(token: string) {
   return list.items[0];
 }
 async function challengeOf(token: string, communityId: string) {
-  const first = (await J(await call(`/api/me/communities/${communityId}/challenges`, token))).items[0];
+  const first = (await J(await call(`/api/me/communities/${communityId}/challenges`, token))).items.find((c: any) => c.title === "Aktif 5 hari seminggu");
   // Tantangan bawaan dimulai pada tanggal migrasi; fixture memundurkannya agar hari-hari lampau ikut dihitung.
   await prisma.$executeRawUnsafe(`UPDATE challenges SET starts_on = current_date - 20 WHERE id = '${first.id}'::uuid`);
-  return (await J(await call(`/api/me/communities/${communityId}/challenges`, token))).items[0];
+  return (await J(await call(`/api/me/communities/${communityId}/challenges`, token))).items.find((c: any) => c.id === first.id);
 }
 async function logWalk(token: string, daysAgo: number, minutes = 30) {
   const res = await call("/api/me/activities", token, { id: crypto.randomUUID(), activityType: "walking", startedAt: ago(daysAgo, minutes), durationMinutes: minutes });
@@ -50,7 +50,7 @@ test("Direktori wilayah: 38 provinsi, tanpa daftar orang, jumlah anggota dikabur
   expect((await call("/api/me/communities?regionCode=abc", a.token)).status).toBe(400);
   const c = await communityOf(a.token);
   expect(c).toMatchObject({ myStatus: "NONE" });
-  expect(Object.keys(c).sort()).toEqual(["description", "id", "memberCount", "memberCountLabel", "myStatus", "name"]);
+  expect(Object.keys(c).sort()).toEqual(["challenges", "description", "id", "memberCount", "memberCountLabel", "myStatus", "name"]);
   expect(JSON.stringify(c)).not.toMatch(/"userId"|"email"|"alias"/);
 });
 
