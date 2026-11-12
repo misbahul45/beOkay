@@ -2,7 +2,7 @@ import { prisma } from "../../infrastructure/database/prisma.ts";
 import { localRecordTime } from "../../shared/http/record-schema.ts";
 import { ACTIVITY_COUNTED_QUALITY, shiftActivityDate } from "../activity/activity.model.ts";
 import { consentService } from "../consent/consent.service.ts";
-import { displayGlucose } from "../glucose/glucose.model.ts";
+import { GLUCOSE_COUNTED_QUALITY, displayGlucose } from "../glucose/glucose.model.ts";
 import { isoWeekday, occurrencesFor } from "../medication/medication.model.ts";
 import { nutritionService } from "../nutrition/nutrition.service.ts";
 import type { GlucoseUnit } from "../preferences/glucose-units.ts";
@@ -31,7 +31,7 @@ export const statisticsService = {
         select: { startedAt: true, durationMinutes: true },
       }),
       prisma.glucoseObservation.findMany({
-        where: { userId, archivedAt: null, qualityStatus: "user_reported", measuredAt: { gte: from, lt: to } },
+        where: { userId, archivedAt: null, qualityStatus: { in: [...GLUCOSE_COUNTED_QUALITY] }, measuredAt: { gte: from, lt: to } },
         select: { measuredAt: true, valueMgDl: true, mealContext: true },
       }),
       prisma.medicationRegimen.findMany({ where: { userId, status: "active" }, include: { schedules: true } }),

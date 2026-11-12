@@ -82,6 +82,14 @@ class ProfileScreen extends ConsumerWidget {
               onTap: () => context.push(Routes.reminders),
             ),
             _RoutineTile(
+              icon: Icons.monitor_heart_outlined,
+              title: 'Ukuran & hasil lab',
+              caption: 'Berat, tensi, HbA1c',
+              tint: AppColors.mealTint,
+              ink: AppColors.mealInk,
+              onTap: () => context.push(Routes.clinical),
+            ),
+            _RoutineTile(
               icon: Icons.groups_outlined,
               title: 'Komunitas',
               caption: 'Alias dan tantangan',

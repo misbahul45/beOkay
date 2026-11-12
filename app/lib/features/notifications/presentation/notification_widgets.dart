@@ -1,3 +1,4 @@
+import '../../../core/a11y/announce.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -175,6 +176,7 @@ void showNotificationBanner(
   final messenger = ScaffoldMessenger.maybeOf(context);
   if (messenger == null) return;
   final s = notificationStyle(n.kind);
+  announce(context, 'Notifikasi baru: ${n.title}. ${n.body}');
   messenger.hideCurrentSnackBar();
   messenger.showSnackBar(
     SnackBar(

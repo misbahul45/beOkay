@@ -35,7 +35,7 @@ test("Ekspor: hanya data sendiri, tanpa rahasia/hash, tetap bisa setelah consent
   expect(res.headers.get("cache-control")).toContain("no-store");
   const text = await res.text();
   const bundle = JSON.parse(text);
-  expect(bundle.format).toBe("beokay-export-v2");
+  expect(bundle.format).toBe("beokay-export-v4");
   expect(bundle.counts).toMatchObject({ glucoseObservations: 1, foodPreferences: 1, reminders: 1 });
   expect(bundle.data.account.id).toBe(a.id);
   expect(bundle.data.glucoseObservations[0].originalValue ?? bundle.data.glucoseObservations[0].valueMgDl).toBeDefined();

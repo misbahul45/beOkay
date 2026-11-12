@@ -1,3 +1,4 @@
+import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -334,6 +335,11 @@ class _MemoryTile extends StatelessWidget {
             children: [
               Text(item.kindLabel, style: AppTypography.caption),
               Text(item.content, style: AppTypography.body),
+              if (item.expiresAt case final e?)
+                Text(
+                  '${item.temporary ? 'Berakhir otomatis' : 'Diperiksa ulang'} ${DateFormat('d MMM yyyy', 'id_ID').format(e.toLocal())}',
+                  style: AppTypography.caption,
+                ),
             ],
           ),
         ),

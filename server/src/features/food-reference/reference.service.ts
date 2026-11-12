@@ -11,9 +11,10 @@ type Db = Pick<typeof prisma, "$queryRaw">;
 
 const COLUMNS = Prisma.sql`id::text AS id, code, name, source_ref AS "sourceRef", page, chapter,
   water::float8 AS water, calories::float8 AS calories, protein::float8 AS protein, fat::float8 AS fat,
-  carbohydrates::float8 AS carbohydrates, fiber::float8 AS fiber, ash::float8 AS ash`;
+  carbohydrates::float8 AS carbohydrates, fiber::float8 AS fiber, ash::float8 AS ash,
+  status, source, source_version AS "sourceVersion", method, serving_min_g::float8 AS "servingMinG", serving_typical_g::float8 AS "servingTypicalG", serving_max_g::float8 AS "servingMaxG"`;
 
-/** Hanya baris verified_auto yang pernah keluar dari pencarian. needs_review disimpan tetapi tidak dipakai. */
+/** Hanya baris verified_auto dan curated yang keluar dari pencarian. needs_review disimpan tetapi tidak dipakai. */
 export function createReferenceService(deps: { embedder: Embedder; db?: Db; minSimilarity?: number; cacheSize?: number }) {
   const db = deps.db ?? prisma;
   // 0,75 dikalibrasi pada 14 kueri nyata: kueri relevan puncaknya 0,77–0,91, kueri tak bermakna 0,64–0,72 (heuristik, bukan evaluasi terukur).
@@ -44,7 +45,7 @@ export function createReferenceService(deps: { embedder: Embedder; db?: Db; minS
       const lexical = await db.$queryRaw<(ReferenceRow & { score: number })[]>(Prisma.sql`
         SELECT ${COLUMNS}, GREATEST(word_similarity(${q}, name_normalized), CASE WHEN name_normalized LIKE ${like} THEN 0.7 ELSE 0 END)::float8 AS score
         FROM food_reference
-        WHERE status = 'verified_auto' AND (name_normalized LIKE ${like} OR word_similarity(${q}, name_normalized) >= 0.45)
+        WHERE status IN ('verified_auto', 'curated') AND (name_normalized LIKE ${like} OR word_similarity(${q}, name_normalized) >= 0.45)
         ORDER BY score DESC, name ASC LIMIT ${limit * 2}`);
 
       let semantic: (ReferenceRow & { score: number })[] = [];
@@ -57,7 +58,7 @@ export function createReferenceService(deps: { embedder: Embedder; db?: Db; minS
           semantic = await db.$queryRaw<(ReferenceRow & { score: number })[]>(Prisma.sql`
             SELECT ${COLUMNS}, (1 - (embedding <=> ${literal}::vector))::float8 AS score
             FROM food_reference
-            WHERE status = 'verified_auto' AND embedding IS NOT NULL
+            WHERE status IN ('verified_auto', 'curated') AND embedding IS NOT NULL
             ORDER BY embedding <=> ${literal}::vector ASC LIMIT ${limit * 2}`);
           semantic = semantic.filter((r) => r.score >= minSimilarity);
         }

@@ -1,3 +1,8 @@
+import '../../../core/a11y/announce.dart';
+import '../../../core/notifications/reminder_scheduler.dart';
+import '../../medication/application/medication_actions.dart';
+import '../../medication/application/medication_controller.dart';
+import '../../today/application/today_controller.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -54,11 +59,31 @@ class HomeShell extends ConsumerStatefulWidget {
 
 class _HomeShellState extends ConsumerState<HomeShell> {
   StreamSubscription<Map<String, dynamic>>? _opened;
+  StreamSubscription<NotificationAction>? _actions;
 
   @override
   void initState() {
     super.initState();
     unawaited(_listenPushOpens());
+    _actions = notificationActions.stream.listen(_onNotificationAction);
+  }
+
+  Future<void> _onNotificationAction(NotificationAction a) async {
+    if (!mounted) return;
+    final m = a.medication;
+    if (m == null) return;
+    if (a.actionId == medicationLaterAction) return;
+    if (a.actionId != medicationTakenAction) {
+      context.push(Routes.medications);
+      return;
+    }
+    final messenger = ScaffoldMessenger.of(context);
+    final text = await confirmMedicationFromNotification(ref, m);
+    if (!mounted) return;
+    announce(context, text);
+    messenger.showSnackBar(SnackBar(content: Text(text)));
+    ref.invalidate(medicationTodayProvider);
+    ref.invalidate(todayProvider);
   }
 
   Future<void> _listenPushOpens() async {
@@ -86,6 +111,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   @override
   void dispose() {
     _opened?.cancel();
+    _actions?.cancel();
     super.dispose();
   }
 

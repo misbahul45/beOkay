@@ -1,3 +1,6 @@
+import { background } from "../../shared/runtime/background.ts";
+import { env } from "../../config/env.ts";
+import { featureFlags } from "../feature-flags/feature-flags.service.ts";
 import { Prisma } from "../../generated/prisma/client.ts";
 import { prisma } from "../../infrastructure/database/prisma.ts";
 import { realtime } from "../../infrastructure/realtime/realtime.ts";
@@ -8,19 +11,21 @@ import { preferencesService } from "../preferences/preferences.service.ts";
 import type { PushMessage, PushReceipt } from "../push/fcm.client.ts";
 import { upcomingOccurrences, type ReminderKind } from "../reminders/reminders.model.ts";
 
-export const NOTIFICATION_KINDS = ["REMINDER", "COACHING", "REFLECTION", "CHALLENGE", "RECOGNITION"] as const;
+export const NOTIFICATION_KINDS = ["REMINDER", "COACHING", "REFLECTION", "CHALLENGE", "RECOGNITION", "LAB_REMINDER", "COMMUNITY"] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
-export type NotificationAction = "OPEN_HOME" | "OPEN_LOG" | "OPEN_COACHING" | "OPEN_REFLECTION" | "OPEN_CHALLENGE" | "OPEN_COMMUNITY" | "OPEN_RECOGNITIONS" | "OPEN_REMINDERS" | "OPEN_GOALS" | "OPEN_MEDICATIONS";
+export type NotificationAction = "OPEN_HOME" | "OPEN_LOG" | "OPEN_COACHING" | "OPEN_REFLECTION" | "OPEN_CHALLENGE" | "OPEN_COMMUNITY" | "OPEN_RECOGNITIONS" | "OPEN_REMINDERS" | "OPEN_GOALS" | "OPEN_MEDICATIONS" | "OPEN_CLINICAL";
 export type NewNotification = { kind: NotificationKind; title: string; body: string; action: NotificationAction; refId?: string | null; dedupeKey: string };
 type Sender = { configured: boolean; send(message: PushMessage): Promise<PushReceipt> };
 
-export const REMINDER_LOOKBACK_MS = 3 * 60_000;
+export const REMINDER_LOOKBACK_MS = env.REMINDER_LOOKBACK_MINUTES * 60_000;
 const LOCK_SCREEN: Record<NotificationKind, { title: string; body: string }> = {
   REMINDER: { title: "Pengingat beOkay", body: "Buka beOkay untuk mencatat." },
   COACHING: { title: "beOkay", body: "Ada rencana kecil untukmu hari ini." },
   REFLECTION: { title: "beOkay", body: "Refleksi mingguanmu siap." },
   CHALLENGE: { title: "beOkay", body: "Ada kabar dari tantanganmu." },
   RECOGNITION: { title: "beOkay", body: "Ada pencapaian baru untukmu." },
+  LAB_REMINDER: { title: "beOkay", body: "Ada pengingat untuk catatan kesehatanmu." },
+  COMMUNITY: { title: "beOkay", body: "Ada kabar dari komunitasmu." },
 };
 const REMINDER_TEXT: Record<ReminderKind, { body: string; action: NotificationAction }> = {
   meal: { body: "Waktunya mencatat makan.", action: "OPEN_LOG" },
@@ -65,6 +70,7 @@ async function unread(userId: string) {
 
 async function push(userId: string, row: Row) {
   if (!sender?.configured) return;
+  if (!(await featureFlags.isEnabled("push"))) return;
   const devices = await prisma.pushDevice.findMany({ where: { userId, active: true } });
   if (!devices.length) return;
   const text = LOCK_SCREEN[row.kind as NotificationKind];
@@ -97,7 +103,7 @@ export const notificationService = {
       throw e;
     }
     realtime.toUser(userId, { type: "notification", item: notificationView(row), unread: await unread(userId) });
-    if (opts.push !== false && pref.pushEnabled) void push(userId, row).catch(() => {});
+    if (opts.push !== false && pref.pushEnabled) background(push(userId, row), "notification_push");
     return notificationView(row);
   },
 

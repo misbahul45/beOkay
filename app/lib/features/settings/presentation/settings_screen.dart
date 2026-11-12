@@ -14,6 +14,7 @@ import '../../auth/application/auth_controller.dart';
 import '../../preferences/application/preferences_controller.dart';
 import '../../preferences/data/preferences_models.dart';
 import '../../preferences/presentation/timezone_picker.dart';
+import '../../app_lock/app_lock.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -161,6 +162,7 @@ class SettingsScreen extends ConsumerWidget {
         SettingsGroup(
           title: 'Privasi & keamanan',
           children: [
+            const AppLockRow(),
             SettingsRow(
               icon: Icons.verified_user_outlined,
               title: 'Persetujuan data',
@@ -180,6 +182,42 @@ class SettingsScreen extends ConsumerWidget {
               icon: Icons.folder_shared_outlined,
               title: 'Privasi & data',
               onTap: () => context.push(Routes.privacyData),
+            ),
+            SettingsRow(
+              icon: Icons.watch_outlined,
+              title: 'Data dari perangkat',
+              subtitle: 'Langkah, berat, glukosa, tidur dari Health Connect',
+              onTap: () => context.push(Routes.devices),
+            ),
+            SettingsRow(
+              icon: Icons.sensors_outlined,
+              title: 'Sensor glukosa (CGM)',
+              subtitle: 'Impor CSV LibreView, ringkasan waktu dalam rentang',
+              onTap: () => context.push(Routes.cgm),
+            ),
+            SettingsRow(
+              icon: Icons.family_restroom_outlined,
+              title: 'Pendamping',
+              subtitle: 'Ringkasan mingguan baca-saja untuk keluarga',
+              onTap: () => context.push(Routes.companions),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
+        SettingsGroup(
+          title: 'Bantuan',
+          children: [
+            SettingsRow(
+              icon: Icons.menu_book_outlined,
+              title: 'Belajar diabetes',
+              subtitle: 'Bacaan singkat 3–5 menit',
+              onTap: () => context.push(Routes.learn),
+            ),
+            SettingsRow(
+              icon: Icons.report_gmailerrorred_outlined,
+              title: 'Laporkan masalah atau kejadian',
+              subtitle: 'Terkirim ke pengelola beOkay',
+              onTap: () => context.push(Routes.report),
             ),
           ],
         ),

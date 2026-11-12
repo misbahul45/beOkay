@@ -125,7 +125,7 @@ test("Umpan balik: setiap jenis punya akibat yang terdokumentasi dan dapat diaud
   expect(held.items).toEqual([]);
   expect(held.withheld).toContainEqual({ source: "MEAL_LOG_GAP", reason: "SNOOZED" });
   const ev = await prisma.personalizationEvent.findFirstOrThrow({ where: { userId: a.id, reason: "COACHING_NOT_NOW" } });
-  expect(ev.change).toMatchObject({ rules: "coach-rules-v1", actionId: first.id, snoozed: { source: "MEAL_LOG_GAP", until: addDays(D0, 3) } });
+  expect(ev.change).toMatchObject({ rules: "coach-rules-v2", actionId: first.id, snoozed: { source: "MEAL_LOG_GAP", until: addDays(D0, 3) } });
 
   const later = wib(addDays(D0, 3), 10);
   const again = (await coachingService.opportunities(a.id, later)).items[0]!;
@@ -201,7 +201,7 @@ test("Refleksi mingguan: ringkasan dari catatan, penyesuaian tujuan hanya dengan
   expect(r).toMatchObject({ consentRequired: false, weekStart: week, done: null, nudge: true });
   expect(r.positives.some((p: string) => /^Makan tercatat di 5 dari [5-7] hari$/.test(p))).toBe(true);
   expect(r.positives).toContain("45 menit aktivitas tercatat di 3 hari");
-  expect(r.adjustments).toEqual([{ goalId: goal.id, title: "Aktif 150 menit", goalType: "activity_minutes", fromTarget: 150, toTarget: 80, expectedVersion: 1, basis: "Dari catatanmu: 45 menit minggu ini." }]);
+  expect(r.adjustments).toEqual([{ goalId: goal.id, title: "Aktif 150 menit", goalType: "activity_minutes", fromTarget: 150, toTarget: 80, expectedVersion: 1, basis: "Dari catatanmu: 45 menit minggu ini.", direction: "DOWN" }]);
   expect(r.adjustments.some((x: any) => x.goalId === glucoseGoal.id)).toBe(false);
   expect(JSON.stringify(r)).not.toMatch(/mg\/dL|kkal/);
   const weeklyCard = await interventionService.evaluate(a.id, { trigger: "WEEKLY_REVIEW_AVAILABLE" }, wib(realToday, 12));
@@ -222,7 +222,7 @@ test("Refleksi mingguan: ringkasan dari catatan, penyesuaian tujuan hanya dengan
   expect((await prisma.interventionDecision.findUniqueOrThrow({ where: { id: weeklyCard.id } })).deliveryStatus).toBe("CANCELLED");
   const g = await prisma.behaviorGoal.findUniqueOrThrow({ where: { id: goal.id } });
   expect([g.targetValue.toNumber(), g.version]).toEqual([80, 2]);
-  expect(await prisma.recordRevision.findFirstOrThrow({ where: { goalId: goal.id } })).toMatchObject({ version: 1, reason: "Refleksi mingguan: target disesuaikan bersama pengguna" });
+  expect(await prisma.recordRevision.findFirstOrThrow({ where: { goalId: goal.id } })).toMatchObject({ version: 1, reason: "Refleksi mingguan: target diturunkan atas persetujuan pengguna" });
   expect((await prisma.behaviorGoal.findUniqueOrThrow({ where: { id: glucoseGoal.id } })).targetValue.toNumber()).toBe(7);
   expect(await prisma.memoryItem.findFirstOrThrow({ where: { userId: a.id, key: "ACTIVITY_TIME" } })).toMatchObject({ status: "ACTIVE", content: "Lebih suka beraktivitas pagi hari", sourceType: "USER" });
   expect((await prefs(a.id)).slot).toBe("MORNING");
@@ -241,4 +241,37 @@ test("Refleksi mingguan: ringkasan dari catatan, penyesuaian tujuan hanya dengan
   const exp = await J(await call("/api/me/export", a.token));
   expect(exp.data.weeklyCheckins).toHaveLength(1);
   expect(Array.isArray(exp.data.coachingActions)).toBe(true);
+});
+
+test("Fase 8: target naik bila tercapai berulang (dibatasi 10%), strategi problem solving menjadi rencana 7 hari dan ditinjau minggu berikutnya", async () => {
+  const a = await actor();
+  const week = await coachingService.reflectionWeek(a.id);
+  for (let w = 0; w < 4; w++) for (let i = 0; i < 4; i++) await session(a.id, addDays(week, i - 7 * w), 45);
+  const goal = await prisma.behaviorGoal.create({ data: { userId: a.id, title: "Aktif 150 menit", goalType: "activity_minutes", targetValue: 150, period: "weekly", startDate: new Date(addDays(week, -28) + "T00:00:00Z"), createHash: hash() } });
+  const r = await J(await call("/api/me/coaching/checkins", a.token));
+  expect(r.adjustments).toEqual([expect.objectContaining({ goalId: goal.id, direction: "UP", fromTarget: 150, toTarget: 165 })]);
+  expect(r.strategies.byBarrier.TIME.map((s: any) => s.key)).toContain("TIME_SPLIT");
+  expect(r.strategies.reviewStatus).toBe("DRAFT_NOT_CLINICALLY_REVIEWED");
+  expect(r.previousStrategy).toBeNull();
+  const body = { operationId: op(), weekStart: week, hardest: ["TIME"], adjustments: [{ goalId: goal.id, toTarget: 165 }], strategy: { barrier: "TIME", key: "TIME_SPLIT" } };
+  expect((await call("/api/me/coaching/checkins", a.token, { ...body, strategy: { barrier: "ENERGY", key: "ENERGY_LIGHT" } })).status).toBe(400);
+  expect((await call("/api/me/coaching/checkins", a.token, { ...body, strategy: { barrier: "TIME", key: "NOPE_KEY" } })).status).toBe(422);
+  expect((await call("/api/me/coaching/checkins", a.token, body)).status).toBe(201);
+  const g = await prisma.behaviorGoal.findUniqueOrThrow({ where: { id: goal.id } });
+  expect(g.targetValue.toNumber()).toBe(165);
+  expect((await prisma.recordRevision.findFirstOrThrow({ where: { goalId: goal.id } })).reason).toBe("Refleksi mingguan: target dinaikkan atas persetujuan pengguna");
+  const plan = await prisma.coachingAction.findFirstOrThrow({ where: { userId: a.id, source: "PROBLEM_SOLVING" } });
+  expect(plan).toMatchObject({ kind: "HABIT_STEP", status: "ACCEPTED", days: 7, title: "Bagi jadi potongan 10 menit" });
+  const ov = await J(await call("/api/me/coaching", a.token));
+  const running = ov.actions.find((x: any) => x.id === plan.id);
+  expect(running.dayStates[0]).toMatchObject({ state: "PLANNED", today: true });
+  await coachingService.reconcile(a.id);
+  expect(await prisma.coachingOutcome.count({ where: { actionId: plan.id } })).toBe(0);
+  expect((await call(`/api/me/coaching/actions/${plan.id}/confirm`, a.token, { operationId: op(), date: realToday })).status).toBe(200);
+  const next = await coachingService.reflection(a.id, wib(addDays(week, 11), 12));
+  if (next.consentRequired) throw new Error("consent");
+  expect(next.previousStrategy).toMatchObject({ id: plan.id, barrier: "TIME", confirmedDays: 1 });
+  expect(next.positives).toContain("Strategi “Bagi jadi potongan 10 menit” kamu jalankan 1 hari");
+  const saved = await prisma.weeklyCheckin.findFirstOrThrow({ where: { userId: a.id } });
+  expect((saved.summary as any).strategy).toMatchObject({ barrier: "TIME", key: "TIME_SPLIT" });
 });

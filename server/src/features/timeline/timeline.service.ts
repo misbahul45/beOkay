@@ -69,7 +69,7 @@ export const timelineService = {
     UNION ALL
     SELECT g.id,'glucose'::text,g.measured_at,NULL::text,0::bigint,g.value_mg_dl,g.original_value,g.original_unit,g.quality_status,g.meal_context,NULL::text,NULL::integer,NULL::uuid FROM glucose_observations g WHERE g.user_id=${userId}::uuid AND (g.archived_at IS NOT NULL)=${archived}
     UNION ALL
-    SELECT a.id,'activity'::text,a.started_at,NULL::text,0::bigint,NULL::numeric,NULL::numeric,NULL::text,a.quality_status,NULL::text,a.activity_type,a.duration_minutes,NULL::uuid FROM activity_sessions a WHERE a.user_id=${userId}::uuid AND (a.archived_at IS NOT NULL)=${archived}
+    SELECT a.id,'activity'::text,a.started_at,a.source::text,0::bigint,NULL::numeric,NULL::numeric,NULL::text,a.quality_status,NULL::text,a.activity_type,a.duration_minutes,NULL::uuid FROM activity_sessions a WHERE a.user_id=${userId}::uuid AND (a.archived_at IS NOT NULL)=${archived}
     UNION ALL
     SELECT i.id,'medication'::text,i.event_at,i.status,0::bigint,NULL::numeric,NULL::numeric,NULL::text,NULL::text,NULL::text,i.medication_snapshot->>'name',NULL::integer,i.regimen_id FROM medication_intakes i WHERE i.user_id=${userId}::uuid AND (i.archived_at IS NOT NULL)=${archived}
     UNION ALL
@@ -109,7 +109,7 @@ export const timelineService = {
                 activityType: row.activity_type,
                 durationMinutes: row.duration_minutes,
                 qualityStatus: row.quality_status,
-                source: "manual",
+                source: row.category ?? "manual",
               }
             : {
                 displayValue:

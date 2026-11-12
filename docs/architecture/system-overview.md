@@ -133,14 +133,14 @@ Pencatatan (makan, glukosa, aktivitas, obat, tujuan, check-in) menerima `id` UUI
 `outbox_events` ditulis **dalam transaksi yang sama** dengan perubahan data (`dedupe_key` unik). Pekerja (`startAgentWorker`) menguras tiap 3 dtk dengan `FOR UPDATE SKIP LOCKED`, backoff eksponensial dasar 5 dtk, maksimal 5 percobaan, lalu `DEAD`. Pengiriman minimal-satu-kali; penangan harus idempoten. Jenis peristiwa yang ditangani: `outcome.observed`, `outcome.retracted` (mengubah personalisasi), serta `recommendation.decided`, `recommendation.feedback`, `intervention.responded` (saat ini no-op).
 
 ### 6.8 Keselamatan berlapis untuk saran
-1. `screenRequest(message)` — regex deterministik (Indonesia + Inggris) memblokir/mengalihkan: gejala darurat, nyeri/cedera, eskalasi intensitas, saran obat/dosis, permintaan diagnosis, klaim kesehatan, pembatasan ekstrem.
+1. `screenRequest(message)` (`safety-policy-v2`, sejak 3.0 Fase 7) — dijalankan pertama oleh router percakapan dan `createRun`, sebelum maksud ditentukan. Teks dinormalisasi (singkatan, typo, huruf berulang, reduplikasi, sebagian kosakata Jawa/Sunda, akhiran -ku/-nya), lalu sepuluh aturan berurutan: menyakiti diri, gejala darurat (termasuk gugus tanda hipoglikemia), angka glukosa ekstrem (< 70 atau ≥ 300 mg/dL; < 3,9 atau ≥ 16,7 mmol/L), keluhan yang perlu diperiksa (luka kaki, kesemutan, haus/sering kencing), nyeri/cedera, eskalasi intensitas, saran obat/dosis, permintaan diagnosis, klaim kesehatan, pembatasan ekstrem. Tiga yang pertama ditandai mendesak.
 2. `validateCandidate()` — kandidat tanpa nama/sumber, atau gizi di luar rentang masuk akal, tidak boleh ditawarkan.
 3. Filter alergi/pembatasan keras (`checkFood` berdasarkan **nama** makanan) sebelum peringkat.
 4. `explanationIsSafe()` — gerbang klaim terlarang pada teks apa pun, termasuk keluaran LLM.
 5. `gateLlmText()` — teks LLM harus: tidak kosong, ≤ 420 karakter, tanpa tautan/markup, lolos gerbang klaim, menyebut nama kandidat, dan **tidak memuat angka baru**; jika gagal, dipakai templat.
 6. Persetujuan pengguna tepat-sekali (`recommendations.version` + `recommendation_decisions UNIQUE(user_id, operation_id)`).
 
-Keterbatasan yang diakui: kebijakan berbasis regex, belum ditinjau klinisi (P3-08 `NOT_STARTED`).
+Keterbatasan yang diakui: kebijakan berbasis kata kunci, belum ditinjau klinisi. Korpus adversarial 99 kalimat (`tests/fixtures/safety-corpus.ts`) hanya bukti regresi. Kelemahan yang diketahui dan pertanyaan untuk klinisi ada di [paket tinjauan](../research/safety-clinical-review-packet.md).
 
 ## 7. Alur utama
 

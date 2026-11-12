@@ -1,3 +1,5 @@
+import { background } from "../../shared/runtime/background.ts";
+import { activityWhy } from "./why.ts";
 import { Prisma } from "../../generated/prisma/client.ts";
 import { prisma } from "../../infrastructure/database/prisma.ts";
 import { recordAudit } from "../../shared/audit/audit.ts";
@@ -18,13 +20,14 @@ import { outcomes } from "./outcomes.ts";
 import { createTextWriter, type TextWriter } from "./llm-text.ts";
 import type { Decision, Feedback, RunCreate } from "./agent.schema.ts";
 import { classifyFollowUp, classifyIntent, extractQuery } from "./agent.intent.ts";
+import { rateWindow } from "../../shared/http/rate-window.ts";
 
 export const RUN_TTL_MS = 24 * 3_600_000;
 export const STALE_RUN_MS = 120_000;
 export const MAX_TOOL_CALLS = 8;
 const RATE_WINDOW_MS = 10 * 60_000;
 const RATE_MAX = 20;
-const calls = new Map<string, number[]>();
+const calls = rateWindow(RATE_WINDOW_MS, RATE_MAX);
 export const MAX_TURNS = 20;
 /** Dapat diganti pada tes unit; produksi memakai Mistral bila kunci tersedia. */
 export const textWriterRef: { current: TextWriter } = { current: createTextWriter({ apiKey: env.MISTRAL_API_KEY, model: env.MISTRAL_AGENT_MODEL }) };
@@ -72,8 +75,16 @@ const recView = (r: RecRow) => {
 };
 
 async function emit(runId: string, type: string, payload: Record<string, unknown> = {}) {
-  const seq = (await prisma.agentRunEvent.count({ where: { runId } })) + 1;
-  await prisma.agentRunEvent.create({ data: { runId, seq, type, payload: payload as Prisma.InputJsonObject } });
+  for (let attempt = 0; ; attempt++) {
+    const last = await prisma.agentRunEvent.findFirst({ where: { runId }, orderBy: { seq: "desc" }, select: { seq: true } });
+    try {
+      await prisma.agentRunEvent.create({ data: { runId, seq: (last?.seq ?? 0) + 1, type, payload: payload as Prisma.InputJsonObject } });
+      return;
+    } catch (e) {
+      if (attempt < 4 && e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") continue;
+      throw e;
+    }
+  }
 }
 
 async function setStatus(runId: string, status: string, extra: Prisma.AgentRunUpdateInput = {}) {
@@ -137,6 +148,22 @@ async function chainCandidateKeys(userId: string, fromRunId: string): Promise<Se
 async function explainWhy(userId: string, runId: string): Promise<string> {
   const recs = await prisma.recommendation.findMany({ where: { runId, userId }, orderBy: { createdAt: "asc" } });
   if (recs.length === 0) return "Belum ada saran sebelumnya untuk dijelaskan.";
+  const activity = recs.filter((r) => r.recType === "ACTIVITY");
+  if (activity.length > 0) {
+    const now = Date.now();
+    const sessions = await prisma.activitySession.findMany({ where: { userId, archivedAt: null, qualityStatus: { in: ["user_reported", "device_reported"] }, startedAt: { gte: new Date(now - 28 * 86_400_000) } }, select: { startedAt: true, durationMinutes: true } });
+    const tz = (await preferencesService.get(userId)).timezone;
+    const day = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(d);
+    const active7 = new Set(sessions.filter((x) => x.startedAt.getTime() >= now - 7 * 86_400_000).map((x) => day(x.startedAt))).size;
+    const mins = sessions.map((x) => x.durationMinutes);
+    const facts = { activeDays7: active7, sessions28: sessions.length, longestMinutes: mins.length ? Math.max(...mins) : null, shortestMinutes: mins.length ? Math.min(...mins) : null };
+    return activity
+      .map((r) => {
+        const p = r.payload as unknown as RecommendationPayload & { activity?: { durationMinutes: number } };
+        return activityWhy(p.candidate.name, p.activity?.durationMinutes ?? 10, facts);
+      })
+      .join(" ");
+  }
   return recs.map((r) => { const p = r.payload as unknown as RecommendationPayload; return `${p.candidate.name}: ${p.rankingReason} ${p.limitations[0] ?? ""}`.trim(); }).join(" ");
 }
 
@@ -159,11 +186,7 @@ export const agentService = {
   async createRun(userId: string, input: RunCreate, opts: { background?: boolean } = {}) {
     await requireAgentConsent(userId);
     const t = Date.now();
-    const recent = (calls.get(userId) ?? []).filter((x) => t - x < RATE_WINDOW_MS);
-    if (recent.length >= RATE_MAX) {
-      calls.set(userId, recent);
-      throw new AppError(429, "AGENT_RATE_LIMITED", "Terlalu banyak permintaan. Coba lagi beberapa menit lagi.");
-    }
+    if (calls.full(userId, t)) throw new AppError(429, "AGENT_RATE_LIMITED", "Terlalu banyak permintaan. Coba lagi beberapa menit lagi.");
 
     const existing = await prisma.agentRun.findUnique({ where: { userId_idempotencyKey: { userId, idempotencyKey: input.idempotencyKey } } });
     if (existing) {
@@ -176,7 +199,7 @@ export const agentService = {
       if (!parent) throw notFound("RUN_NOT_FOUND", "Percakapan sebelumnya tidak ditemukan.");
       if (parent.turn >= MAX_TURNS) throw unprocessable("CONVERSATION_TOO_LONG", "Percakapan sudah terlalu panjang. Mulai percakapan baru.");
     }
-    calls.set(userId, [...recent, t]);
+    calls.record(userId, t);
 
     let run;
     try {
@@ -192,9 +215,9 @@ export const agentService = {
     await emit(run.id, "RUN_CREATED");
     if (opts.background) {
       // Mode streaming: balas segera dengan run yang baru dibuat; eksekusi berjalan di latar dan dapat diikuti lewat SSE.
-      void execute(userId, run, input, parent).catch(async (e) => {
+      background(execute(userId, run, input, parent).catch(async (e) => {
         await setStatus(run.id, "FAILED", { state: { error: e instanceof Error ? e.message.slice(0, 80) : "UNKNOWN", message: "Terjadi kendala saat menyusun saran." } }).catch(() => {});
-      });
+      }), "agent_run");
       return runView(userId, run.id);
     }
     return execute(userId, run, input, parent);

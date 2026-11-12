@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
-import { explanationIsSafe, screenRequest, validateCandidate } from "../../src/features/agent/agent.safety.ts";
+import { SAFETY_POLICY_VERSION, SAFETY_RULE_CODES, explanationIsSafe, extremeGlucose, isUrgentSafetyCode, screenRequest, validateCandidate } from "../../src/features/agent/agent.safety.ts";
+import { SAFETY_CORPUS } from "../fixtures/safety-corpus.ts";
 import { classifyIntent, extractQuery } from "../../src/features/agent/agent.service.ts";
 import { MAX_WEIGHT, PENALTY_PER_WEIGHT, penaltyFor, tokensOf } from "../../src/features/agent/personalization.ts";
 
@@ -74,4 +75,40 @@ test("intent: olahraga → ACTIVITY_PLAN; makanan tetap NUTRITION; campuran memi
   expect(classifyIntent("jalan kaki apa yang cocok minggu ini")).toBe("ACTIVITY_PLAN");
   expect(classifyIntent("saran makan setelah olahraga")).toBe("NUTRITION_ALTERNATIVES");
   expect(classifyIntent("olahraga", "tempe")).toBe("NUTRITION_ALTERNATIVES");
+});
+
+test("korpus adversarial safety-policy-v2: parafrase, typo, slang, bahasa daerah, dan kalimat mirip yang harus lolos", () => {
+  const misses = SAFETY_CORPUS.map((c) => {
+    const r = screenRequest(c.text);
+    const got = r.decision === "ALLOWED" ? "ALLOWED" : r.code;
+    return got === c.expect ? null : `${c.tag}: "${c.text}" → ${got}, seharusnya ${c.expect}`;
+  }).filter(Boolean);
+  expect(misses).toEqual([]);
+  expect(SAFETY_POLICY_VERSION).toBe("safety-policy-v2");
+});
+
+test("setiap aturan keselamatan punya contoh positif di korpus", () => {
+  const covered = new Set(SAFETY_CORPUS.map((c) => c.expect));
+  for (const code of SAFETY_RULE_CODES) expect(covered.has(code)).toBe(true);
+});
+
+test("gejala darurat, menyakiti diri, dan angka gula ekstrem ditandai mendesak", () => {
+  for (const t of ["saya pingsan", "aku ingin mati saja", "gula darah 40"]) expect((screenRequest(t) as { urgent: boolean }).urgent).toBe(true);
+  for (const t of ["naikkan dosis metformin", "kaki sering kesemutan", "lutut nyeri"]) expect((screenRequest(t) as { urgent: boolean }).urgent).toBe(false);
+  expect(isUrgentSafetyCode("GLUCOSE_EXTREME")).toBe(true);
+  expect(isUrgentSafetyCode("MEDICATION_ADVICE")).toBe(false);
+  expect(isUrgentSafetyCode(null)).toBe(false);
+});
+
+test("pembaca angka glukosa: satuan, ambang, dan angka yang bukan glukosa", () => {
+  expect(extremeGlucose("gula darah 69")).toEqual({ value: 69, unit: "mg/dL" });
+  expect(extremeGlucose("gula darah 70")).toBeNull();
+  expect(extremeGlucose("gula darah 299")).toBeNull();
+  expect(extremeGlucose("gula darah 300")).toEqual({ value: 300, unit: "mg/dL" });
+  expect(extremeGlucose("glukosa 3,8")).toEqual({ value: 3.8, unit: "mmol/L" });
+  expect(extremeGlucose("glukosa 3.9 mmol/l")).toBeNull();
+  expect(extremeGlucose("glukosa 17 mmol")).toEqual({ value: 17, unit: "mmol/L" });
+  expect(extremeGlucose("gula darah jam 7 pagi 95")).toBeNull();
+  expect(extremeGlucose("gula 2 sendok")).toBeNull();
+  expect(extremeGlucose("gula darah turun 30 setelah jalan")).toBeNull();
 });

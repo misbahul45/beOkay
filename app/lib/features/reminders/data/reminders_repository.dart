@@ -87,4 +87,21 @@ class RemindersRepository extends AccountScopedRepository {
         ),
     ];
   }
+
+  Future<List<ScheduledReminder>> medicationOccurrences({int days = 2}) async {
+    final r = (await api.get('/api/me/medications/upcoming?days=$days')).object;
+    return [
+      for (final v in (r['items'] as List).cast<Map<String, dynamic>>())
+        ScheduledReminder(
+          at: DateTime.parse(v['scheduledAt'] as String).toUtc(),
+          title: v['title'] as String,
+          body: v['body'] as String,
+          medication: MedicationRef(
+            v['regimenId'] as String,
+            v['scheduleId'] as String,
+            v['scheduledAt'] as String,
+          ),
+        ),
+    ];
+  }
 }

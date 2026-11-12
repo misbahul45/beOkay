@@ -65,6 +65,7 @@ class CoachingAction {
   bool get proposed => status == 'PROPOSED';
   bool get running => phase == 'RUNNING';
   bool get isActivity => kind == 'ACTIVITY_SESSION';
+  bool get isHabit => kind == 'HABIT_STEP';
   DayState? get todayState {
     for (final d in dayStates) {
       if (d.today) return d;
@@ -114,8 +115,10 @@ class GoalAdjustment {
       goalType = j['goalType'] as String,
       fromTarget = (j['fromTarget'] as num).toDouble(),
       toTarget = (j['toTarget'] as num).toDouble(),
-      basis = (j['basis'] as String?) ?? '';
-  final String goalId, title, goalType, basis;
+      basis = (j['basis'] as String?) ?? '',
+      direction = (j['direction'] as String?) ?? 'DOWN';
+  final String goalId, title, goalType, basis, direction;
+  bool get raises => direction == 'UP';
   final double fromTarget, toTarget;
 
   String _fmt(double v) => v == v.roundToDouble() ? '${v.toInt()}' : '$v';
@@ -151,6 +154,25 @@ class Checkin {
   final String? mood;
 }
 
+class Strategy {
+  Strategy.fromJson(Map<String, dynamic> j)
+    : key = j['key'] as String,
+      title = j['title'] as String,
+      detail = j['detail'] as String;
+  final String key, title, detail;
+}
+
+class PreviousStrategy {
+  PreviousStrategy.fromJson(Map<String, dynamic> j)
+    : title = j['title'] as String,
+      barrierLabel = j['barrierLabel'] as String?,
+      confirmedDays = (j['confirmedDays'] as int?) ?? 0,
+      days = (j['days'] as int?) ?? 7;
+  final String title;
+  final String? barrierLabel;
+  final int confirmedDays, days;
+}
+
 class Reflection {
   Reflection.fromJson(Map<String, dynamic> j)
     : consentRequired = j['consentRequired'] == true,
@@ -181,6 +203,30 @@ class Reflection {
         for (final a in (j['adjustments'] as List? ?? const []))
           GoalAdjustment.fromJson(a as Map<String, dynamic>),
       ],
+      strategies = {
+        for (final e
+            in (((j['strategies'] as Map?)?['byBarrier'] as Map?) ?? const {})
+                .entries)
+          e.key as String: [
+            for (final s in e.value as List)
+              Strategy.fromJson(s as Map<String, dynamic>),
+          ],
+      },
+      strategiesReviewed =
+          (j['strategies'] as Map?)?['reviewStatus'] == 'CLINICALLY_REVIEWED',
+      previousStrategy = j['previousStrategy'] is Map
+          ? PreviousStrategy.fromJson(
+              j['previousStrategy'] as Map<String, dynamic>,
+            )
+          : null,
+      learned = [
+        for (final l
+            in (((j['learned'] as Map?)?['lines'] as List?) ?? const []))
+          l as String,
+      ],
+      memoryBarriers = [
+        for (final b in (j['memoryBarriers'] as List? ?? const [])) b as String,
+      ],
       streak = (j['streak'] as int?) ?? 0,
       memoryAvailable = j['memoryAvailable'] == true,
       preferredSlot = CoachingSlot.parse(j['preferredSlot'] as String?);
@@ -192,6 +238,10 @@ class Reflection {
   final int observed, confirmed, notObserved, planned, fromAssistant;
   final List<String> actionTitles, positives;
   final List<GoalAdjustment> adjustments;
+  final Map<String, List<Strategy>> strategies;
+  final bool strategiesReviewed;
+  final PreviousStrategy? previousStrategy;
+  final List<String> learned, memoryBarriers;
   final int streak;
   final bool memoryAvailable;
   final CoachingSlot? preferredSlot;
@@ -265,6 +315,7 @@ class CoachingRepository extends AccountScopedRepository {
     List<GoalAdjustment> adjustments = const [],
     CoachingSlot? preferredSlot,
     bool rememberSlot = false,
+    ({String barrier, String key})? strategy,
   }) async => CheckinResult.fromJson(
     (await write('POST', '/api/me/coaching/checkins', {
       'operationId': operationId,
@@ -278,6 +329,8 @@ class CoachingRepository extends AccountScopedRepository {
       ],
       'preferredSlot': ?preferredSlot?.wire,
       if (preferredSlot != null) 'rememberSlot': rememberSlot,
+      if (strategy != null)
+        'strategy': {'barrier': strategy.barrier, 'key': strategy.key},
     })).object,
   );
 }

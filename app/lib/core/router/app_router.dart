@@ -55,6 +55,16 @@ import '../../features/community/presentation/challenge_screen.dart';
 import '../../features/community/presentation/community_screen.dart';
 import '../../features/community/presentation/community_privacy_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
+import '../../features/clinical/presentation/clinical_screen.dart';
+import '../../features/clinical/presentation/clinical_forms.dart';
+import '../../features/clinical/presentation/clinical_history_screen.dart';
+import '../../features/reports/presentation/report_screen.dart';
+import '../../features/devices/presentation/devices_screen.dart';
+import '../../features/share/presentation/summary_report_screen.dart';
+import '../../features/education/education.dart';
+import '../../features/cgm/cgm.dart';
+import '../../features/companion/companion.dart';
+import '../../features/guest/guest_mode.dart';
 import 'redirect.dart';
 import 'routes.dart';
 
@@ -277,6 +287,49 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const HealthProfileScreen(onboarding: false),
       ),
       GoRoute(path: Routes.settings, builder: (_, _) => const SettingsScreen()),
+      GoRoute(path: Routes.report, builder: (_, _) => const ReportScreen()),
+      GoRoute(path: Routes.quick, redirect: (_, _) => '${Routes.home}?quick=1'),
+      GoRoute(path: Routes.devices, builder: (_, _) => const DevicesScreen()),
+      GoRoute(
+        path: Routes.summaryReport,
+        builder: (_, _) => const SummaryReportScreen(),
+      ),
+      GoRoute(path: Routes.clinical, builder: (_, _) => const ClinicalScreen()),
+      GoRoute(
+        path: Routes.learn,
+        builder: (_, _) => const EducationListScreen(),
+      ),
+      GoRoute(
+        path: '/learn/:key',
+        builder: (_, state) =>
+            EducationModuleScreen(moduleKey: state.pathParameters['key']!),
+      ),
+      GoRoute(path: Routes.cgm, builder: (_, _) => const CgmScreen()),
+      GoRoute(
+        path: Routes.companions,
+        builder: (_, _) => const CompanionScreen(),
+      ),
+      GoRoute(path: Routes.guest, builder: (_, _) => const GuestHomeScreen()),
+      GoRoute(
+        path: Routes.addVital,
+        builder: (_, state) =>
+            VitalFormScreen(kind: state.uri.queryParameters['kind']),
+      ),
+      GoRoute(
+        path: Routes.addLab,
+        builder: (_, state) =>
+            LabFormScreen(test: state.uri.queryParameters['test']),
+      ),
+      GoRoute(
+        path: '/clinical/vitals/history/:kind',
+        builder: (_, state) =>
+            ClinicalHistoryScreen.vital(state.pathParameters['kind']!),
+      ),
+      GoRoute(
+        path: '/clinical/labs/history/:test',
+        builder: (_, state) =>
+            ClinicalHistoryScreen.lab(state.pathParameters['test']!),
+      ),
       GoRoute(
         path: Routes.consentManagement,
         builder: (_, _) => const ConsentManagementScreen(),

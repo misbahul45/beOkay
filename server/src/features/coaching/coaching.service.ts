@@ -1,8 +1,9 @@
+import { background } from "../../shared/runtime/background.ts";
 import { Prisma } from "../../generated/prisma/client.ts";
 import { prisma } from "../../infrastructure/database/prisma.ts";
 import { outbox } from "../../infrastructure/queue/outbox.ts";
 import { recordAudit } from "../../shared/audit/audit.ts";
-import { conflict, notFound, unprocessable } from "../../shared/errors/app-error.ts";
+import { conflict, forbidden, notFound, unprocessable } from "../../shared/errors/app-error.ts";
 import { localRecordTime } from "../../shared/http/record-schema.ts";
 import { ACTIVITY_COUNTED_QUALITY, activityWeek } from "../activity/activity.model.ts";
 import { parseProfileData, type CoachingPrefs } from "../agent/personalization.ts";
@@ -17,6 +18,10 @@ import { realtime } from "../../infrastructure/realtime/realtime.ts";
 import { recognitionService } from "../community/recognition.service.ts";
 import { notificationService } from "../notifications/notification.service.ts";
 import * as M from "./coaching.model.ts";
+import { BARRIER_LABEL, STRATEGIES, STRATEGY_CATALOG_VERSION, STRATEGY_DAYS, STRATEGY_REVIEW_STATUS, findStrategy, type Barrier } from "./coaching.strategies.ts";
+import { usageService } from "../usage/usage.service.ts";
+import { episodesService } from "../episodes/episodes.service.ts";
+import { isUnwell } from "../memory/memory.extract.ts";
 import type { CheckinInput, ConfirmInput, DecisionInput, FeedbackInput } from "./coaching.schema.ts";
 
 type Tx = Prisma.TransactionClient;
@@ -136,14 +141,14 @@ async function gatherFacts(userId: string, tz: string, today: string, now: Date)
     pastPlans: { planned, done, notObserved, avgMinutes: minutes.length ? minutes.reduce((s, v) => s + v, 0) / minutes.length : null },
     goals,
     longestSessionMinutes: sessions.length ? Math.max(...sessions.map((s) => s.durationMinutes)) : null,
-    memory: { availableMinutes, preferredSlot, dislikedTypes, used: memories.filter((m) => ["AVAILABLE_MINUTES", "ACTIVITY_TIME", "ACTIVITY_DISLIKE"].includes(m.kind)).map((m) => ({ id: m.id, content: m.content, kind: m.kind })) },
+    memory: { availableMinutes, preferredSlot, dislikedTypes, used: memories.filter((m) => ["AVAILABLE_MINUTES", "ACTIVITY_TIME", "ACTIVITY_DISLIKE", "HEALTH_EVENT"].includes(m.kind)).map((m) => ({ id: m.id, content: m.content, kind: m.kind })), unwell: isUnwell(memories), avoidSlots: await episodesService.avoidSlots(userId, today) },
   };
 }
 
 function actionView(a: ActionRow, today: string, canObserve: boolean) {
   const start = iso(a.startDate);
   const outcomes = a.outcomes.map((o) => ({ localDate: iso(o.localDate), status: o.status as M.OutcomeRow["status"] }));
-  const states = a.status === "PROPOSED" ? [] : M.dayStates(start, a.days, outcomes, today, canObserve);
+  const states = a.status === "PROPOSED" ? [] : M.dayStates(start, a.days, outcomes, today, canObserve && a.kind !== "HABIT_STEP");
   const end = M.addDays(start, a.days - 1);
   const count = (s: M.DayState) => states.filter((d) => d.state === s).length;
   return {
@@ -216,7 +221,7 @@ export const coachingService = {
     const { tz, today } = await clock(userId, now);
     let observed = 0, retracted = 0;
     if (await fullConsent(userId)) {
-      const actions = await prisma.coachingAction.findMany({ where: { userId, status: "ACCEPTED", startDate: { gte: asDate(M.addDays(today, -21)) } }, include: { outcomes: true } });
+      const actions = await prisma.coachingAction.findMany({ where: { userId, status: "ACCEPTED", kind: { not: "HABIT_STEP" }, startDate: { gte: asDate(M.addDays(today, -21)) } }, include: { outcomes: true } });
       for (const a of actions) {
         const dates = M.actionDates(iso(a.startDate), a.days).filter((d) => d <= today);
         const ev = await evidenceFor(userId, tz, a, dates);
@@ -270,6 +275,7 @@ export const coachingService = {
       if (have.has(o.key)) continue;
       try {
         await prisma.coachingAction.create({ data: { userId, opportunityKey: o.key, source: o.source, kind: o.kind, title: o.title, rationale: o.rationale, evidence: o.evidence as Prisma.InputJsonObject, params: o.params as Prisma.InputJsonObject, slot: o.slot, startDate: asDate(today), days: o.days, status: "PROPOSED", policyVersion: M.COACHING_RULES_VERSION, expiresAt: new Date(now.getTime() + M.PROPOSAL_TTL_MS) } });
+        usageService.track(userId, "suggestion_offered", "coaching", { source: o.source.toLowerCase() });
       } catch (e) {
         if (!isUnique(e)) throw e;
       }
@@ -299,7 +305,7 @@ export const coachingService = {
   },
 
   async decide(userId: string, id: string, input: DecisionInput, now = new Date()) {
-    if (input.decision !== "WITHDRAW" && !(await fullConsent(userId))) throw conflict("CONSENT_REQUIRED", "Persetujuan diperlukan.");
+    if (input.decision !== "WITHDRAW" && !(await fullConsent(userId))) throw forbidden("CONSENT_REQUIRED", "Persetujuan diperlukan.");
     const { today } = await clock(userId, now);
     if (await replayOf(userId, input.operationId, id, "DECISION", input.decision)) return { ...actionView(await loadAction(userId, id), today, true), replayed: true };
     const a = await loadAction(userId, id);
@@ -352,7 +358,7 @@ export const coachingService = {
   },
 
   async feedback(userId: string, id: string, input: FeedbackInput, now = new Date()) {
-    if (!(await hasConsent(userId, ["personalized_ai"]))) throw conflict("CONSENT_REQUIRED", "Persetujuan diperlukan.");
+    if (!(await hasConsent(userId, ["personalized_ai"]))) throw forbidden("CONSENT_REQUIRED", "Persetujuan diperlukan.");
     const { today } = await clock(userId, now);
     if (await replayOf(userId, input.operationId, id, "FEEDBACK", input.kind)) return { ...actionView(await loadAction(userId, id), today, true), replayed: true };
     const a = await loadAction(userId, id);
@@ -458,7 +464,7 @@ export const coachingService = {
   },
 
   async confirm(userId: string, id: string, input: ConfirmInput, now = new Date()) {
-    if (!(await fullConsent(userId))) throw conflict("CONSENT_REQUIRED", "Persetujuan diperlukan.");
+    if (!(await fullConsent(userId))) throw forbidden("CONSENT_REQUIRED", "Persetujuan diperlukan.");
     const { today } = await clock(userId, now);
     if (await replayOf(userId, input.operationId, id, "CONFIRMATION", input.date)) return { ...actionView(await loadAction(userId, id), today, true), replayed: true };
     const a = await loadAction(userId, id);
@@ -548,8 +554,27 @@ export const coachingService = {
     const goals: (M.GoalWeek & { ratio: number | null; period: string })[] = [];
     for (const g of goalRows) {
       const p = await goalsService.progress(userId, g, asOf);
-      goals.push({ id: g.id, title: g.title, goalType: g.goalType, period: g.period, target: g.targetValue.toNumber(), value: p.value, version: g.version, ratio: p.ratio });
+      const history: (number | null)[] = [];
+      if (g.period === "weekly") for (let k = 1; k <= 3; k++) history.push((await goalsService.progress(userId, g, M.addDays(target, -7 * k))).value);
+      goals.push({ id: g.id, title: g.title, goalType: g.goalType, period: g.period, target: g.targetValue.toNumber(), value: p.value, version: g.version, ratio: p.ratio, history });
     }
+    const stepAdjustments: M.Adjustment[] = [];
+    for (const g of goalRows.filter((x) => x.goalType === "daily_steps" && x.period === "daily")) {
+      const fromDay = M.addDays(asOf, -(M.STEPS_WINDOW_DAYS - 1));
+      const rows = await prisma.dailySteps.findMany({ where: { userId, localDate: { gte: asDate(fromDay), lte: asDate(asOf) } } });
+      const byDay = new Map(rows.map((r) => [iso(r.localDate), r.steps]));
+      const last = Array.from({ length: M.STEPS_WINDOW_DAYS }, (_, i) => byDay.get(M.addDays(fromDay, i)) ?? null);
+      const adj = M.dailyStepsAdjustment({ id: g.id, title: g.title, target: g.targetValue.toNumber(), version: g.version }, last);
+      if (adj) stepAdjustments.push(adj);
+    }
+    const lastStrategy = await prisma.coachingAction.findFirst({ where: { userId, source: "PROBLEM_SOLVING", opportunityKey: { not: `PROBLEM_SOLVING:${STRATEGY_DAYS}d:${target}` } }, orderBy: { createdAt: "desc" }, include: { outcomes: true, reminder: true } });
+    const previousStrategy = lastStrategy
+      ? (() => {
+          const v = actionView(lastStrategy, today, false);
+          const p = lastStrategy.params as { barrier?: Barrier };
+          return { id: v.id, title: v.title, barrier: p.barrier ?? null, barrierLabel: p.barrier ? BARRIER_LABEL[p.barrier] : null, startDate: v.startDate, endDate: v.endDate, days: v.days, confirmedDays: v.summary.confirmed, status: v.status };
+        })()
+      : null;
     const previous = history.some((h) => iso(h.weekStart) === M.addDays(target, -7));
     const positives = M.positiveObservations({
       mealDays: week.meals.daysWithRecords,
@@ -561,6 +586,7 @@ export const coachingService = {
       goalsReached: goals.filter((g) => g.period === "weekly" && (g.ratio ?? 0) >= 1).map((g) => g.title),
       previousReflection: previous,
     });
+    if (previousStrategy && previousStrategy.confirmedDays > 0) positives.push(`Strategi “${previousStrategy.title}” kamu jalankan ${previousStrategy.confirmedDays} hari`);
     const prefs = await prefsOf(userId);
     const memories = await memoryService.activeFor(userId);
     const memorySlot = memories.find((m) => m.kind === "ACTIVITY_TIME");
@@ -575,7 +601,11 @@ export const coachingService = {
       goals: goals.map((g) => ({ id: g.id, title: g.title, goalType: g.goalType, period: g.period, target: g.target, value: g.value, ratio: g.ratio })),
       actions: { ...tally, fromAssistant: agentOutcomes, items },
       positives,
-      adjustments: M.goalAdjustments(goals),
+      adjustments: [...M.goalAdjustments(goals), ...stepAdjustments],
+      strategies: { catalogVersion: STRATEGY_CATALOG_VERSION, reviewStatus: STRATEGY_REVIEW_STATUS, byBarrier: STRATEGIES, labels: BARRIER_LABEL },
+      learned: await episodesService.build(userId, target),
+      memoryBarriers: memories.filter((m) => m.kind === "BARRIER").map((m) => m.key.split(":")[1]).filter((b): b is string => ["TIME", "FORGOT", "ENERGY", "MOTIVATION", "OTHER"].includes(b ?? "")),
+      previousStrategy,
       streak: M.streakOf(weeks, checkin ? target : M.addDays(target, -7)),
       history: history.slice(0, 8).map(checkinView),
       memoryAvailable: await memoryService.allowed(userId),
@@ -592,7 +622,7 @@ export const coachingService = {
       return { checkin: checkinView(prior), recognition: (prior.summary as { recognition?: string[] }).recognition ?? [], replayed: true };
     }
     const r = await this.reflection(userId, now);
-    if (r.consentRequired) throw conflict("CONSENT_REQUIRED", "Persetujuan diperlukan.");
+    if (r.consentRequired) throw forbidden("CONSENT_REQUIRED", "Persetujuan diperlukan.");
     if (input.weekStart !== r.weekStart) throw unprocessable("WEEK_NOT_OPEN", "Refleksi untuk minggu ini belum atau sudah tidak dibuka.", { weekStart: r.weekStart });
     if (r.done) throw conflict("CHECKIN_EXISTS", "Refleksi untuk minggu ini sudah tersimpan.");
     const offered = new Map(r.adjustments.map((a) => [a.goalId, a]));
@@ -600,6 +630,9 @@ export const coachingService = {
       const o = offered.get(adj.goalId);
       if (!o || o.toTarget !== adj.toTarget) throw unprocessable("ADJUSTMENT_NOT_OFFERED", "Penyesuaian ini tidak sesuai dengan usulan.", { goalId: adj.goalId });
     }
+    const strategy = input.strategy ? findStrategy(input.strategy.barrier, input.strategy.key) : null;
+    if (input.strategy && !strategy) throw unprocessable("STRATEGY_NOT_OFFERED", "Strategi ini tidak ada di daftar.", { key: input.strategy.key });
+    const { today: localToday } = await clock(userId, now);
     const personal = await hasConsent(userId, ["personalized_ai"]);
     const remember = Boolean(input.rememberSlot && input.preferredSlot && (await memoryService.allowed(userId)));
     const streak = M.streakOf([...r.history.map((h) => h.weekStart), r.weekStart], r.weekStart);
@@ -613,8 +646,8 @@ export const coachingService = {
           if (!g || g.version !== o.expectedVersion) throw conflict("VERSION_CONFLICT", "Tujuan berubah. Muat ulang refleksi.");
           const moved = await tx.behaviorGoal.updateMany({ where: { id: g.id, userId, version: g.version }, data: { targetValue: o.toTarget, version: { increment: 1 } } });
           if (moved.count !== 1) throw conflict("VERSION_CONFLICT", "Tujuan berubah. Muat ulang refleksi.");
-          await tx.recordRevision.create({ data: { userId, goalId: g.id, version: g.version, reason: "Refleksi mingguan: target disesuaikan bersama pengguna", snapshot: { title: g.title, goalType: g.goalType, targetValue: g.targetValue.toNumber(), period: g.period, status: g.status, version: g.version } } });
-          await recordAudit(tx, { userId, eventType: "goal_updated", metadata: { recordId: g.id, version: g.version + 1, source: "weekly_reflection" } });
+          await tx.recordRevision.create({ data: { userId, goalId: g.id, version: g.version, reason: o.direction === "UP" ? "Refleksi mingguan: target dinaikkan atas persetujuan pengguna" : "Refleksi mingguan: target diturunkan atas persetujuan pengguna", snapshot: { title: g.title, goalType: g.goalType, targetValue: g.targetValue.toNumber(), period: g.period, status: g.status, version: g.version } } });
+          await recordAudit(tx, { userId, eventType: "goal_updated", metadata: { recordId: g.id, version: g.version + 1, source: "weekly_reflection", direction: o.direction, fromTarget: o.fromTarget, toTarget: o.toTarget, rules: M.COACHING_RULES_VERSION } });
           applied.push(o);
         }
         if (input.preferredSlot && personal) {
@@ -643,17 +676,39 @@ export const coachingService = {
             hardest: input.hardest,
             note: input.note ?? null,
             preferredSlot: input.preferredSlot ?? null,
-            adjustments: applied.map((a) => ({ goalId: a.goalId, title: a.title, fromTarget: a.fromTarget, toTarget: a.toTarget })),
-            summary: { recordedDays: r.summary.recordedDays, totalDays: r.summary.totalDays, positives: r.positives, actions: { observed: r.actions.observed, confirmed: r.actions.confirmed, notObserved: r.actions.notObserved, fromAssistant: r.actions.fromAssistant }, recognition, rememberedSlot: remember },
+            adjustments: applied.map((a) => ({ goalId: a.goalId, title: a.title, fromTarget: a.fromTarget, toTarget: a.toTarget, direction: a.direction })),
+            summary: { recordedDays: r.summary.recordedDays, totalDays: r.summary.totalDays, positives: r.positives, actions: { observed: r.actions.observed, confirmed: r.actions.confirmed, notObserved: r.actions.notObserved, fromAssistant: r.actions.fromAssistant }, recognition, rememberedSlot: remember, strategy: strategy && input.strategy ? { barrier: input.strategy.barrier, key: strategy.key, catalogVersion: STRATEGY_CATALOG_VERSION } : null, adjustmentDirections: applied.map((a) => a.direction) },
           },
         });
+        if (strategy && input.strategy) {
+          const action = await tx.coachingAction.create({
+            data: {
+              userId,
+              opportunityKey: `PROBLEM_SOLVING:${STRATEGY_DAYS}d:${r.weekStart}`,
+              source: "PROBLEM_SOLVING",
+              kind: "HABIT_STEP",
+              title: strategy.title.slice(0, 120),
+              rationale: `Rencana dari refleksi untuk hambatan “${BARRIER_LABEL[input.strategy.barrier]}”. ${strategy.detail}`.slice(0, 400),
+              evidence: { summary: `Kamu memilih hambatan “${BARRIER_LABEL[input.strategy.barrier]}” di refleksi minggu ${r.weekStart}.`, window: "refleksi mingguan", memories: [], barrier: input.strategy.barrier, strategyKey: strategy.key, catalogVersion: STRATEGY_CATALOG_VERSION, reviewStatus: STRATEGY_REVIEW_STATUS },
+              params: { barrier: input.strategy.barrier, strategyKey: strategy.key },
+              startDate: asDate(localToday),
+              days: STRATEGY_DAYS,
+              status: "ACCEPTED",
+              policyVersion: M.COACHING_RULES_VERSION,
+              expiresAt: now,
+              decidedAt: now,
+            },
+          });
+          await tx.coachingEvent.create({ data: { userId, actionId: action.id, operationId: input.operationId, type: "DECISION", value: "ACCEPT", detail: { source: "PROBLEM_SOLVING", strategyKey: strategy.key, barrier: input.strategy.barrier } } });
+          await recordAudit(tx, { userId, eventType: "coaching_strategy_chosen", metadata: { actionId: action.id, barrier: input.strategy.barrier, strategyKey: strategy.key } });
+        }
         await closeCards(tx, userId, "WEEKLY_REVIEW_AVAILABLE");
         await recordAudit(tx, { userId, eventType: "weekly_reflection_completed", metadata: { checkinId: row.id, adjustments: applied.length } });
         await outbox.enqueue(tx, { userId, type: "coaching.checkin", payload: { checkinId: row.id, weekStart: r.weekStart }, dedupeKey: `coaching-checkin:${row.id}` });
         return row;
       });
       realtime.toUser(userId, { type: "coaching.updated", checkinId: saved.id });
-      void recognitionService.refresh(userId).catch(() => {});
+      background(recognitionService.refresh(userId), "recognition_refresh");
       return { checkin: checkinView(saved), recognition, replayed: false };
     } catch (e) {
       if (isUnique(e)) {

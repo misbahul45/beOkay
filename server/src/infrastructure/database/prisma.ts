@@ -6,7 +6,8 @@ if (!connectionString) {
   throw new Error("DATABASE_URL is not set");
 }
 
-const adapter = new PrismaPg({ connectionString });
+const max = Number(process.env.DATABASE_POOL_MAX ?? 10);
+const adapter = new PrismaPg({ connectionString, max: Number.isFinite(max) && max > 0 ? max : 10 });
 
 // Satu instance per proses; dipakai ulang saat `bun --hot` reload.
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };

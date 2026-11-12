@@ -57,6 +57,20 @@ class WelcomeScreen extends StatelessWidget {
                   onPressed: () => context.go(Routes.register),
                 ),
                 const SizedBox(height: AppSpacing.xs),
+                PillButton(
+                  label: 'Coba dulu tanpa akun',
+                  kind: PillButtonKind.secondary,
+                  onPressed: () => context.go(Routes.guest),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Mode coba menyimpan catatan hanya di ponsel ini selama 7 hari.',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.caption.copyWith(
+                    color: const Color(0xFFCFE8E4),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
                 Center(
                   child: TextButton(
                     style: TextButton.styleFrom(

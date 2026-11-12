@@ -92,8 +92,10 @@ class MyMembership {
       name = j['name'] as String,
       region = j['region'] as String,
       alias = j['alias'] as String,
+      aliasHidden = j['aliasHidden'] == true,
       openChallenges = (j['openChallenges'] as int?) ?? 0;
   final String communityId, name, region, alias;
+  final bool aliasHidden;
   final int openChallenges;
 }
 
@@ -268,6 +270,17 @@ class CommunityRepository extends AccountScopedRepository {
       write('PATCH', '/api/me/challenges/$id/visibility', {'visible': visible});
   Future<void> checkin(String id) async =>
       write('POST', '/api/me/challenges/$id/checkins', {});
+  Future<String> reportAlias(
+    String challengeId,
+    String alias,
+    String reason,
+  ) async =>
+      ((await write('POST', '/api/me/challenges/$challengeId/reports', {
+            'alias': alias,
+            'reason': reason,
+          })).object['message']
+          as String?) ??
+      'Terima kasih. Laporan akan ditinjau.';
   Future<Leaderboard> leaderboard(String id) async => Leaderboard.fromJson(
     (await api.get('/api/me/challenges/$id/leaderboard?limit=20')).object,
   );

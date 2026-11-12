@@ -1,9 +1,11 @@
+import { educationService } from "../education/education.service.ts";
 import { Prisma } from "../../generated/prisma/client.ts";
 import { prisma } from "../../infrastructure/database/prisma.ts";
 import { recordAudit } from "../../shared/audit/audit.ts";
 import { AppError, conflict, notFound, unprocessable } from "../../shared/errors/app-error.ts";
 import type { RecommendationPayload } from "../agent/agent.graph.ts";
 import { agentService } from "../agent/agent.service.ts";
+import { isUrgentSafetyCode } from "../agent/agent.safety.ts";
 import { identityMatch, identityTokens } from "../agent/food-identity.ts";
 import { coachingService } from "../coaching/coaching.service.ts";
 import { communityService } from "../community/community.service.ts";
@@ -30,20 +32,44 @@ import {
   type BasisSource,
   type Part,
 } from "./conversation.parts.ts";
-import { ROUTER_VERSION, routeMessage, type Route } from "./conversation.router.ts";
+import { HYBRID_ROUTER_VERSION, ROUTER_VERSION, routeMessage, type Route } from "./conversation.router.ts";
+import { createLlmRouter, type LlmRouter } from "./intent-classifier.ts";
+import { env } from "../../config/env.ts";
+import { featureFlags } from "../feature-flags/feature-flags.service.ts";
+import { keyForLlmMemory, type MemoryCandidate } from "../memory/memory.extract.ts";
 import type { MessageCreate } from "./conversation.schema.ts";
+import { rateWindow } from "../../shared/http/rate-window.ts";
 
 export const MAX_MESSAGES = 400;
 export const IN_PROGRESS_MS = 60_000;
 const RATE_WINDOW_MS = 10 * 60_000;
 const RATE_MAX = 30;
-const rate = new Map<string, number[]>();
+const rate = rateWindow(RATE_WINDOW_MS, RATE_MAX);
 const REDACTED = "(percakapan dihapus)";
 
 type Thread = NonNullable<Awaited<ReturnType<typeof prisma.conversationThread.findFirst>>>;
 type Message = NonNullable<Awaited<ReturnType<typeof prisma.conversationMessage.findFirst>>>;
 type RunView = Awaited<ReturnType<typeof agentService.getRun>>;
-type Reply = { parts: Part[]; route: string; runId: string | null; continuesRun: boolean; basis?: Basis | null };
+type Reply = { parts: Part[]; route: string; runId: string | null; continuesRun: boolean; basis?: Basis | null; llmMemory?: MemoryCandidate[]; hybrid?: boolean };
+
+export const llmRouterRef: { current: LlmRouter } = { current: createLlmRouter({ apiKey: env.MISTRAL_API_KEY, model: env.MISTRAL_AGENT_MODEL }) };
+export const LANGUAGE_MODEL_SOURCE: BasisSource = { kind: "LANGUAGE_MODEL", label: "Dipahami dengan bantuan model bahasa · aturan keselamatan tetap berlaku" };
+
+async function hybridRoute(userId: string, msg: Message, body: string) {
+  const router = llmRouterRef.current;
+  if (!router.configured || !(await featureFlags.isEnabled("llm_router"))) return null;
+  try {
+    await consentService.requireConsent(userId, "ai_message_understanding");
+  } catch {
+    return null;
+  }
+  const out = await router.decide(body);
+  const l = out.log;
+  await prisma.routerProposal.create({
+    data: { userId, messageId: msg.id, routerVersion: HYBRID_ROUTER_VERSION, proposedRoute: l.proposedRoute, args: l.args as Prisma.InputJsonObject, confidence: l.confidence, decision: l.decision, rejectReason: l.rejectReason, judgeVerdict: l.judgeVerdict, judgeCategory: l.judgeCategory, memoryKind: l.memoryKind, model: l.model, latencyMs: l.latencyMs },
+  });
+  return out;
+}
 
 const hasConsent = async (userId: string, purpose: "personalized_ai" | "health_data_processing") => {
   try {
@@ -62,7 +88,7 @@ const titleOf = (t: string) => {
 async function probeFood(query: string): Promise<boolean> {
   const head = identityTokens(query)[0];
   if (!head) return false;
-  const rows = await prisma.foodReference.findMany({ where: { status: "verified_auto", nameNormalized: { contains: head } }, select: { name: true }, take: 40 });
+  const rows = await prisma.foodReference.findMany({ where: { status: { in: ["verified_auto", "curated"] }, nameNormalized: { contains: head } }, select: { name: true }, take: 40 });
   return rows.some((r) => identityMatch(query, r.name) !== null);
 }
 
@@ -71,7 +97,7 @@ function runReply(run: RunView, query: string | null, followUp: boolean): Reply 
   const continues = ["NUTRITION_ALTERNATIVES", "ACTIVITY_PLAN"].includes(run.intent);
   if (run.consentRequired) return { parts: consentReply("personalized_ai"), route: "FOOD", runId: run.id, continuesRun: false };
   if (run.status === "BLOCKED") {
-    return { parts: safetyReply(run.safetyDecision ?? "BLOCKED", run.message ?? "Permintaan ini di luar yang bisa kubantu.", run.safetyDecision === "URGENT_SYMPTOM"), route: "SAFETY", runId: run.id, continuesRun: false };
+    return { parts: safetyReply(run.safetyDecision ?? "BLOCKED", run.message ?? "Permintaan ini di luar yang bisa kubantu.", isUrgentSafetyCode(run.safetyDecision)), route: "SAFETY", runId: run.id, continuesRun: false };
   }
   if (run.status === "FAILED") return { parts: [{ type: "notice", tone: "error", text: "Ada kendala saat menyusun jawaban. Catatanmu tidak terpengaruh. Coba lagi sebentar lagi." }], route: "FOOD", runId: run.id, continuesRun: false };
   if (recs.length > 0) {
@@ -301,6 +327,23 @@ async function compose(userId: string, thread: Thread, msg: Message): Promise<Re
   if ((msg.parts as Part[]).some((p) => p.type === "photo")) return mealDraftReply(userId, thread, body, msg, true);
   const context = (thread.context ?? {}) as { lastRoute?: string };
   const route = routeMessage(body, { hasPreviousRun: thread.lastRunId !== null, lastRoute: context.lastRoute ?? null });
+  if (route.kind === "UNKNOWN") {
+    if (route.probe && (await probeFood(route.probe))) return agentReply(userId, msg.clientMessageId!, body, { query: route.probe, route: "FOOD" });
+    const hybrid = await hybridRoute(userId, msg, body);
+    if (hybrid) {
+      const llmMemory = hybrid.memory ? [{ kind: hybrid.memory.kind, key: keyForLlmMemory(hybrid.memory.kind, hybrid.memory.content), content: hybrid.memory.content }] : [];
+      if (hybrid.route) {
+        const reply = await dispatch(userId, thread, msg, body, hybrid.route, context);
+        const sources = [...(reply.basis?.sources ?? []), ...(hybrid.route.kind === "SAFETY" ? [] : [LANGUAGE_MODEL_SOURCE])];
+        return { ...reply, hybrid: true, llmMemory, basis: { sources, memories: reply.basis?.memories ?? [] } };
+      }
+      if (llmMemory.length) return { parts: UNKNOWN_REPLY, route: "UNKNOWN", runId: null, continuesRun: false, basis: null, hybrid: true, llmMemory };
+    }
+  }
+  return dispatch(userId, thread, msg, body, route, context);
+}
+
+async function dispatch(userId: string, thread: Thread, msg: Message, body: string, route: Route, context: { lastRoute?: string }): Promise<Reply> {
   const fixed = (parts: Part[], basis: Basis | null = null): Reply => ({ parts, route: route.kind, runId: null, continuesRun: false, basis });
   switch (route.kind) {
     case "SAFETY":
@@ -336,16 +379,23 @@ async function compose(userId: string, thread: Thread, msg: Message): Promise<Re
     case "FOOD":
       return agentReply(userId, msg.clientMessageId!, body, { query: route.query, route: "FOOD" });
     case "UNKNOWN":
-      if (route.probe && (await probeFood(route.probe))) return agentReply(userId, msg.clientMessageId!, body, { query: route.probe, route: "FOOD" });
       return fixed(UNKNOWN_REPLY);
   }
 }
 
 const QUIET_ROUTES = new Set(["UNKNOWN", "NO_CONTEXT", "CLARIFY_FOOD", "HELP"]);
 
+async function withEducation(reply: Reply): Promise<Reply> {
+  if (reply.route !== "SAFETY") return reply;
+  const safety = reply.parts.find((p): p is Extract<Part, { type: "safety" }> => p.type === "safety");
+  if (!safety || safety.code === "SELF_HARM") return reply;
+  const items = await educationService.forSafety(safety.code);
+  return items.length ? { ...reply, parts: [...reply.parts, { type: "education", items }] } : reply;
+}
+
 async function withMemory(userId: string, msg: Message, reply: Reply): Promise<Reply> {
   if (reply.route === "SAFETY" || reply.route === "PHOTO_MEAL") return reply;
-  const proposals = await memoryService.propose(userId, msg.text ?? "", msg.id);
+  const proposals = await memoryService.propose(userId, msg.text ?? "", msg.id, reply.llmMemory ?? [], reply.llmMemory?.length ? "LANGUAGE_MODEL" : "CONVERSATION");
   if (proposals.length === 0) return reply;
   const parts: Part[] = QUIET_ROUTES.has(reply.route) ? [text("Baik. Mau aku ingat ini untuk saran berikutnya?")] : [...reply.parts];
   for (const p of proposals) parts.push({ type: "memory_proposal", memoryId: p.id });
@@ -441,7 +491,7 @@ async function ensureThread(userId: string, id: string, firstText: string): Prom
 }
 
 async function respond(userId: string, thread: Thread, userMsg: Message) {
-  const reply = await withMemory(userId, userMsg, await compose(userId, thread, userMsg));
+  const reply = await withEducation(await withMemory(userId, userMsg, await compose(userId, thread, userMsg)));
   const offered = reply.parts.some((p) => p.type === "recommendations");
   const context = { lastRoute: reply.route, offered, turns: Math.min(((thread.context as { turns?: number } | null)?.turns ?? 0) + 1, 9999) };
   const assistant = await prisma.$transaction(async (tx) => {
@@ -458,7 +508,7 @@ async function respond(userId: string, thread: Thread, userMsg: Message) {
         replyToId: userMsg.id,
         parts: reply.parts as unknown as Prisma.InputJsonArray,
         route: reply.route,
-        routerVersion: ROUTER_VERSION,
+        routerVersion: reply.hybrid ? HYBRID_ROUTER_VERSION : ROUTER_VERSION,
         runId: reply.runId,
         ...(reply.basis && reply.basis.sources.length + reply.basis.memories.length > 0 ? { basis: reply.basis as unknown as Prisma.InputJsonObject } : {}),
       },
@@ -500,14 +550,10 @@ export const conversationService = {
     }
 
     const now = Date.now();
-    const recent = (rate.get(userId) ?? []).filter((x) => now - x < RATE_WINDOW_MS);
-    if (recent.length >= RATE_MAX) {
-      rate.set(userId, recent);
-      throw new AppError(429, "CONVERSATION_RATE_LIMITED", "Terlalu banyak pesan. Coba lagi beberapa menit lagi.");
-    }
+    if (rate.full(userId, now)) throw new AppError(429, "CONVERSATION_RATE_LIMITED", "Terlalu banyak pesan. Coba lagi beberapa menit lagi.");
     const thread = await ensureThread(userId, threadId, input.text);
     if (thread.messageCount + 2 > MAX_MESSAGES) throw unprocessable("THREAD_FULL", "Percakapan ini sudah panjang. Mulai percakapan baru.");
-    rate.set(userId, [...recent, now]);
+    rate.record(userId, now);
 
     let userMsg: Message;
     try {

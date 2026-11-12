@@ -28,6 +28,13 @@
 | food-preferences | `food_preferences` | H | `food-preferences` | `food-preferences` |
 | reminders | `reminders` | H | `reminders` | `reminders` |
 | push | `push_devices`, `push_deliveries` | H | `fcm` | `push` |
+| usage *(Fase 8)* | `usage_events` | `product_analytics` | `phase8` | `phase8` |
+| clinical *(Fase 8)* | `vital_measurements`, `lab_results` | H, S (ringkasan) | `phase8` | `phase8` |
+| quick-record *(Fase 8)* | (query `meal_logs`, `activity_sessions`) | H | `phase8` | `phase8` |
+| record-context *(Fase 8)* | (query glukosa dan makan) | H, S | `phase8` | `phase8` |
+| feature-flags *(Fase 8)* | `feature_flags` | — | — | `phase8` |
+| reports *(Fase 8)* | `incident_reports` | — | — | `phase8` |
+| retention *(Fase 8)* | (hapus data lewat batas) | — | `phase8` | `phase8` |
 | export | (baca semua milik sendiri) | tidak ada | — | `export` |
 | agent | `agent_runs/events/tool_calls`, `recommendations`, `recommendation_*`, `planned_meals`, `activity_plans`, `personalization_*`, `recommendation_outcomes` | H + A | `agent-safety`, `activity-graph`, `llm-text` | `agent`, `agent-activity`, `p2-closed-loop` |
 | conversation | `conversation_threads`, `conversation_messages` | H (+ A/S per rute) | `conversation` | `conversation` |
@@ -111,7 +118,7 @@ Lihat [overview §7.2](../architecture/system-overview.md). Kode: `sync.service.
 
 ## Agen (P2)
 
-Berkas utama: `agent.service.ts` (siklus run), `agent.intent.ts` (maksud & query, murni), `food-identity.ts` (gerbang identitas makanan), `agent.graph.ts` (nutrisi), `activity.graph.ts` (aktivitas), `agent.tools.ts` (registri alat), `agent.safety.ts`, `personalization.ts`, `outcomes.ts`, `llm-text.ts`, `agent.stream.ts` (SSE), `agent-worker.ts`.
+Berkas utama: `agent.service.ts` (siklus run), `agent.intent.ts` (maksud & query, murni), `food-identity.ts` (gerbang identitas makanan), `agent.graph.ts` (nutrisi), `activity.graph.ts` (aktivitas), `agent.tools.ts` (registri alat), `agent.safety.ts` (`safety-policy-v2`: satu-satunya sumber aturan keselamatan, termasuk menyakiti diri; `isUrgentSafetyCode`, `extremeGlucose`), `personalization.ts`, `outcomes.ts`, `llm-text.ts`, `agent.stream.ts` (SSE), `agent-worker.ts`.
 
 Registri alat (deny-by-default, `executeTool` satu-satunya jalur; semua penolakan dicatat di `agent_tool_calls`; anggaran 8 panggilan/run; batas waktu dan ukuran hasil per alat):
 
@@ -176,7 +183,44 @@ Menutup audit F-04 (sebelumnya tantangan hanya dari seed migrasi).
 | `SHADOW`, `RESEARCH_ONLY` | mode bayangan: dijalankan & dicatat di `ml_inference_runs`, **tidak** dikembalikan ke pengguna |
 | `DEPRECATED`/tidak ada | tidak dijalankan |
 
-Klien Modal: hanya `https://*.modal.run`, bearer dari env, batas waktu 15 dtk, satu coba ulang untuk 5xx/jaringan, circuit breaker (3 gagal beruntun → terbuka 60 dtk), validasi skema + jumlah probabilitas ≤ 1,001, dan pencocokan `modelKey`/`modelVersion`/`artifactSha256` dengan registri (`VERSION_MISMATCH` bila berbeda). Persetujuan: `scripts/ml/set-model-status.ts` — `APPROVED` hanya bila akurasi uji tanpa duplikat ≥ 0,90 dan catatan ≥ 20 karakter.
+Klien Modal: hanya `https://*.modal.run`, bearer dari env, batas waktu 15 dtk, satu coba ulang untuk 5xx/jaringan, circuit breaker (3 gagal beruntun → terbuka 60 dtk), validasi skema + jumlah probabilitas ≤ 1,001, dan pencocokan `modelKey`/`modelVersion`/`artifactSha256` dengan registri (`VERSION_MISMATCH` bila berbeda). Persetujuan: `scripts/ml/set-model-status.ts` — `APPROVED` hanya bila akurasi uji tanpa duplikat ≥ 0,90 dan catatan ≥ 20 karakter. Pendaftaran versi: `scripts/ml/register-model.ts` + `model-registry.ts` (`validateRegistration`, `registerModel`) — selalu `RESEARCH_ONLY`, SHA dihitung dari `model.pt`, wajib uji tanpa duplikat dan audit kebocoran, idempoten per `(model_key, version)`.
 
 ## Intervensi (P3 awal)
-Lihat [overview §7.6](../architecture/system-overview.md). Tanggapan: `OPENED` (bukan tanggapan; kartu hilang dari daftar tetapi masih bisa dinilai), `USEFUL, NOT_USEFUL, NOT_NOW, TOO_FREQUENT, ALREADY_DONE, DISMISSED, STOP_THIS_TYPE`. Akibat nyata yang terverifikasi di kode: `NOT_NOW` menunda (`snoozeMinutes`, default 120 menit); `STOP_THIS_TYPE` memasukkan pemicu ke `muted_triggers` dan membatalkan kartu terbuka sejenis; `TOO_FREQUENT` menurunkan jatah menjadi ≤ 1/hari dan ≤ 3/pekan; jeda (`pauseForHours`) membatalkan kartu proaktif yang terbuka. Jawaban pertama menang; mengulang jawaban yang sama aman (`replayed`). Isi pesan dari daftar tetap (bukan LLM). Catatan: `respond` melempar `CONSENT_REQUIRED` sebagai **409**, sedangkan modul lain memakai **403** (audit F-14).
+Lihat [overview §7.6](../architecture/system-overview.md). Tanggapan: `OPENED` (bukan tanggapan; kartu hilang dari daftar tetapi masih bisa dinilai), `USEFUL, NOT_USEFUL, NOT_NOW, TOO_FREQUENT, ALREADY_DONE, DISMISSED, STOP_THIS_TYPE`. Akibat nyata yang terverifikasi di kode: `NOT_NOW` menunda (`snoozeMinutes`, default 120 menit); `STOP_THIS_TYPE` memasukkan pemicu ke `muted_triggers` dan membatalkan kartu terbuka sejenis; `TOO_FREQUENT` menurunkan jatah menjadi ≤ 1/hari dan ≤ 3/pekan; jeda (`pauseForHours`) membatalkan kartu proaktif yang terbuka. Jawaban pertama menang; mengulang jawaban yang sama aman (`replayed`). Isi pesan dari daftar tetap (bukan LLM). Tanpa consent, `respond` melempar `403 CONSENT_REQUIRED` seperti modul lain (diselaraskan di 3.0 Fase 7, audit F-14).
+
+## Ukur dan ringankan (3.0 Fase 8)
+
+- **usage**: `usageService.record/track/ingest`; kait `onAudit` (`usage.audit.ts`) mengubah peristiwa audit pembuatan catatan dan keputusan saran menjadi `usage_events` di dalam transaksi yang sama, hanya bila consent `product_analytics` aktif dan sakelar `analytics` hidup. Replay idempoten tidak menulis audit, jadi tidak tercatat dua kali. `measures.service.ts` menghitung ukuran keberhasilan untuk kohort ber-consent.
+- **clinical**: CRUD vital dan lab dengan pola yang sama dengan glukosa (idempotensi `create_hash`, versi, `record_revisions`, arsip). `remindDueLabs` dijalankan pekerja notifikasi tiap jam.
+- **quick-record**: templat dari 30 hari terakhir; menyimpan tetap lewat `POST /api/me/meals|activities` sehingga idempotensi, antrean luring, dan consent sama dengan form.
+- **record-context**: median pribadi 14 hari (`compare`, minimal 3), pasangan glukosa sekitar makan (`pairAround`); tidak menyimpan apa pun.
+- **feature-flags**: `featureFlags.isEnabled(key)` dengan cache `FEATURE_FLAG_CACHE_MS`; `gated(key, routes)` membungkus semua rute satu modul; dipakai untuk Asisten, percakapan, coaching, komunitas, ML, pemindaian; `web_discovery` dan `push` diperiksa di dalam layanan.
+- **reports**: simpan, audit `incident_reported`, surel ke `INCIDENT_EMAIL_TO`, 5/jam per pengguna.
+- **retention**: `retentionService.run(cfg, now, {dryRun})`, pekerja harian `startRetentionWorker`.
+- **coaching** (`coach-rules-v2`): `goalAdjustments` dua arah, `coaching.strategies.ts` (`strategy-catalog-v1`), rencana `PROBLEM_SOLVING`/`HABIT_STEP` tidak direkonsiliasi otomatis.
+
+## Hibrida agentik v2 (3.0 Fase 10)
+
+- **conversation** (`intent-classifier.ts`): `createLlmRouter` menjalankan pengklasifikasi dan judge secara paralel hanya untuk pesan `UNKNOWN`, setelah saringan keselamatan regex dan `INJECTION_PATTERN`. `validateProposal` memeriksa skema, keyakinan ≥ 0,6, dan keterkaitan argumen dengan teks. `llmRouterRef` bisa diganti di tes. Rute hasil model dijalankan oleh `dispatch` yang sama dengan rute aturan.
+- **memory**: `extractContextCandidates` (konteks makan, hambatan, kondisi sementara), `ttlDaysFor`, `isUnwell`; `propose` menerima kandidat dari model (`sourceType = LANGUAGE_MODEL`, `confidence = INFERRED`).
+- **episodes**: `buildEpisode` (murni) dan `episodesService.build/avoidSlots`; dipakai refleksi dan pemilihan waktu rencana kecil.
+- **agent** (`why.ts`): `activityWhy` untuk "mengapa" berbasis statistik.
+- **ml**: `dish-classifier` dihentikan; `register-model.ts` menolak kunci itu tanpa `--allow-deprecated-key`.
+- Korpus: `tests/fixtures/conversation-corpus.ts` (154 pesan + 20 terpisah), `tests/fixtures/injection-corpus.ts` (100 kalimat). Threat model: [../security/agent-threat-model.md](../security/agent-threat-model.md).
+
+## Ekosistem (3.0 Fase 11)
+
+- **education**: `createEducationService` (`sync`, `list`, `get`, `forSafety`, `review`, `retire`), `SAFETY_MODULES` (kode keselamatan → modul), `parseBody`, `contentHash`. Isi: `src/content/education/modules.ts`.
+- **food-reference** (`curated.model.ts`, `curated.service.ts`): `composeDish` (murni; jumlah gizi bahan ÷ berat total termasuk air, nilai tak diketahui tetap NULL), `applyCuratedDishes`. Data: `src/content/food/curated-dishes.ts` (`curated-dishes-v1`, 45 hidangan, `TOP_QUERIES`).
+- **companion**: `companionService` (`create`, `list`, `revoke`, `resolve`), `companionSummary` (7 hari terakhir, tanpa catatan mentah), `companion.page.ts`.
+- **cgm**: `parseLibreView` (`libreview-csv-v1`; urutan tanggal otomatis/manual, mg/dL dan mmol/L, LO/HI dilewati), `summarizeCgm` (`cgm-summary-v1`), `cgmService`.
+- **community** (`moderation.service.ts`): `moderationService.report/queue/resolve/onAliasChanged`, `throttleCommunity`.
+- **export** (`fhir.model.ts`, `fhir.service.ts`): `buildFhirBundle` (murni), `labMapping`, `fhirExportService`.
+- **shared/http** (`client-address.ts`): `clientIp`/`clientAddress` dipakai auth, tautan berbagi, dan pendamping (menghormati `TRUST_PROXY`).
+
+## Deploy serverless
+
+- **jobs** (`jobs.service.ts`, `jobs.routes.ts`): `JOBS`, `claimJob` (kunci atomik di `job_runs`: `INSERT … ON CONFLICT … WHERE last_started_at <= now - interval`), `runTick`, `jobStatus`, `cronAuthorized` (pembanding waktu-konstan).
+- **shared/runtime** (`background.ts`): `background(promise, label)` mendaftarkan tugas ke `waitUntil` Vercel dan mencatat kegagalan; di luar Vercel promise berjalan biasa.
+- **realtime**: `realtime.connectBus(url)` (Redis pub/sub bawaan Bun) meneruskan `toUser`/`toTopic` ke instance lain bila `REALTIME_REDIS_URL` diisi.
+

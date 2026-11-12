@@ -48,7 +48,7 @@ test("Tanpa persetujuan: tidak ada intervensi dan alasannya tercatat; pencabutan
   await call("/api/me/consents/withdraw", a.token, { purposes: ["personalized_ai"] });
   expect(await interventionService.listOpen(a.id, WIB10)).toEqual({ items: [], consentRequired: true });
   expect((await prisma.interventionDecision.findUniqueOrThrow({ where: { id: shown.id } })).deliveryStatus).toBe("CANCELLED");
-  expect((await call(`/api/me/interventions/${shown.id}/response`, a.token, { kind: "USEFUL" })).status).toBe(409);
+  expect((await call(`/api/me/interventions/${shown.id}/response`, a.token, { kind: "USEFUL" })).status).toBe(403);
 });
 
 test("Jam tenang: pemicu proaktif ditahan; di luar jam tenang diizinkan; permintaan sendiri tetap dilayani", async () => {

@@ -142,6 +142,8 @@ class NutritionRepository extends AccountScopedRepository {
       body,
     )).object,
   );
+  Future<MealContext> context(String id) async =>
+      MealContext.fromJson((await api.get('/api/me/meals/$id/context')).object);
   Future<List<Map<String, dynamic>>> revisions(String id) async =>
       ((await api.get('/api/me/meals/$id/revisions')).object['items'] as List)
           .cast<Map<String, dynamic>>();

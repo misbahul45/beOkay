@@ -396,7 +396,7 @@ void main() {
       await tester.tap(find.text('Lanjut'));
       await tester.pumpAndSettle();
 
-      expect(find.text('150 → 80 menit'), findsOneWidget);
+      expect(find.text('Ringankan target: 150 → 80 menit'), findsOneWidget);
       expect(find.text('Ingat waktu ini untuk saran berikutnya'), findsNothing);
       await tester.tap(find.text('Pagi'));
       await tester.pumpAndSettle();

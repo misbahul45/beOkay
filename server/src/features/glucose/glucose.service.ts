@@ -12,6 +12,7 @@ import { consentService } from "../consent/consent.service.ts";
 import { preferencesService } from "../preferences/preferences.service.ts";
 import type { GlucoseUnit } from "../preferences/glucose-units.ts";
 import { canonicalGlucose, displayGlucose } from "./glucose.model.ts";
+import { glucoseAlert } from "./glucose.alerts.ts";
 import { glucoseRepository } from "./glucose.repository.ts";
 import type { GlucoseInput, GlucosePatch } from "./glucose.schema.ts";
 
@@ -45,6 +46,7 @@ function view(row: Row, settings: Settings) {
     updatedAt: row.updatedAt.toISOString(),
     version: row.version,
     archivedAt: row.archivedAt?.toISOString() ?? null,
+    alert: glucoseAlert(row.valueMgDl.toNumber()),
   };
 }
 async function requireHealth(userId: string) {
@@ -137,7 +139,7 @@ export const glucoseService = {
       const originalValue = input.originalValue ?? old.originalValue.toNumber();
       const originalUnit = (input.originalUnit ??
         old.originalUnit) as GlucoseUnit;
-      const qualityStatus = input.qualityStatus ?? old.qualityStatus;
+      const qualityStatus = old.source !== "manual_glucometer" && input.qualityStatus === "user_reported" ? "device_reported" : (input.qualityStatus ?? old.qualityStatus);
       const { expectedVersion, reason, archived, measuredAt, ...fields } =
         input;
       const changed = await tx.glucoseObservation.updateMany({
@@ -264,7 +266,7 @@ export const glucoseService = {
       { isolationLevel: "RepeatableRead" },
     );
     const eligible = rows.filter(
-      (row) => row.qualityStatus === "user_reported",
+      (row) => row.qualityStatus !== "needs_review",
     );
     const values = eligible.map((row) => row.valueMgDl);
     const mean =
@@ -302,8 +304,8 @@ export const glucoseService = {
       computationVersion: "glucose-descriptive-v1",
       computedAt: new Date().toISOString(),
       freshness: "CURRENT",
-      source: "manual_glucometer",
-      measurementType: "capillary_blood",
+      source: "mixed_by_record",
+      measurementType: "per_record",
     };
   },
 };

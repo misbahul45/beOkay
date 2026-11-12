@@ -524,6 +524,16 @@ class _LeaderboardSection extends ConsumerWidget {
                               row.score.round().toString(),
                               style: AppTypography.bodyStrong,
                             ),
+                            if (!row.isMe)
+                              TextButton(
+                                onPressed: () => showReportSheet(
+                                  context,
+                                  ref,
+                                  challengeId: c.id,
+                                  alias: row.alias,
+                                ),
+                                child: const Text('Laporkan'),
+                              ),
                           ],
                         ),
                       ),
@@ -543,5 +553,63 @@ class _LeaderboardSection extends ConsumerWidget {
           ),
       ],
     );
+  }
+}
+
+const reportReasons = [
+  ('ABUSIVE', 'Kasar atau menghina'),
+  ('IMPERSONATION', 'Menyamar orang lain'),
+  ('SPAM', 'Iklan atau spam'),
+  ('OTHER', 'Lainnya'),
+];
+
+Future<void> showReportSheet(
+  BuildContext context,
+  WidgetRef ref, {
+  required String challengeId,
+  required String alias,
+}) async {
+  final reason = await showModalBottomSheet<String>(
+    context: context,
+    showDragHandle: true,
+    builder: (c) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Laporkan alias $alias?', style: AppTypography.title),
+            const SizedBox(height: 4),
+            Text(
+              'Laporan ditinjau pemilik layanan. Alias disembunyikan sementara setelah 3 laporan dari orang berbeda.',
+              style: AppTypography.secondary,
+            ),
+            const SizedBox(height: 8),
+            for (final (code, label) in reportReasons)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(label),
+                onTap: () => Navigator.pop(c, code),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+  if (reason == null || !context.mounted) return;
+  try {
+    final msg = await ref
+        .read(communityRepositoryProvider)
+        .reportAlias(challengeId, alias, reason);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    }
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(messageFor(e))));
+    }
   }
 }

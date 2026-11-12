@@ -1,0 +1,11 @@
+node_modules
+src/generated
+tests
+coverage
+logs
+*.log
+.env
+.env.*
+!.env.example
+scripts/tkpi
+bruno

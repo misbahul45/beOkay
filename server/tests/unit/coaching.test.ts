@@ -109,7 +109,7 @@ test("Refleksi: minggu sasaran, pengamatan positif hanya tentang usaha, penyesua
   expect(JSON.stringify(pos)).not.toMatch(/glukosa|kkal|kalori|mg\/dL/i);
   expect(M.positiveObservations({ mealDays: 1, activityMinutes: null, activityDays: 0, recordedDays: 1, totalDays: 7, actionsDone: 0, goalsReached: [], previousReflection: false })).toEqual([]);
   const g = (over: Partial<M.GoalWeek>): M.GoalWeek => ({ id: "g", title: "t", goalType: "activity_minutes", period: "weekly", target: 150, value: 45, version: 3, ...over });
-  expect(M.goalAdjustments([g({})])).toEqual([{ goalId: "g", title: "t", goalType: "activity_minutes", fromTarget: 150, toTarget: 80, expectedVersion: 3, basis: "Dari catatanmu: 45 menit minggu ini." }]);
+  expect(M.goalAdjustments([g({})])).toEqual([{ goalId: "g", title: "t", goalType: "activity_minutes", fromTarget: 150, toTarget: 80, expectedVersion: 3, basis: "Dari catatanmu: 45 menit minggu ini.", direction: "DOWN" }]);
   expect(M.goalAdjustments([g({ goalType: "walking_sessions", target: 5, value: 1 })])[0]!.toTarget).toBe(3);
   expect(M.goalAdjustments([g({ goalType: "record_glucose", target: 7, value: 1 })])).toEqual([]);
   expect(M.goalAdjustments([g({ value: 100 })])).toEqual([]);

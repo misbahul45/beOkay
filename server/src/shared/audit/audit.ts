@@ -1,14 +1,17 @@
 import type { Prisma } from "../../generated/prisma/client.ts";
 
 type Db = Pick<Prisma.TransactionClient, "auditEvent" | "summaryProjection">;
+export type AuditEvent = { userId: string; eventType: string; metadata?: Prisma.InputJsonObject };
+export type AuditListener = (db: Db, event: AuditEvent) => Promise<void>;
 
-/** Peristiwa yang mengubah data sumber ringkasan; proyeksi pengguna ditandai STALE. */
-const SOURCE_PREFIXES = ["meal_", "glucose_", "activity_", "medication_", "goal_", "consent_", "preferences_", "food_"];
+const SOURCE_PREFIXES = ["meal_", "glucose_", "activity_", "medication_", "goal_", "consent_", "preferences_", "food_", "vital_", "lab_"];
+const listeners: AuditListener[] = [];
 
-export async function recordAudit(
-  db: Db,
-  event: { userId: string; eventType: string; metadata?: Prisma.InputJsonObject },
-) {
+export function onAudit(listener: AuditListener) {
+  if (!listeners.includes(listener)) listeners.push(listener);
+}
+
+export async function recordAudit(db: Db, event: AuditEvent) {
   await db.auditEvent.create({
     data: { userId: event.userId, eventType: event.eventType, metadata: event.metadata ?? undefined },
   });
@@ -18,4 +21,5 @@ export async function recordAudit(
       data: { freshnessStatus: "STALE" },
     });
   }
+  for (const listener of listeners) await listener(db, event);
 }

@@ -52,3 +52,14 @@ final mealRevisionsProvider = FutureProvider.autoDispose
       await ref.watch(mealProvider(id).future);
       return repo.revisions(id);
     });
+
+final mealContextProvider = FutureProvider.autoDispose
+    .family<MealContext?, String>((ref, id) async {
+      final repo = ref.watch(nutritionRepositoryProvider);
+      await ref.watch(mealProvider(id).future);
+      try {
+        return await repo.context(id);
+      } catch (_) {
+        return null;
+      }
+    });

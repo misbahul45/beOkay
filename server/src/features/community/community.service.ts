@@ -12,6 +12,7 @@ import { realtime } from "../../infrastructure/realtime/realtime.ts";
 import { COMPLETION_LABEL, daysLeft, participantsLabel, statusLabel, statusOn, type Completion } from "./lifecycle.model.ts";
 import { ensureFreshLifecycle } from "./lifecycle.service.ts";
 import { recognitionService } from "./recognition.service.ts";
+import { moderationService, throttleCommunity } from "./moderation.service.ts";
 import { MAX_BACKFILL_DAYS, MIN_ACTIVITY_MINUTES, MIN_COHORT, SCORING_VERSION, aliasKey, aliasProblem, desiredEvents, rank, reconcile, round4, totalScore } from "./scoring.model.ts";
 
 const need = async (userId: string, ...purposes: ConsentPurpose[]) => {
@@ -144,11 +145,12 @@ export const communityService = {
     // Tanpa persetujuan keanggotaan, keanggotaan tidak ditampilkan (penarikan berlaku segera).
     if (!(await has(userId, "community_membership"))) return { items: [], consentRequired: true };
     const open = await prisma.challenge.groupBy({ by: ["communityId"], where: { communityId: { in: rows.map((m) => m.communityId) }, status: "OPEN" }, _count: true });
-    return { items: rows.map((m) => ({ communityId: m.communityId, name: m.community.name, region: m.community.region.name, alias: m.alias, joinedAt: m.joinedAt.toISOString(), openChallenges: open.find((o) => o.communityId === m.communityId)?._count ?? 0 })), consentRequired: false };
+    return { items: rows.map((m) => ({ communityId: m.communityId, name: m.community.name, region: m.community.region.name, alias: m.alias, aliasHidden: Boolean(m.hiddenAt), joinedAt: m.joinedAt.toISOString(), openChallenges: open.find((o) => o.communityId === m.communityId)?._count ?? 0 })), consentRequired: false };
   },
 
   async join(userId: string, communityId: string, alias: string) {
     await need(userId, "community_membership");
+    throttleCommunity(userId);
     const problem = aliasProblem(alias);
     if (problem) throw unprocessable("INVALID_ALIAS", problem);
     const community = await prisma.community.findUnique({ where: { id: communityId } });
@@ -175,8 +177,10 @@ export const communityService = {
     if (problem) throw unprocessable("INVALID_ALIAS", problem);
     const m = await activeMembership(userId, communityId);
     if (!m) throw forbidden("NOT_A_MEMBER", "Kamu bukan anggota komunitas ini.");
+    throttleCommunity(userId);
     try {
       const row = await prisma.communityMembership.update({ where: { id: m.id }, data: { alias: alias.trim(), aliasKey: aliasKey(alias) } });
+      if (row.aliasKey !== m.aliasKey) await moderationService.onAliasChanged(m.id);
       return { communityId, alias: row.alias };
     } catch (e) {
       if (isUnique(e)) throw conflict("ALIAS_TAKEN", "Alias ini sudah dipakai di komunitas ini. Pilih yang lain.");
@@ -186,6 +190,7 @@ export const communityService = {
 
   /** Keluar dari komunitas boleh kapan saja (tidak butuh consent). Seluruh partisipasi tantangan komunitas itu berhenti dan hilang dari papan peringkat segera. */
   async leave(userId: string, communityId: string) {
+    throttleCommunity(userId);
     const m = await activeMembership(userId, communityId);
     if (!m) return { left: true, alreadyLeft: true };
     await prisma.$transaction(async (tx) => {
@@ -242,6 +247,7 @@ export const communityService = {
   },
 
   async joinChallenge(userId: string, challengeId: string, leaderboardVisible: boolean) {
+    throttleCommunity(userId);
     await need(userId, "community_membership", "challenge_participation");
     if (leaderboardVisible) await need(userId, "leaderboard_visibility");
     const c = await prisma.challenge.findUnique({ where: { id: challengeId } });
@@ -258,12 +264,14 @@ export const communityService = {
   },
 
   async leaveChallenge(userId: string, challengeId: string) {
+    throttleCommunity(userId);
     await prisma.challengeParticipant.updateMany({ where: { challengeId, userId, leftAt: null }, data: { leftAt: new Date(), leaderboardVisible: false } });
     return { left: true };
   },
 
   /** Menyalakan butuh persetujuan; mematikan selalu boleh dan berlaku segera. */
   async setVisibility(userId: string, challengeId: string, visible: boolean) {
+    throttleCommunity(userId);
     if (visible) await need(userId, "leaderboard_visibility");
     const p = await prisma.challengeParticipant.findUnique({ where: { challengeId_userId: { challengeId, userId } } });
     if (!p || p.leftAt) throw conflict("NOT_PARTICIPATING", "Kamu belum ikut tantangan ini.");
@@ -273,6 +281,7 @@ export const communityService = {
   },
 
   async checkin(userId: string, challengeId: string, localDate?: string) {
+    throttleCommunity(userId);
     await need(userId, "community_membership", "challenge_participation");
     const c = await prisma.challenge.findUnique({ where: { id: challengeId } });
     if (!c) throw notFound("CHALLENGE_NOT_FOUND", "Tantangan tidak ditemukan.");
@@ -327,7 +336,7 @@ export const communityService = {
     if (!(await activeMembership(userId, c.communityId))) throw forbidden("NOT_A_MEMBER", "Hanya anggota yang dapat melihat papan peringkat.");
 
     const candidates = await prisma.challengeParticipant.findMany({ where: { challengeId, leftAt: null, leaderboardVisible: true }, take: 300, orderBy: { joinedAt: "asc" } });
-    const memberships = await prisma.communityMembership.findMany({ where: { communityId: c.communityId, status: "ACTIVE", userId: { in: candidates.map((p) => p.userId) } } });
+    const memberships = await prisma.communityMembership.findMany({ where: { communityId: c.communityId, status: "ACTIVE", hiddenAt: null, userId: { in: candidates.map((p) => p.userId) } } });
     const consented = await prisma.consentRecord.findMany({ where: { userId: { in: candidates.map((p) => p.userId) }, withdrawnAt: null, policyVersion: currentPolicy.version, purpose: { in: ["community_membership", "challenge_participation", "leaderboard_visibility"] } }, select: { userId: true, purpose: true } });
     const okUsers = new Set(candidates.map((p) => p.userId).filter((u) => ["community_membership", "challenge_participation", "leaderboard_visibility"].every((pp) => consented.some((r) => r.userId === u && r.purpose === pp))));
     const visible = memberships.filter((m) => okUsers.has(m.userId));

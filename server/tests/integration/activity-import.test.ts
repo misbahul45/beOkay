@@ -58,6 +58,11 @@ test("Impor aktivitas perangkat: idempoten, device_reported, tabrakan waktu → 
   expect(again.summary).toMatchObject({ created: 0, createdNeedsReview: 0, duplicate: 2, rejected: 1 });
   expect(await prisma.activitySession.count({ where: { userId: a.id } })).toBe(3);
 
+  const timeline = await J(await call("/api/me/timeline?domain=activity&limit=10", a.token));
+  const sources = Object.fromEntries(timeline.items.map((i: any) => [i.recordId, i.source]));
+  expect(sources[rows[1]!.id]).toBe("health_connect");
+  expect(Object.values(sources).filter((s) => s === "manual")).toHaveLength(1);
+
   // Ringkasan menghitung sesi perangkat yang sah dan mengecualikan needs_review.
   const localDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date(Date.now() - 300 * 60_000));
   const sum = await J(await call(`/api/me/activities/summary?date=${localDate}`, a.token));

@@ -74,7 +74,7 @@ test("Alur penuh: usulan bersumber, kendala keras, tidak ada tulisan domain sebe
   expect(names(r)).not.toContain("Zeltuk kacang rebus"); // alergi: dikecualikan sebelum peringkat
   expect(r.summary.excludedByConstraints).toBeGreaterThanOrEqual(1);
   for (const rec of r.recommendations) {
-    expect(rec).toMatchObject({ type: "NUTRITION", status: "OFFERED", version: 1, requiresConfirmation: true, policyVersion: "safety-policy-v1" });
+    expect(rec).toMatchObject({ type: "NUTRITION", status: "OFFERED", version: 1, requiresConfirmation: true, policyVersion: "safety-policy-v2" });
     expect(rec.evidenceRefs[0]).toMatchObject({ kind: "TKPI", sourceRef: "KZGMI-2001" });
     expect(rec.limitations.join(" ")).toContain("Alergi hanya dicek dari nama");
     expect(rec.candidate.per100g.fiber).toBeNull(); // nilai yang tidak ada tidak dikarang

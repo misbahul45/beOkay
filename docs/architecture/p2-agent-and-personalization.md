@@ -27,7 +27,7 @@ Run juga dapat dibaca (`GET /runs/:id`), dibatalkan (`POST /runs/:id/cancel`); `
 - Consent ditarik: `GET` run yang menunggu menjadi `BLOCKED/CONSENT_WITHDRAWN`, saran `INVALIDATED` dan disembunyikan; keputusan dan run baru ditolak 403.
 
 ## Keselamatan (di luar model)
-`agent.safety.ts` (`safety-policy-v1`): saringan permintaan (obat/dosis, diagnosis, klaim kesembuhan/penurunan gula, pembatasan ekstrem, gejala mendesak), validasi kandidat (sumber wajib, angka dalam rentang, nilai kosong tetap kosong), dan gerbang klaim terlarang untuk setiap teks penjelasan. Penjelasan dibuat dari **templat**, bukan model. Tidak ada LLM dalam alur ini; karena itu injeksi prompt lewat dokumen yang diambil tidak punya jalur untuk memengaruhi alat atau keputusan.
+`agent.safety.ts` (`safety-policy-v1`, kini `safety-policy-v2` — lihat [system-overview §6.8](system-overview.md)): saringan permintaan (obat/dosis, diagnosis, klaim kesembuhan/penurunan gula, pembatasan ekstrem, gejala mendesak), validasi kandidat (sumber wajib, angka dalam rentang, nilai kosong tetap kosong), dan gerbang klaim terlarang untuk setiap teks penjelasan. Penjelasan dibuat dari **templat**, bukan model. Tidak ada LLM dalam alur ini; karena itu injeksi prompt lewat dokumen yang diambil tidak punya jalur untuk memengaruhi alat atau keputusan.
 
 ## Personalisasi (bukan pembelajaran mesin)
 Penolakan menambah bobot (maks 5) pada kata nama makanan yang ditolak (di luar kata pencarian). Penalti = bobot × 0,6 dikurangkan dari skor. Setiap perubahan menaikkan versi profil dan menulis `personalization_events` (alasan, saran sumber, perubahan). Pengguna dapat melihat dan **menghapus** hasilnya; versi tetap naik agar dapat diaudit. Tidak ada pembaruan model produksi dari umpan balik.

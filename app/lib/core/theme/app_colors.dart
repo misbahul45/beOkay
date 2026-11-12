@@ -57,6 +57,48 @@ class AppPalette {
   final Color activitySolid, activityInk, medicationSolid, medicationInk;
   final Color goalSolid, goalInk, shadow;
 
+  AppPalette highContrast() => AppPalette(
+    brightness: brightness,
+    brand: brand,
+    brandTint: brandTint,
+    leaf: leaf,
+    aqua: aqua,
+    sparkAmber: sparkAmber,
+    sparkCoral: sparkCoral,
+    sparkCore: sparkCore,
+    sparkEye: sparkEye,
+    cream: cream,
+    peach: peach,
+    lavender: lavender,
+    softBlue: softBlue,
+    background: background,
+    surface: surface,
+    surfaceMuted: surfaceMuted,
+    border: textSecondary,
+    overlay: overlay,
+    onPrimary: onPrimary,
+    textPrimary: textPrimary,
+    textSecondary: textPrimary,
+    decorative: textSecondary,
+    disabled: textSecondary,
+    errorBackground: errorBackground,
+    errorForeground: errorForeground,
+    warningBackground: warningBackground,
+    warningForeground: warningForeground,
+    infoForeground: infoForeground,
+    glucoseSolid: glucoseSolid,
+    glucoseInk: glucoseInk,
+    mealSolid: mealSolid,
+    mealInk: mealInk,
+    activitySolid: activitySolid,
+    activityInk: activityInk,
+    medicationSolid: medicationSolid,
+    medicationInk: medicationInk,
+    goalSolid: goalSolid,
+    goalInk: goalInk,
+    shadow: shadow,
+  );
+
   static const light = AppPalette(
     brightness: Brightness.light,
     brand: Color(0xFF16796F),
@@ -147,8 +189,12 @@ abstract final class AppColors {
 
   static AppPalette get palette => _p;
   static Brightness get brightness => _p.brightness;
-  static void use(Brightness brightness) =>
-      _p = brightness == Brightness.dark ? AppPalette.dark : AppPalette.light;
+  static void use(Brightness brightness, {bool highContrast = false}) {
+    final base = brightness == Brightness.dark
+        ? AppPalette.dark
+        : AppPalette.light;
+    _p = highContrast ? base.highContrast() : base;
+  }
 
   static Color get brand => _p.brand;
   static Color get brandTint => _p.brandTint;

@@ -32,9 +32,11 @@ export const checkinSchema = z
     adjustments: z.array(z.object({ goalId: z.uuid(), toTarget: z.number().positive().max(1000000) }).strict()).max(5).default([]),
     preferredSlot: slot.optional(),
     rememberSlot: z.boolean().optional(),
+    strategy: z.object({ barrier: z.enum(["TIME", "FORGOT", "ENERGY", "MOTIVATION", "OTHER"]), key: z.string().regex(/^[A-Z_]{3,40}$/) }).strict().optional(),
   })
   .strict()
-  .refine((v) => new Set(v.adjustments.map((a) => a.goalId)).size === v.adjustments.length, { message: "Satu penyesuaian per tujuan." });
+  .refine((v) => new Set(v.adjustments.map((a) => a.goalId)).size === v.adjustments.length, { message: "Satu penyesuaian per tujuan." })
+  .refine((v) => !v.strategy || v.hardest.includes(v.strategy.barrier), { message: "Strategi harus untuk hambatan yang dipilih." });
 
 export type DecisionInput = z.infer<typeof decisionSchema>;
 export type FeedbackInput = z.infer<typeof feedbackSchema>;

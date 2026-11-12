@@ -97,6 +97,7 @@ export const consentService = {
         if (!active) continue;
         await consentRepository.withdraw(tx, active.id, now);
         await recordAudit(tx, { userId, eventType: "consent_withdrawn", metadata: { purpose, policyVersion: active.policyVersion } });
+        if (purpose === "product_analytics") await tx.usageEvent.deleteMany({ where: { userId } });
       }
     });
     return this.overview(userId);

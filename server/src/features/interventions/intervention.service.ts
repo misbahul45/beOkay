@@ -2,7 +2,7 @@ import { Prisma } from "../../generated/prisma/client.ts";
 import { prisma } from "../../infrastructure/database/prisma.ts";
 import { outbox } from "../../infrastructure/queue/outbox.ts";
 import { recordAudit } from "../../shared/audit/audit.ts";
-import { conflict, notFound, unprocessable } from "../../shared/errors/app-error.ts";
+import { conflict, forbidden, notFound, unprocessable } from "../../shared/errors/app-error.ts";
 import { consentService } from "../consent/consent.service.ts";
 import { preferencesService } from "../preferences/preferences.service.ts";
 import { coachingService } from "../coaching/coaching.service.ts";
@@ -137,7 +137,7 @@ export const interventionService = {
 
   /** Setiap jawaban punya akibat nyata. Jawaban pertama menang; mengulang jawaban yang sama aman. */
   async respond(userId: string, id: string, input: ResponseInput, now = new Date()) {
-    if (!(await consentOk(userId))) throw conflict("CONSENT_REQUIRED", "Persetujuan diperlukan.");
+    if (!(await consentOk(userId))) throw forbidden("CONSENT_REQUIRED", "Persetujuan diperlukan.");
     const row = await prisma.interventionDecision.findFirst({ where: { id, userId } });
     if (!row) throw notFound("INTERVENTION_NOT_FOUND", "Saran tidak ditemukan.");
     if (row.option === "NO_INTERVENTION") throw unprocessable("NOTHING_TO_RESPOND", "Tidak ada saran untuk ditanggapi.");

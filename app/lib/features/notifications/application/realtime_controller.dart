@@ -190,5 +190,6 @@ String? routeForAction(String action, String? refId) => switch (action) {
   'OPEN_REMINDERS' => '/reminders',
   'OPEN_GOALS' => '/goals',
   'OPEN_MEDICATIONS' => '/medications',
+  'OPEN_CLINICAL' => '/clinical',
   _ => null,
 };

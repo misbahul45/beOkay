@@ -60,3 +60,14 @@ final glucoseRevisionsProvider = FutureProvider.autoDispose
       await ref.watch(glucoseProvider(id).future);
       return repo.revisions(id);
     });
+
+final glucoseContextProvider = FutureProvider.autoDispose
+    .family<GlucoseContext?, String>((ref, id) async {
+      final repo = ref.watch(glucoseRepositoryProvider);
+      await ref.watch(glucoseProvider(id).future);
+      try {
+        return await repo.context(id);
+      } catch (_) {
+        return null;
+      }
+    });

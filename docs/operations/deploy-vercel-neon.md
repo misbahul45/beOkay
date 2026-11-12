@@ -1,0 +1,103 @@
+# Deploy di Vercel + Neon
+
+Status 12 November 2026: API produksi berjalan di **https://beokay-api.vercel.app** (Vercel, proyek `beokay-api`, region `sin1`, runtime Bun 1.4), basis data di **Neon** (proyek `beokay`, `aws-ap-southeast-1`, Postgres 18, org Free). Stack Docker (`compose.prod.yaml`) tetap bisa dipakai; dokumen ini hanya untuk jalur serverless.
+
+## 1. Apa berjalan di mana
+
+| Bagian | Di Docker/VPS | Di Vercel + Neon |
+|---|---|---|
+| API HTTP | `bun src/server.ts` | `Bun.serve()` yang sama, dideteksi Vercel lewat `server/index.ts` (preset Bun, Fluid compute) |
+| Postgres | container `pgvector/pgvector:pg17` | Neon; aplikasi memakai URL **pooled**, migrasi memakai URL **direct**; ekstensi `vector` dan `pg_trgm` aktif |
+| Pekerja latar (outbox, pengingat kotak masuk, push, sapuan hasil, siklus tantangan, nudge, sinkron edukasi, retensi) | `setInterval` di proses API | dimatikan lewat env (`*_WORKER_ENABLED=false`, `PUSH_DISPATCH_ENABLED=false`); diganti **`/internal/jobs/tick`** yang dipicu penjadwal. Tiap job punya interval sendiri dan kunci di tabel `job_runs`, jadi tick ganda atau bersamaan tidak menjalankan job dua kali |
+| Tugas setelah respons (kirim email, push, catat pemakaian, run agen latar) | promise biasa | `background()` → `waitUntil` dari `@vercel/functions` |
+| WebSocket `/api/me/realtime` | satu proses | didukung Vercel; koneksi terikat ke satu instance. Untuk meneruskan pesan antar-instance isi `REALTIME_REDIS_URL` (opsional). Tanpa itu, aplikasi tetap memuat kotak masuk lewat HTTP |
+| Pembatas laju | memori proses | tetap memori, **per instance** (lebih longgar bila Vercel menjalankan beberapa instance) |
+| Email (verifikasi, reset kata sandi) | Mailpit/SMTP | SMTP pihak ketiga (**belum diisi**, lihat §3) |
+| Push | FCM | FCM (opsional, belum diisi) |
+| Pencarian semantik, OCR, model bahasa | Mistral | Mistral (`MISTRAL_API_KEY` sudah dipasang) |
+
+Berkas: `server/vercel.json` (Bun 1.4.x, region, `bun run db:generate` saat build, cron harian, `includeFiles` untuk paket `@better-auth/*` yang tidak ikut terdeteksi pelacak berkas), `server/.vercelignore`.
+
+## 2. Yang sudah diverifikasi di produksi
+
+- Migrasi 31 berkas diterapkan ke Neon; data `food_reference` (1.037 TKPI + 45 kurasi, semua dengan embedding) dan 254 baris resep disalin dari DB dev.
+- `/internal/jobs/tick` dengan `CRON_SECRET`: 8 job berjalan `OK` (push dilewati karena FCM belum diisi). Tanpa secret: 404.
+- Uji asap (skrip sementara, tidak di repo), 17/17 lulus: daftar, masuk (bearer), persetujuan, catat glukosa, pencarian makanan semantik, jawaban keselamatan dan statistik Asisten, tautan dan halaman pendamping, impor dan ringkasan CGM, ekspor FHIR, edukasi produksi menyembunyikan draf, sinkron luring, WebSocket (`hello` diterima), `/metrics` tertutup, hapus akun (akun uji tidak tersisa). Email verifikasi disimulasikan lewat DB karena SMTP belum ada.
+- Latensi uji asap: catat glukosa ~150 ms, pencarian makanan ~500 ms (termasuk embedding Mistral), pesan Asisten 650–850 ms; permintaan pertama setelah lama diam (Neon dan fungsi bangun) ~1,5–2 dtk.
+
+## 3. Layanan gratis yang perlu kunci dari pemilik
+
+| Kebutuhan | Rekomendasi gratis | Batas gratis | Variabel |
+|---|---|---|---|
+| **Email (wajib, tanpa ini pendaftaran tidak bisa diverifikasi)** | [Brevo](https://www.brevo.com/free-smtp-server/) SMTP | 300 email/hari, tanpa kartu kredit; alamat pengirim diverifikasi lewat email, domain tidak wajib | `SMTP_HOST=smtp-relay.brevo.com`, `SMTP_PORT=587`, `SMTP_USER` (login Brevo), `SMTP_PASS` (SMTP key), `EMAIL_FROM="beOkay <alamat-terverifikasi>"` |
+| Alternatif email | Gmail SMTP dengan App Password (butuh 2FA) | ~500/hari | `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`, `SMTP_SECURE=true`, `SMTP_USER`, `SMTP_PASS` |
+| **Penjadwal tiap 5–10 menit (wajib untuk pengingat kotak masuk, outbox)** | [cron-job.org](https://www.cron-job.org/) | gratis, interval minimal 1 menit, header kustom didukung, batas waktu 30 dtk (tick butuh ~2 dtk) | job GET `https://beokay-api.vercel.app/internal/jobs/tick`, header `Authorization: Bearer <CRON_SECRET>`, tiap 5 menit |
+| Alternatif penjadwal | [Upstash QStash](https://upstash.com/qstash/pricing) | 1.000 pesan/hari (tiap 5 menit = 288/hari) | jadwal ke URL yang sama, header `Upstash-Forward-Authorization: Bearer <CRON_SECRET>` |
+| Alternatif tanpa akun baru | GitHub Actions `.github/workflows/jobs-tick.yml` (sudah dibuat, belum di-commit) | gratis di repo; jadwal bisa terlambat beberapa menit dan berhenti setelah 60 hari tanpa aktivitas repo | secret repo `BEOKAY_API_URL` dan `BEOKAY_CRON_SECRET` **sudah dipasang** |
+| Realtime antar-instance (opsional) | [Upstash Redis](https://upstash.com/pricing/redis) | 256 MB, 500 ribu perintah/bulan | `REALTIME_REDIS_URL=rediss://default:<token>@<host>:6379` |
+| Push saat aplikasi tertutup (opsional) | Firebase Cloud Messaging | gratis | `FCM_PROJECT_ID`, `FCM_SERVICE_ACCOUNT_JSON`; aplikasi butuh `google-services.json` |
+
+Vercel Cron (paket Hobby) hanya boleh sekali sehari; `vercel.json` memakainya sebagai cadangan pukul 02.00 WIB (retensi tetap jalan walau penjadwal eksternal mati).
+
+## 4. Memasang kunci
+
+Semua nilai rahasia disimpan di `/.env.deploy` (gitignored, izin 600). Untuk menambah kunci baru, tulis sendiri ke berkas itu, misalnya:
+
+```bash
+# di root repo; nilai diberi tanda kutip tunggal
+echo "SMTP_USER='login-brevo@contoh.com'" >> .env.deploy
+echo "SMTP_PASS='xsmtpsib-...'" >> .env.deploy
+echo "EMAIL_FROM='beOkay <pengirim-terverifikasi@contoh.com>'" >> .env.deploy
+```
+
+Lalu pasang ke Vercel tanpa menampilkan nilainya dan deploy ulang:
+
+```bash
+cd server
+vercel env add SMTP_HOST production --force <<< 'smtp-relay.brevo.com'
+vercel env add SMTP_USER production --force --sensitive    # tempel nilai saat diminta
+vercel env add SMTP_PASS production --force --sensitive
+vercel env add EMAIL_FROM production --force
+vercel deploy --prod
+```
+
+`CRON_SECRET` produksi ada di `.env.deploy` (`PROD_CRON_SECRET`). Untuk cron-job.org/QStash, salin nilainya dari berkas itu.
+
+## 5. Operasi rutin
+
+```bash
+# Migrasi ke Neon (di container; URL direct, bukan pooled)
+NEON_DIRECT_URL=... docker compose run --rm --no-deps -T -e DATABASE_URL="$NEON_DIRECT_URL" api bun run db:migrate:deploy
+
+# Deploy
+cd server && vercel deploy --prod
+
+# Status job
+curl -H "Authorization: Bearer $CRON_SECRET" https://beokay-api.vercel.app/internal/jobs/status
+
+# Log runtime
+cd server && vercel logs https://beokay-api.vercel.app --no-follow --limit 50
+```
+
+Jangan `source .env.deploy` langsung di shell: URL Neon memuat `&`. Baca nilainya dengan alat yang mengurai kutip (mis. `python3 -c` + `shlex`) atau salin manual.
+
+Aplikasi Android untuk server ini: `flutter build apk --debug --dart-define=API_BASE_URL=https://beokay-api.vercel.app` (rilis tetap butuh `key.properties`).
+
+## 6. Batas yang perlu diketahui
+
+1. **Hobby Vercel**: durasi fungsi maks. 300 dtk, badan permintaan maks. 4,5 MB (impor CGM dibatasi 4 MB), cron sekali sehari, pratinjau dilindungi Vercel Authentication (produksi publik).
+2. **Neon Free**: 1 GB penyimpanan dan 100 CU-jam per bulan per proyek; komputasi tidur saat diam sehingga permintaan pertama lebih lambat. Ukuran DB saat ini 28 MB (12 Nov 2026).
+3. **Pembatas laju per instance**: login dan aksi komunitas dibatasi per instance, bukan global. Untuk pilot kecil ini cukup; untuk publik luas pindahkan ke Redis.
+4. **WebSocket**: koneksi diputus paling lambat saat batas durasi fungsi; aplikasi menyambung ulang. Tanpa `REALTIME_REDIS_URL`, peristiwa dari instance lain tidak sampai lewat WebSocket (kotak masuk tetap benar lewat HTTP).
+5. **Edukasi**: `EDUCATION_INCLUDE_DRAFTS=false` di produksi, jadi daftar modul kosong sampai klinisi meninjau (lihat runbook).
+6. **Model foto hidangan (Modal)** dan pencarian web (Firecrawl/Brave) tidak dipasang di produksi.
+
+## 7. Insiden saat penyiapan
+
+Saat migrasi pertama, berkas env dibaca dengan `source` dan URL Neon yang memuat `&` terpotong; bash mencetak potongan URL, termasuk kata sandi role `neondb_owner`, ke log sesi kerja. Kata sandi langsung dirotasi lewat Neon API (12 Nov 2026), berkas ditulis ulang dengan kutip, dan migrasi dijalankan lewat pembungkus yang menyensor nilai rahasia. Basis data saat itu masih kosong.
+
+## 8. Rollback
+
+- Kode: `cd server && vercel rollback` (kembali ke deployment produksi sebelumnya) atau promosikan deployment lama dari dasbor.
+- Data: buat branch Neon sebelum migrasi berisiko (`neon branches create --project-id <id> --name pra-migrasi`).
+- Kembali ke VPS: `compose.prod.yaml` tidak berubah; set ulang `*_WORKER_ENABLED=true`.

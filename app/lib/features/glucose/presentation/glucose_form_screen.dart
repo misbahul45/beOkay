@@ -1,3 +1,4 @@
+import '../../../core/a11y/announce.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -21,6 +22,8 @@ import '../../preferences/application/preferences_controller.dart';
 import '../../today/application/today_controller.dart';
 import '../application/glucose_controller.dart';
 import '../data/glucose_models.dart';
+import 'glucose_alert_card.dart';
+import '../../../core/analytics/usage_tracker.dart';
 
 class GlucoseFormScreen extends ConsumerWidget {
   const GlucoseFormScreen({super.key, this.initial});
@@ -62,6 +65,7 @@ class _GlucoseForm extends ConsumerStatefulWidget {
 class _GlucoseFormState extends ConsumerState<_GlucoseForm> {
   final form = GlobalKey<FormState>();
   final recordId = newRecordId();
+  final opened = DateTime.now();
   late final value = TextEditingController(
     text: widget.initial?.originalValue.toString(),
   );
@@ -129,6 +133,12 @@ class _GlucoseFormState extends ConsumerState<_GlucoseForm> {
         'notes': notes.text.trim().isEmpty ? null : notes.text.trim(),
       }, id: widget.initial?.id);
       if (!mounted || !repo.isCurrentAccount()) return;
+      if (widget.initial == null) {
+        ref
+            .read(usageTrackerProvider)
+            .formSaved('glucose', DateTime.now().difference(opened));
+        announce(context, 'Glukosa tersimpan');
+      }
       ref.invalidate(todayProvider);
       ref.invalidate(glucoseProvider(saved.id));
       ref.invalidate(glucosePageProvider);
@@ -227,6 +237,12 @@ class _GlucoseFormState extends ConsumerState<_GlucoseForm> {
                     const FormNote(
                       'Pilih satuan yang tertera di alat. Angka tidak dikonversi otomatis.',
                     ),
+                    if (glucoseAlertFor(
+                          num.tryParse(value.text.trim().replaceAll(',', '.')),
+                          unit,
+                        )
+                        case final alert?)
+                      GlucoseAlertCard(alert: alert),
                   ],
                 ),
                 FormSection(

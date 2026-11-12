@@ -1,3 +1,5 @@
+import '../../../core/voice/voice_input.dart';
+import '../../education/education.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -628,6 +630,7 @@ class _AssistantTurn extends StatelessWidget {
         PhotoPart() => null,
         ReflectionPart() => ReflectionCard(part: part),
         ChallengesPart() => ChallengeSuggestionsCard(part: part),
+        EducationPart(:final items) => EducationLinks(items: items),
         MealDraftPart(:final draft) =>
           draft == null
               ? null
@@ -673,6 +676,7 @@ class _AssistantTurn extends StatelessWidget {
     }
     final basis = message.basis;
     if (basis != null && !basis.isEmpty) {
+      if (basis.languageModel) children.add(const LanguageModelNote());
       children.add(BasisLink(basis: basis, onManage: extras.manageMemory));
     }
     return Column(
@@ -783,6 +787,12 @@ class _Composer extends StatelessWidget {
             fixedSize: const Size(48, 48),
           ),
           icon: Icon(Icons.photo_camera_outlined, color: AppColors.brand),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        MicButton(
+          controller: controller,
+          domain: 'assistant',
+          enabled: !sending,
         ),
         const SizedBox(width: AppSpacing.xs),
         Expanded(

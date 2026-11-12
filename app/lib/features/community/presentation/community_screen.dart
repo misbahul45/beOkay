@@ -249,7 +249,9 @@ class _Overview extends StatelessWidget {
                   ),
                   title: Text(m.name, style: AppTypography.bodyStrong),
                   subtitle: Text(
-                    'Alias: ${m.alias} · ${m.openChallenges} tantangan berjalan',
+                    m.aliasHidden
+                        ? 'Alias ${m.alias} disembunyikan sementara karena dilaporkan. Ganti alias agar tampil lagi.'
+                        : 'Alias: ${m.alias} · ${m.openChallenges} tantangan berjalan',
                     style: AppTypography.caption,
                   ),
                   trailing: const Icon(Icons.chevron_right_rounded),

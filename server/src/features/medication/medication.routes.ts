@@ -6,6 +6,9 @@ import { medicationService } from "./medication.service.ts";
 const seg = (req: Request, i: number) => z.uuid().parse(new URL(req.url).pathname.split("/")[i]);
 const query = (req: Request) => Object.fromEntries(new URL(req.url).searchParams);
 export const medicationRoutes = {
+  "/api/me/medications/upcoming": {
+    GET: authenticated(async ({ req, session }) => ({ body: await medicationService.upcoming(session.userId, z.coerce.number().int().min(1).max(3).default(2).parse(new URL(req.url).searchParams.get("days") ?? undefined)) })),
+  },
   "/api/me/medications": {
     GET: authenticated(async ({ req, session }) => ({ body: await medicationService.list(session.userId, listQuerySchema.parse(query(req))) })),
     POST: authenticated(async ({ req, session }) => ({ status: 201, body: await medicationService.create(session.userId, await readJson(req, regimenCreateSchema)) })),

@@ -23,6 +23,54 @@ String? validateGlucoseInput(String? text, String unit) {
   return null;
 }
 
+const glucoseLowMgDl = 70;
+const glucoseHighMgDl = 300;
+const mgDlPerMmolL = 18.016;
+
+class GlucoseAlert {
+  const GlucoseAlert(this.level, this.title, this.message);
+  GlucoseAlert.fromJson(Map<String, dynamic> j)
+    : level = j['level'] as String,
+      title = j['title'] as String,
+      message = j['message'] as String;
+  final String level, title, message;
+  bool get low => level == 'LOW';
+}
+
+const _lowAlert = GlucoseAlert(
+  'LOW',
+  'Angka ini di bawah 70 mg/dL',
+  'Bila kamu merasa gemetar, berkeringat, bingung, atau lemas, ikuti rencana penanganan gula rendah dari tenaga kesehatanmu. Bila tidak membaik, pingsan, atau sulit sadar, segera hubungi layanan darurat 119.',
+);
+const _highAlert = GlucoseAlert(
+  'HIGH',
+  'Angka ini 300 mg/dL atau lebih',
+  'Periksa ulang dengan alat yang sama bila memungkinkan. Bila tetap tinggi, atau disertai muntah, sangat haus, sesak, atau lemas berat, segera hubungi tenaga kesehatan atau layanan darurat 119.',
+);
+
+GlucoseAlert? glucoseAlertFor(num? value, String unit) {
+  if (value == null) return null;
+  final mgdl = unit == 'mmol/L' ? value * mgDlPerMmolL : value;
+  if (mgdl < glucoseLowMgDl) return _lowAlert;
+  if (mgdl >= glucoseHighMgDl) return _highAlert;
+  return null;
+}
+
+class GlucoseContext {
+  GlucoseContext.fromJson(Map<String, dynamic> j)
+    : line = j['line'] as String,
+      comparison = (j['comparison'] as Map?)?['comparison'] as String?,
+      previousValue = (j['previous'] as Map?)?['value'] as num?,
+      previousStamp = j['previous'] is Map
+          ? '${(j['previous'] as Map)['localDate']} · ${(j['previous'] as Map)['localTime']}'
+          : null,
+      displayUnit = j['displayUnit'] as String,
+      note = (j['neutralNote'] as String?) ?? '';
+  final String line, displayUnit, note;
+  final String? comparison, previousStamp;
+  final num? previousValue;
+}
+
 class GlucoseRecord {
   GlucoseRecord.fromJson(Map<String, dynamic> json)
     : id = json['id'] as String,
@@ -41,7 +89,11 @@ class GlucoseRecord {
       notes = json['notes'] as String?,
       archived = json['archivedAt'] != null,
       recordedAt = json['recordedAt'] as String?,
-      receivedAt = json['receivedAt'] as String?;
+      receivedAt = json['receivedAt'] as String?,
+      alert = json['alert'] is Map
+          ? GlucoseAlert.fromJson(json['alert'] as Map<String, dynamic>)
+          : null;
+  final GlucoseAlert? alert;
   final String id,
       originalUnit,
       displayUnit,

@@ -4,6 +4,7 @@ import { localRecordTime } from "../../shared/http/record-schema.ts";
 import { shiftActivityDate } from "../activity/activity.model.ts";
 import { consentService } from "../consent/consent.service.ts";
 import { nutritionService } from "../nutrition/nutrition.service.ts";
+import { GLUCOSE_COUNTED_QUALITY } from "../glucose/glucose.model.ts";
 import { preferencesService } from "../preferences/preferences.service.ts";
 import { buildTrends, type Coverage, type DayInput } from "./trends.model.ts";
 
@@ -24,7 +25,7 @@ export const trendsService = {
 
     const [glucose, activity, meals, intakes] = await Promise.all([
       prisma.glucoseObservation.findMany({
-        where: { userId, archivedAt: null, qualityStatus: "user_reported", measuredAt: { gte: from, lt: to } },
+        where: { userId, archivedAt: null, qualityStatus: { in: [...GLUCOSE_COUNTED_QUALITY] }, measuredAt: { gte: from, lt: to } },
         select: { measuredAt: true, valueMgDl: true },
       }),
       prisma.activitySession.findMany({

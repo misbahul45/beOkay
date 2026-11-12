@@ -40,6 +40,10 @@ async function sourcesFor(userId: string, g: Goal, from: Date, to: Date, tz: str
       const rows = await prisma.activitySession.findMany({ where: { userId, archivedAt: null, qualityStatus: { in: [...ACTIVITY_COUNTED_QUALITY] }, startedAt: { gte: from, lt: to }, ...(g.goalType === "walking_sessions" ? { activityType: "walking" } : {}) } });
       return rows.map((r) => ({ date: localDay(r.startedAt), value: g.goalType === "activity_minutes" ? r.durationMinutes : 1 }));
     }
+    case "daily_steps": {
+      const rows = await prisma.dailySteps.findMany({ where: { userId, localDate: { gte: new Date(localDay(from) + "T00:00:00Z"), lt: new Date(localDay(to) + "T00:00:00Z") } } });
+      return rows.map((r) => ({ date: r.localDate.toISOString().slice(0, 10), value: r.steps }));
+    }
     case "record_meals": {
       const rows = await prisma.mealLog.findMany({ where: { userId, archivedAt: null, consumedAt: { gte: from, lt: to } }, select: { consumedAt: true } });
       return rows.map((r) => ({ date: localDay(r.consumedAt) }));

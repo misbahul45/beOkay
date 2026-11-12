@@ -1,4 +1,4 @@
-export const CONSENT_PURPOSES = ["health_data_processing", "descriptive_summaries", "product_analytics", "personalized_ai", "community_membership", "challenge_participation", "leaderboard_visibility", "model_inference", "ai_text_generation"] as const;
+export const CONSENT_PURPOSES = ["health_data_processing", "descriptive_summaries", "product_analytics", "personalized_ai", "community_membership", "challenge_participation", "leaderboard_visibility", "model_inference", "ai_text_generation", "ai_message_understanding", "companion_sharing"] as const;
 export type ConsentPurpose = (typeof CONSENT_PURPOSES)[number];
 
 export const CONSENT_SOURCES = ["onboarding", "settings", "api"] as const;
@@ -101,6 +101,22 @@ export const currentPolicy: ConsentPolicy = {
       description: "Menyusun penjelasan saran dengan bantuan model bahasa pihak ketiga (Mistral). Yang dikirim hanya fakta saran itu: nama makanan atau aktivitas, nilai gizi bersumber, alasan peringkat, dan kata pencarianmu. Tidak dikirim: nama, surel, alergi, kadar glukosa, atau riwayat catatanmu. Teks selalu diperiksa aturan keselamatan dan diganti templat bila gagal.",
       dataCategories: ["Fakta saran (nama makanan/aktivitas, nilai gizi bersumber, kata pencarian)"],
       withdrawalEffect: "Penjelasan kembali memakai templat tetap. Saran yang sudah ada tidak berubah.",
+    },
+    {
+      purpose: "ai_message_understanding",
+      required: false,
+      title: "Memahami pesan dengan model bahasa",
+      description: "Bila aturan beOkay tidak mengenali pesanmu di Asisten, teks pesan itu dikirim ke model bahasa pihak ketiga (Mistral) untuk menebak jenis bantuan yang kamu maksud dan memeriksa keamanannya. Model hanya mengusulkan; aturan keselamatan dan persetujuanmu yang memutuskan. Nama, surel, dan catatan kesehatanmu tidak dikirim.",
+      dataCategories: ["Teks pesan Asisten yang tidak dikenali aturan"],
+      withdrawalEffect: "Pesan yang tidak dikenali dijawab dengan pilihan tetap seperti sebelumnya. Usulan yang sudah tercatat tidak berubah.",
+    },
+    {
+      purpose: "companion_sharing",
+      required: false,
+      title: "Berbagi ringkasan mingguan dengan pendamping",
+      description: "Orang yang kamu beri tautan pendamping (misalnya anggota keluarga) bisa melihat ringkasan mingguan: jumlah hari tercatat, menit aktivitas, jumlah konfirmasi obat, dan jam pengingat obat yang belum dikonfirmasi. Catatan mentah, nama makanan, nama obat, dan angka glukosa tidak ditampilkan.",
+      dataCategories: ["Ringkasan mingguan yang dihitung dari catatanmu", "Jam pengingat obat yang belum dikonfirmasi"],
+      withdrawalEffect: "Semua tautan pendamping berhenti berfungsi. Tautan bisa dibuat lagi bila kamu menyetujui kembali.",
     },
   ],
 };

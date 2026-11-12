@@ -13,6 +13,7 @@ beOkay adalah platform pencatatan kebiasaan harian untuk orang dewasa dengan dia
 | Aplikasi Flutter (struktur, rute, offline, Android) | [architecture/mobile-app.md](architecture/mobile-app.md) |
 | Menjalankan, menguji, memigrasi, merilis; variabel lingkungan; pipeline TKPI & model | [operations/runbook.md](operations/runbook.md) |
 | Kondisi proyek, risiko, dan apa yang harus dibereskan | [audits/full-project-audit-2026-11-10.md](audits/full-project-audit-2026-11-10.md) |
+| Analisis gap lima dimensi (UI, sistem, kapabilitas, hibrida agentik, dampak) dengan bukti literatur dan usulan Fase 8–11 | [audits/gap-analysis-2026-11-12.md](audits/gap-analysis-2026-11-12.md) |
 | beOkay 3.0: audit Fase 0, sistem desain & navigasi (Fase 1), Beranda & statistik (Fase 2), rencana fase berikutnya | [reports/beokay-3.0-phase-0-2.md](reports/beokay-3.0-phase-0-2.md) |
 | beOkay 3.0 Fase 3: Asisten percakapan (router, bagian bertipe, gerbang identitas makanan) | [reports/beokay-3.0-phase-3.md](reports/beokay-3.0-phase-3.md) |
 | Redesign UI/UX Wawasan (Ringkasan · Tren · Harian, kebijakan visibilitas metadata) | [reports/beokay-3.0-uiux-redesign.md](reports/beokay-3.0-uiux-redesign.md) |
@@ -20,6 +21,9 @@ beOkay adalah platform pencatatan kebiasaan harian untuk orang dewasa dengan dia
 | Logo beOkay di header Beranda (varian mode gelap) dan perbaikan layar Profil | [reports/beokay-3.0-logo-profil.md](reports/beokay-3.0-logo-profil.md) |
 | beOkay 3.0 Fase 5: coaching lingkar tertutup (peluang, rencana kecil, JITAI v2, hasil per hari, umpan balik, refleksi mingguan) | [reports/beokay-3.0-phase-5.md](reports/beokay-3.0-phase-5.md) |
 | beOkay 3.0 Fase 6: komunitas & tantangan berulang, pengakuan usaha, notifikasi + WebSocket realtime + FCM, form dan halaman detail baru, perbaikan tombol Kembali | [reports/beokay-3.0-phase-6.md](reports/beokay-3.0-phase-6.md) |
+| beOkay 3.0 Fase 7: pengerasan (keselamatan v2, registri model, CI, cadangan DB, verifikasi rilis Android) dan rancangan pilot | [reports/beokay-3.0-phase-7.md](reports/beokay-3.0-phase-7.md) |
+| Paket tinjauan klinisi untuk aturan keselamatan Asisten | [research/safety-clinical-review-packet.md](research/safety-clinical-review-packet.md) |
+| Rancangan pilot kegunaan (draf, menunggu etik) | [research/pilot-protocol.md](research/pilot-protocol.md) |
 
 ## Status singkat (per 10 November 2026)
 
@@ -29,9 +33,9 @@ beOkay adalah platform pencatatan kebiasaan harian untuk orang dewasa dengan dia
 | P1 | kalkulator porsi, pencarian makanan (lokal + OFF/USDA + TKPI), barcode, pemindaian label/foto, preferensi & alergi, pengingat, push, ekspor, impor Health Connect, insight kontekstual, tren | selesai, dengan keterbatasan | UI dibangun tanpa desain FigCraft; push nyata terblokir Firebase |
 | P2 | agen nutrisi + aktivitas (persetujuan tepat-sekali), personalisasi deterministik, komunitas/tantangan/skor, registri model + Modal, teks saran Mistral, SSE, outbox, hasil terukur | `P2_FUNCTIONALLY_COMPLETE_WITH_LIMITATIONS` | siklus tantangan ditutup di 3.0 Fase 6 (F-04); registri model tanpa alat (F-16) |
 | P3 | mesin intervensi JITAI (tahap awal), pembersihan UX | irisan vertikal; 5 dari 13 kapabilitas `NOT_STARTED` (P3-04, 06, 08, 11, 13) | lihat [reports/p3-execution-plan.md](reports/p3-execution-plan.md) |
-| 3.0 | sistem desain v3, beOkay Spark, navigasi Asisten, mesin statistik `stats-v1`, Beranda adaptif, Asisten percakapan | Fase 0–6 selesai; Fase 7 direncanakan | [phase-0-2](reports/beokay-3.0-phase-0-2.md) · [phase-3](reports/beokay-3.0-phase-3.md) · [phase-6](reports/beokay-3.0-phase-6.md) |
+| 3.0 | sistem desain v3, beOkay Spark, navigasi Asisten, mesin statistik `stats-v1`, Beranda adaptif, Asisten percakapan | Fase 0–7 selesai; pemblokir rilis yang tersisa butuh tindakan pemilik (kunci rilis, Firebase, tinjauan klinisi, etik) | [phase-0-2](reports/beokay-3.0-phase-0-2.md) · [phase-3](reports/beokay-3.0-phase-3.md) · [phase-6](reports/beokay-3.0-phase-6.md) · [phase-7](reports/beokay-3.0-phase-7.md) |
 
-Verifikasi terakhir (setelah 3.0 Fase 6, 11 Nov 2026): `tsc` bersih · backend **318/318** tes · `flutter analyze` bersih · Flutter **207/207** tes. Pemblokir rilis F-01 (hapus akun) dan F-02 (ekspor lengkap) sudah ditutup; F-03 tinggal kunci rilis pemilik dan pendaftaran Firebase (`id.beokay.app` + `google-services.json`); F-04 dan F-10 ditutup. Mode gelap mengikuti sistem.
+Verifikasi terakhir (setelah 3.0 Fase 7, 12 Nov 2026): `tsc` bersih · backend **330/330** tes · `flutter analyze` bersih · Flutter **210/210** tes · gitleaks bersih · `actionlint` bersih. Pemblokir rilis F-01 (hapus akun) dan F-02 (ekspor lengkap) sudah ditutup; F-03 tinggal kunci rilis pemilik dan pendaftaran Firebase (`id.beokay.app` + `google-services.json`); F-04 dan F-10 ditutup. Mode gelap mengikuti sistem.
 
 ## Peta dokumen lama
 

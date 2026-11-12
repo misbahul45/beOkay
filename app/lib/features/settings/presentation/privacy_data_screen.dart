@@ -14,6 +14,8 @@ import '../../../core/widgets/page_scaffold.dart';
 import '../../../core/widgets/pill_button.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../export/presentation/export_section.dart';
+import '../../app_lock/app_lock.dart';
+import '../../share/presentation/summary_report_screen.dart';
 
 const deletedItems = [
   'Profil, profil kesehatan, dan pengaturan',
@@ -32,6 +34,8 @@ class PrivacyDataScreen extends StatelessWidget {
     return PageScaffold(
       title: 'Privasi & data',
       children: [
+        const SummaryReportEntry(),
+        const SizedBox(height: AppSpacing.lg),
         const ExportSection(),
         const SizedBox(height: AppSpacing.xl),
         Semantics(
@@ -82,6 +86,12 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
 
   Future<void> _delete() async {
     if (!_ready || _busy) return;
+    if (!await ref
+        .read(appLockProvider.notifier)
+        .confirmSensitive('Konfirmasi menghapus akun')) {
+      return;
+    }
+    if (!mounted) return;
     setState(() {
       _busy = true;
       _error = null;

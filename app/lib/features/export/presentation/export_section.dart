@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../app_lock/app_lock.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/error_messages.dart';
@@ -22,6 +23,11 @@ class _ExportSectionState extends ConsumerState<ExportSection> {
   bool failed = false;
 
   Future<void> run() async {
+    if (!await ref
+        .read(appLockProvider.notifier)
+        .confirmSensitive('Konfirmasi mengunduh datamu')) {
+      return;
+    }
     setState(() {
       busy = true;
       message = null;
@@ -33,6 +39,46 @@ class _ExportSectionState extends ConsumerState<ExportSection> {
         setState(
           () => message =
               'Data siap dibagikan (${outcome.records} catatan). Simpan di tempat yang aman.',
+        );
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() {
+          failed = true;
+          message = e.code == 'EXPORT_RATE_LIMITED'
+              ? 'Terlalu sering mengunduh. Coba lagi dalam satu jam.'
+              : messageFor(e);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          failed = true;
+          message = 'Data tidak dapat dibagikan. Coba lagi.';
+        });
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> runFhir() async {
+    if (!await ref
+        .read(appLockProvider.notifier)
+        .confirmSensitive('Konfirmasi mengunduh datamu')) {
+      return;
+    }
+    setState(() {
+      busy = true;
+      message = null;
+      failed = false;
+    });
+    try {
+      final n = await ref.read(fhirExporterProvider)();
+      if (mounted) {
+        setState(
+          () => message =
+              'Berkas FHIR siap dibagikan (${n > 0 ? n - 1 : 0} pengukuran). Simpan di tempat yang aman.',
         );
       }
     } on ApiException catch (e) {
@@ -78,6 +124,14 @@ class _ExportSectionState extends ConsumerState<ExportSection> {
         loading: busy,
         onPressed: run,
       ),
+      const SizedBox(height: AppSpacing.xs),
+      PillButton(
+        label: 'Ekspor FHIR R4',
+        icon: Icons.local_hospital_outlined,
+        kind: PillButtonKind.secondary,
+        loading: busy,
+        onPressed: runFhir,
+      ),
       if (message != null) ...[
         const SizedBox(height: AppSpacing.xs),
         InfoCard(
@@ -87,7 +141,7 @@ class _ExportSectionState extends ConsumerState<ExportSection> {
       ],
       const SizedBox(height: AppSpacing.xs),
       Text(
-        'Berkas berisi data kesehatanmu. Ringkasan turunan, sesi, dan kata sandi tidak disertakan.',
+        'Berkas berisi data kesehatanmu. Ringkasan turunan, sesi, dan kata sandi tidak disertakan. FHIR adalah standar pertukaran data kesehatan yang dipakai SATUSEHAT; beOkay belum tersambung ke SATUSEHAT, berkas ini untuk kamu bawa sendiri.',
         style: AppTypography.caption,
       ),
     ],

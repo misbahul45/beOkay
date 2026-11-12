@@ -104,11 +104,20 @@ class ReferenceFood {
       provenance = j['provenance'] as String,
       source = j['source'] as String,
       completeness = j['completeness'] as String,
+      curated = j['verification'] == 'curated',
+      servingTypical = (j['serving'] as Map?)?['typicalGrams'] as num?,
+      servingMin = (j['serving'] as Map?)?['minGrams'] as num?,
+      servingMax = (j['serving'] as Map?)?['maxGrams'] as num?,
       per100g = (j['per100g'] as Map<String, dynamic>).map(
         (k, v) => MapEntry(k, v as num?),
       );
   final String code, name, provenance, source, completeness;
+  final bool curated;
+  final num? servingTypical, servingMin, servingMax;
   final Map<String, num?> per100g;
+  String? get servingLabel => servingTypical == null
+      ? null
+      : 'Porsi umum ${servingTypical!.round()} g${servingMin != null && servingMax != null ? ' (${servingMin!.round()}–${servingMax!.round()} g)' : ''}';
   String get summary {
     final kcal = per100g['calories'];
     return '${kcal == null ? 'Energi belum tersedia' : '${kcal.round()} kkal'} per 100 gram';
@@ -336,4 +345,44 @@ class MealPage {
     json['nextCursor'] as String?,
     json['timezone'] as String,
   );
+}
+
+class GlucoseNearMeal {
+  GlucoseNearMeal.fromJson(Map<String, dynamic> j)
+    : value = j['value'] as num,
+      minutes = j['minutesFromMeal'] as int,
+      localTime = j['localTime'] as String;
+  final num value;
+  final int minutes;
+  final String localTime;
+  String get offset => minutes == 0
+      ? 'saat makan'
+      : minutes < 0
+      ? '${-minutes} menit sebelum makan'
+      : '${minutes ~/ 60 > 0 ? '${minutes ~/ 60} jam ' : ''}${minutes % 60 > 0 ? '${minutes % 60} menit ' : ''}setelah makan';
+}
+
+class MealContext {
+  MealContext.fromJson(Map<String, dynamic> j)
+    : carbLine = j['carbLine'] as String,
+      carbCompared = j['carbComparison'] != null,
+      before = (j['glucosePair'] as Map?)?['before'] is Map
+          ? GlucoseNearMeal.fromJson(
+              (j['glucosePair'] as Map)['before'] as Map<String, dynamic>,
+            )
+          : null,
+      after = (j['glucosePair'] as Map?)?['after'] is Map
+          ? GlucoseNearMeal.fromJson(
+              (j['glucosePair'] as Map)['after'] as Map<String, dynamic>,
+            )
+          : null,
+      difference = (j['glucosePair'] as Map?)?['difference'] as num?,
+      unit = ((j['glucosePair'] as Map?)?['displayUnit'] as String?) ?? '',
+      pairNote = ((j['glucosePair'] as Map?)?['note'] as String?) ?? '',
+      pairHint = j['pairHint'] as String?;
+  final String carbLine, unit, pairNote;
+  final bool carbCompared;
+  final GlucoseNearMeal? before, after;
+  final num? difference;
+  final String? pairHint;
 }

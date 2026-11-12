@@ -1,0 +1,9 @@
+title = "beOkay"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Kunci aturan pengakuan berupa konstanta huruf besar, bukan rahasia"
+regexTarget = "line"
+regexes = ['''^\s*\{ key: "[A-Z][A-Z0-9_]+", category: "[A-Z]+",''']

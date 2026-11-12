@@ -44,6 +44,9 @@ class GlucoseRepository extends AccountScopedRepository {
       '/api/me/glucose/summary${date == null ? '' : '?date=$date'}',
     )).object,
   );
+  Future<GlucoseContext> context(String id) async => GlucoseContext.fromJson(
+    (await api.get('/api/me/glucose/$id/context')).object,
+  );
   Future<List<Map<String, dynamic>>> revisions(String id) async =>
       ((await api.get('/api/me/glucose/$id/revisions')).object['items'] as List)
           .cast<Map<String, dynamic>>();

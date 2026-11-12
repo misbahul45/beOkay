@@ -3,7 +3,14 @@ import { prisma } from "../../infrastructure/database/prisma.ts";
 import { recordAudit } from "../../shared/audit/audit.ts";
 import { conflict, forbidden, notFound } from "../../shared/errors/app-error.ts";
 import { consentService } from "../consent/consent.service.ts";
-import { MEMORY_KIND_LABELS, extractMemoryCandidates, type MemoryKind } from "./memory.extract.ts";
+import { MEMORY_KIND_LABELS, extractMemoryCandidates, ttlDaysFor, type MemoryCandidate, type MemoryKind } from "./memory.extract.ts";
+
+const DAY = 86_400_000;
+const notExpired = () => ({ OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] });
+const expiryFor = (kind: string, key: string, from = new Date()) => {
+  const ttl = ttlDaysFor(kind, key);
+  return ttl ? new Date(from.getTime() + ttl * DAY) : null;
+};
 
 type Row = NonNullable<Awaited<ReturnType<typeof prisma.memoryItem.findFirst>>>;
 
@@ -17,6 +24,7 @@ export const memoryView = (m: Row) => ({
   sourceType: m.sourceType,
   version: m.version,
   confirmedAt: m.confirmedAt?.toISOString() ?? null,
+  expiresAt: m.expiresAt?.toISOString() ?? null,
   updatedAt: m.updatedAt.toISOString(),
 });
 
@@ -45,10 +53,13 @@ export const memoryService = {
     return (await enabledSetting(userId)) && (await consentGiven(userId));
   },
 
-  async propose(userId: string, text: string, sourceId: string | null) {
+  async propose(userId: string, text: string, sourceId: string | null, extra: MemoryCandidate[] = [], source: "CONVERSATION" | "LANGUAGE_MODEL" = "CONVERSATION") {
     if (!(await this.allowed(userId))) return [];
     const created: Row[] = [];
-    for (const c of extractMemoryCandidates(text)) {
+    const found = extractMemoryCandidates(text);
+    const candidates = [...found, ...extra.filter((e) => !found.some((f) => f.kind === e.kind))];
+    for (const c of candidates) {
+      const fromModel = source === "LANGUAGE_MODEL" && extra.includes(c);
       const [active, dismissed, pending] = await Promise.all([
         prisma.memoryItem.findFirst({ where: { userId, key: c.key, status: "ACTIVE" } }),
         prisma.memoryItem.findFirst({ where: { userId, key: c.key, status: "DISMISSED", content: c.content } }),
@@ -65,7 +76,20 @@ export const memoryService = {
       try {
         created.push(
           await prisma.memoryItem.create({
-            data: { userId, category: "PREFERENCE", kind: c.kind, key: c.key, content: c.content, status: "PROPOSED", sourceType: "CONVERSATION", sourceId },
+            data: {
+              userId,
+              category: "PREFERENCE",
+              kind: c.kind,
+              key: c.key,
+              content: c.content,
+              status: "PROPOSED",
+              sourceType: fromModel ? "LANGUAGE_MODEL" : "CONVERSATION",
+              confidence: fromModel ? "INFERRED" : "STATED",
+              sensitivity: c.kind === "HEALTH_EVENT" ? "MEDIUM" : "LOW",
+              retention: expiryFor(c.kind, c.key) ? "EXPIRES" : "UNTIL_DELETED",
+              expiresAt: expiryFor(c.kind, c.key),
+              sourceId,
+            },
           }),
         );
       } catch (e) {
@@ -77,7 +101,7 @@ export const memoryService = {
 
   async activeFor(userId: string) {
     if (!(await this.allowed(userId))) return [];
-    return prisma.memoryItem.findMany({ where: { userId, status: "ACTIVE" }, orderBy: [{ updatedAt: "desc" }, { id: "asc" }], take: 50 });
+    return prisma.memoryItem.findMany({ where: { userId, status: "ACTIVE", ...notExpired() }, orderBy: [{ updatedAt: "desc" }, { id: "asc" }], take: 50 });
   },
 
   async viewsFor(userId: string, ids: string[]) {
@@ -90,7 +114,7 @@ export const memoryService = {
     const [enabled, consent, rows] = await Promise.all([
       enabledSetting(userId),
       consentGiven(userId),
-      prisma.memoryItem.findMany({ where: { userId, status: "ACTIVE" }, orderBy: [{ updatedAt: "desc" }, { id: "asc" }] }),
+      prisma.memoryItem.findMany({ where: { userId, status: "ACTIVE", ...notExpired() }, orderBy: [{ updatedAt: "desc" }, { id: "asc" }] }),
     ]);
     return { enabled, consentGiven: consent, active: enabled && consent, items: rows.map(memoryView) };
   },
@@ -104,10 +128,10 @@ export const memoryService = {
       const active = await tx.memoryItem.findFirst({ where: { userId, key: row.key, status: "ACTIVE" } });
       let result: Row;
       if (active) {
-        result = await tx.memoryItem.update({ where: { id: active.id }, data: { content: row.content, sourceId: row.sourceId, version: { increment: 1 }, confirmedAt: new Date() } });
+        result = await tx.memoryItem.update({ where: { id: active.id }, data: { content: row.content, sourceId: row.sourceId, version: { increment: 1 }, confirmedAt: new Date(), expiresAt: expiryFor(row.kind, row.key), retention: expiryFor(row.kind, row.key) ? "EXPIRES" : "UNTIL_DELETED" } });
         await tx.memoryItem.delete({ where: { id: row.id } });
       } else {
-        result = await tx.memoryItem.update({ where: { id: row.id }, data: { status: "ACTIVE", confirmedAt: new Date() } });
+        result = await tx.memoryItem.update({ where: { id: row.id }, data: { status: "ACTIVE", confirmedAt: new Date(), expiresAt: expiryFor(row.kind, row.key) } });
       }
       await recordAudit(tx, { userId, eventType: "memory_confirmed", metadata: { memoryId: result.id, kind: result.kind } });
       return result;

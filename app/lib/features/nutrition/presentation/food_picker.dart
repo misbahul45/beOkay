@@ -1,3 +1,4 @@
+import '../../../core/theme/app_typography.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -275,7 +276,9 @@ class _FoodPickerState extends State<FoodPicker> {
           if (reference.isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(
-              'Dari Tabel Komposisi Pangan Indonesia',
+              reference.any((r) => r.curated)
+                  ? 'Dari TKPI dan hidangan kurasi beOkay'
+                  : 'Dari Tabel Komposisi Pangan Indonesia',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             for (final r in reference)
@@ -283,7 +286,14 @@ class _FoodPickerState extends State<FoodPicker> {
                 title: Text(r.name),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [Text(r.summary), ?preferenceLine(r.name)],
+                  children: [
+                    Text(r.summary),
+                    if (r.curated)
+                      Text(r.provenance, style: AppTypography.caption),
+                    if (r.servingLabel case final serving?)
+                      Text(serving, style: AppTypography.caption),
+                    ?preferenceLine(r.name),
+                  ],
                 ),
                 onTap: () => useReference(r),
               ),

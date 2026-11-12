@@ -69,6 +69,20 @@ model Users {
   recognitions Recognition[]
   notifications Notification[]
   notificationPreference NotificationPreference?
+  usageEvents UsageEvent[]
+  vitalMeasurements VitalMeasurement[]
+  labResults LabResult[]
+  incidentReports IncidentReport[]
+  dailySteps DailySteps[]
+  sleepSessions SleepSession[]
+  deviceImportPreference DeviceImportPreference?
+  shareLinks ShareLink[]
+  routerProposals RouterProposal[]
+  weeklyEpisodes WeeklyEpisode[]
+  companionLinks CompanionLink[]
+  cgmImports CgmImport[]
+  cgmReadings CgmReading[]
+  communityReports CommunityReport[]
 
   @@unique([email])
   @@map("users")
@@ -278,6 +292,8 @@ model RecordRevision {
   intakeId    String?  @map("intake_id") @db.Uuid
   goalId      String?  @map("goal_id") @db.Uuid
   checkinId   String?  @map("checkin_id") @db.Uuid
+  vitalId     String?  @map("vital_id") @db.Uuid
+  labId       String?  @map("lab_id") @db.Uuid
   version     Int
   reason      String
   snapshot    Json     @db.JsonB
@@ -290,6 +306,8 @@ model RecordRevision {
   intake      MedicationIntake? @relation(fields: [intakeId], references: [id], onDelete: Cascade)
   goal        BehaviorGoal? @relation(fields: [goalId], references: [id], onDelete: Cascade)
   checkin     GoalCheckin? @relation(fields: [checkinId], references: [id], onDelete: Cascade)
+  vital       VitalMeasurement? @relation(fields: [vitalId], references: [id], onDelete: Cascade)
+  lab         LabResult? @relation(fields: [labId], references: [id], onDelete: Cascade)
   @@unique([mealId, version])
   @@unique([glucoseId, version])
   @@unique([activityId, version])
@@ -297,6 +315,8 @@ model RecordRevision {
   @@unique([intakeId, version])
   @@unique([goalId, version])
   @@unique([checkinId, version])
+  @@unique([vitalId, version])
+  @@unique([labId, version])
   @@index([userId, createdAt(sort: Desc)])
   @@map("record_revisions")
 }
@@ -324,6 +344,7 @@ model GlucoseObservation {
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
   user            Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
   revisions       RecordRevision[]
+  @@unique([userId, source, sourceRecordId])
   @@index([userId, measuredAt(sort: Desc), id(sort: Desc)])
   @@map("glucose_observations")
 }
@@ -574,8 +595,14 @@ model FoodReference {
   ash            Decimal? @db.Decimal(12, 4)
   embedding      Unsupported("vector(1024)")?
   embeddingModel String?  @map("embedding_model")
+  servingMinG    Decimal? @map("serving_min_g") @db.Decimal(8, 2)
+  servingTypicalG Decimal? @map("serving_typical_g") @db.Decimal(8, 2)
+  servingMaxG    Decimal? @map("serving_max_g") @db.Decimal(8, 2)
+  method         String?
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  recipeItems    FoodRecipeItem[] @relation("RecipeFood")
+  usedInRecipes  FoodRecipeItem[] @relation("RecipeIngredient")
   @@index([status])
   @@index([nameNormalized(ops: raw("gin_trgm_ops"))], map: "food_reference_name_trgm_idx", type: Gin)
   @@map("food_reference")
@@ -797,8 +824,10 @@ model CommunityMembership {
   status      String
   joinedAt    DateTime  @default(now()) @map("joined_at") @db.Timestamptz(6)
   leftAt      DateTime? @map("left_at") @db.Timestamptz(6)
+  hiddenAt    DateTime? @map("hidden_at") @db.Timestamptz(6)
   user        Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
   community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  reports     CommunityReport[]
   @@unique([userId, communityId])
   @@index([communityId, status])
   @@map("community_memberships")
@@ -1092,6 +1121,7 @@ model MemoryItem {
   retention   String    @default("UNTIL_DELETED")
   version     Int       @default(1)
   confirmedAt DateTime? @map("confirmed_at") @db.Timestamptz(6)
+  expiresAt   DateTime? @map("expires_at") @db.Timestamptz(6)
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   user        Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1242,4 +1272,306 @@ model NotificationPreference {
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
   user        Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@map("notification_preferences")
+}
+
+/// Peristiwa pemakaian (Fase 8, D-1). Hanya jenis peristiwa, domain, dan waktu; tidak pernah memuat isi catatan kesehatan. Dicatat hanya bila consent `product_analytics` aktif; dihapus saat consent ditarik.
+model UsageEvent {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  eventType  String   @map("event_type")
+  domain     String?
+  meta       Json     @default("{}") @db.JsonB
+  appVersion String?  @map("app_version")
+  platform   String?
+  occurredAt DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  user       Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, occurredAt(sort: Desc)])
+  @@index([eventType, occurredAt(sort: Desc)])
+  @@map("usage_events")
+}
+
+/// Jangkar klinis (Fase 8, K-2): berat, tinggi, lingkar pinggang, tekanan darah. Dilaporkan sendiri; tanpa interpretasi klinis.
+model VitalMeasurement {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  kind        String
+  value       Decimal   @db.Decimal(10, 3)
+  value2      Decimal?  @db.Decimal(10, 3)
+  unit        String
+  measuredAt  DateTime  @map("measured_at") @db.Timestamptz(6)
+  source      String    @default("manual")
+  externalId  String?   @map("external_id")
+  notes       String?
+  createHash  String    @map("create_hash")
+  version     Int       @default(1)
+  archivedAt  DateTime? @map("archived_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user        Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  revisions   RecordRevision[]
+  @@unique([userId, source, externalId])
+  @@index([userId, kind, measuredAt(sort: Desc)])
+  @@map("vital_measurements")
+}
+
+/// Hasil laboratorium (Fase 8, K-2): HbA1c, lipid, kreatinin, dll. Tanggal sampel, nilai, satuan; sumber lab/manual. Tanpa interpretasi klinis.
+model LabResult {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  test        String
+  value       Decimal   @db.Decimal(10, 3)
+  unit        String
+  sampledAt   DateTime  @map("sampled_at") @db.Date
+  labName     String?   @map("lab_name")
+  source      String    @default("manual")
+  notes       String?
+  createHash  String    @map("create_hash")
+  version     Int       @default(1)
+  archivedAt  DateTime? @map("archived_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user        Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  revisions   RecordRevision[]
+  @@index([userId, test, sampledAt(sort: Desc)])
+  @@map("lab_results")
+}
+
+/// Sakelar fitur (Fase 8, S-2). Tanpa baris = ikut nilai env. Diubah lewat skrip operasional, dibaca dengan cache 30 detik.
+model FeatureFlag {
+  key       String   @id
+  enabled   Boolean
+  note      String?
+  updatedBy String   @map("updated_by")
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  @@map("feature_flags")
+}
+
+/// Laporan masalah/kejadian dari pengguna (Fase 8, D-5). Isi hanya yang ditulis pengguna; dikirim ke surel pemilik.
+model IncidentReport {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String?   @map("user_id") @db.Uuid
+  category   String
+  message    String
+  appVersion String?   @map("app_version")
+  contactOk  Boolean   @default(false) @map("contact_ok")
+  emailedAt  DateTime? @map("emailed_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  user       Users?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  @@index([createdAt(sort: Desc)])
+  @@map("incident_reports")
+}
+
+/// Total langkah harian dari perangkat (Fase 9, K-1). Satu baris per (pengguna, sumber, tanggal lokal); nilai diganti dengan agregat terbaru dari Health Connect.
+model DailySteps {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  localDate DateTime @map("local_date") @db.Date
+  steps     Int
+  source    String   @default("health_connect")
+  syncedAt  DateTime @default(now()) @map("synced_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, source, localDate])
+  @@map("daily_steps")
+}
+
+/// Sesi tidur dari perangkat (Fase 9, K-1). Hanya awal, akhir, durasi; tanpa tahap tidur.
+model SleepSession {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  startedAt       DateTime @map("started_at") @db.Timestamptz(6)
+  endedAt         DateTime @map("ended_at") @db.Timestamptz(6)
+  durationMinutes Int      @map("duration_minutes")
+  source          String   @default("health_connect")
+  externalId      String   @map("external_id")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user            Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, source, externalId])
+  @@index([userId, startedAt(sort: Desc)])
+  @@map("sleep_sessions")
+}
+
+/// Jenis data perangkat yang diizinkan pengguna untuk diimpor (Fase 9, K-1). Semua mati secara bawaan.
+model DeviceImportPreference {
+  userId    String   @id @map("user_id") @db.Uuid
+  workouts  Boolean  @default(false)
+  steps     Boolean  @default(false)
+  weight    Boolean  @default(false)
+  glucose   Boolean  @default(false)
+  sleep     Boolean  @default(false)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user      Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("device_import_preferences")
+}
+
+/// Tautan baca-saja berbatas waktu untuk tenaga kesehatan (Fase 9, K-9). Hanya hash token yang disimpan.
+model ShareLink {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  tokenHash      String    @unique @map("token_hash")
+  scope          String    @default("summary")
+  periodDays     Int       @map("period_days")
+  label          String?
+  expiresAt      DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt      DateTime? @map("revoked_at") @db.Timestamptz(6)
+  lastAccessedAt DateTime? @map("last_accessed_at") @db.Timestamptz(6)
+  accessCount    Int       @default(0) @map("access_count")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  user           Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("share_links")
+}
+
+/// Usulan rute dari model bahasa untuk pesan yang tidak dikenali aturan (Fase 10, A-1). Setiap usulan dicatat beserta keputusan validasi aturan; isi pesan tetap di conversation_messages.
+model RouterProposal {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  messageId     String?  @map("message_id") @db.Uuid
+  routerVersion String   @map("router_version")
+  proposedRoute String?  @map("proposed_route")
+  args          Json     @default("{}") @db.JsonB
+  confidence    Decimal? @db.Decimal(4, 3)
+  decision      String
+  rejectReason  String?  @map("reject_reason")
+  judgeVerdict  String?  @map("judge_verdict")
+  judgeCategory String?  @map("judge_category")
+  memoryKind    String?  @map("memory_kind")
+  model         String?
+  latencyMs     Int?     @map("latency_ms")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user          Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([decision, createdAt(sort: Desc)])
+  @@map("router_proposals")
+}
+
+/// Ringkasan episodik mingguan dari keputusan dan catatan rencana (Fase 10, A-5). Turunan, bisa dihitung ulang.
+model WeeklyEpisode {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  weekStart DateTime @map("week_start") @db.Date
+  summary   Json     @db.JsonB
+  lines     String[] @default([])
+  version   String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user      Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, weekStart])
+  @@map("weekly_episodes")
+}
+
+model EducationModule {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key          String
+  version      Int
+  title        String
+  summary      String
+  topics       String[]  @default([])
+  readMinutes  Int       @map("read_minutes")
+  body         String
+  contentHash  String    @map("content_hash")
+  reviewStatus String    @map("review_status")
+  reviewedBy   String?   @map("reviewed_by")
+  reviewedAt   DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  authoredOn   DateTime  @map("authored_on") @db.Date
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@unique([key, version])
+  @@index([reviewStatus])
+  @@map("education_modules")
+}
+
+model FoodRecipeItem {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  foodId       String        @map("food_id") @db.Uuid
+  ingredientId String        @map("ingredient_id") @db.Uuid
+  grams        Decimal       @db.Decimal(8, 2)
+  position     Int
+  food         FoodReference @relation("RecipeFood", fields: [foodId], references: [id], onDelete: Cascade)
+  ingredient   FoodReference @relation("RecipeIngredient", fields: [ingredientId], references: [id], onDelete: Restrict)
+  @@unique([foodId, position])
+  @@index([ingredientId])
+  @@map("food_recipe_items")
+}
+
+model CompanionLink {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  label        String
+  tokenHash    String    @unique @map("token_hash")
+  expiresAt    DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt    DateTime? @map("revoked_at") @db.Timestamptz(6)
+  lastViewedAt DateTime? @map("last_viewed_at") @db.Timestamptz(6)
+  viewCount    Int       @default(0) @map("view_count")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  user         Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("companion_links")
+}
+
+model CgmImport {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  source        String
+  fileName      String?   @map("file_name")
+  device        String?
+  unit          String
+  rowsTotal     Int       @map("rows_total")
+  rowsAccepted  Int       @map("rows_accepted")
+  rowsDuplicate Int       @map("rows_duplicate")
+  rowsSkipped   Int       @map("rows_skipped")
+  periodStart   DateTime? @map("period_start") @db.Timestamptz(6)
+  periodEnd     DateTime? @map("period_end") @db.Timestamptz(6)
+  parserVersion String    @map("parser_version")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  user          Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readings      CgmReading[]
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("cgm_imports")
+}
+
+model CgmReading {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  importId   String    @map("import_id") @db.Uuid
+  measuredAt DateTime  @map("measured_at") @db.Timestamptz(6)
+  valueMgDl  Decimal   @map("value_mg_dl") @db.Decimal(6, 1)
+  kind       String
+  source     String
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  user       Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  import     CgmImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+  @@unique([userId, source, kind, measuredAt])
+  @@index([userId, measuredAt])
+  @@index([importId])
+  @@map("cgm_readings")
+}
+
+model CommunityReport {
+  id             String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String              @map("user_id") @db.Uuid
+  membershipId   String              @map("membership_id") @db.Uuid
+  communityId    String              @map("community_id") @db.Uuid
+  aliasKey       String              @map("alias_key")
+  aliasSnapshot  String              @map("alias_snapshot")
+  reason         String
+  status         String
+  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  resolvedAt     DateTime?           @map("resolved_at") @db.Timestamptz(6)
+  resolutionNote String?             @map("resolution_note")
+  user           Users               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  membership     CommunityMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  @@unique([userId, membershipId, aliasKey])
+  @@index([membershipId, status])
+  @@index([status, createdAt])
+  @@map("community_reports")
+}
+
+model JobRun {
+  name           String    @id
+  lastStartedAt  DateTime? @map("last_started_at") @db.Timestamptz(6)
+  lastFinishedAt DateTime? @map("last_finished_at") @db.Timestamptz(6)
+  lastStatus     String?   @map("last_status")
+  lastResult     Json?     @map("last_result") @db.JsonB
+  updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  @@map("job_runs")
 }

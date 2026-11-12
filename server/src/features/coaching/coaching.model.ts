@@ -1,14 +1,14 @@
 import type { CoachingPrefs, CoachingSlot } from "../agent/personalization.ts";
 
-export const COACHING_RULES_VERSION = "coach-rules-v1";
+export const COACHING_RULES_VERSION = "coach-rules-v2";
 export const WINDOW_DAYS = 14;
 export const PROPOSAL_TTL_MS = 3 * 86_400_000;
 export const SNOOZE_DAYS = { DECLINE: 3, NOT_NOW: 3, ALREADY_DONE: 7, TOO_FREQUENT: 3 } as const;
 export const MIN_ACTIVITY_FRACTION = 0.5;
 export const DEFAULT_MAX_SUGGESTIONS = 2;
 
-export type Source = "MEAL_LOG_GAP" | "ACTIVITY_STEP_DOWN" | "GOAL_PACE" | "ROUTINE_START";
-export type Kind = "ACTIVITY_SESSION" | "MEAL_LOGGING";
+export type Source = "MEAL_LOG_GAP" | "ACTIVITY_STEP_DOWN" | "GOAL_PACE" | "ROUTINE_START" | "PROBLEM_SOLVING";
+export type Kind = "ACTIVITY_SESSION" | "MEAL_LOGGING" | "HABIT_STEP";
 export type MealSlot = "breakfast" | "lunch" | "dinner";
 export type DayState = "PLANNED" | "OBSERVED" | "USER_CONFIRMED" | "NOT_OBSERVED" | "RETRACTED" | "UNKNOWN";
 export type { CoachingSlot };
@@ -35,7 +35,7 @@ export type Facts = {
   pastPlans: { planned: number; notObserved: number; done: number; avgMinutes: number | null };
   goals: GoalFact[];
   longestSessionMinutes: number | null;
-  memory: { availableMinutes: number | null; preferredSlot: CoachingSlot | null; dislikedTypes: string[]; used: { id: string; content: string; kind: string }[] };
+  memory: { availableMinutes: number | null; preferredSlot: CoachingSlot | null; dislikedTypes: string[]; used: { id: string; content: string; kind: string }[]; unwell?: boolean; avoidSlots?: string[] };
 };
 
 export type ActionParams = { activityType?: string; durationMinutes?: number; mealSlot?: MealSlot | null };
@@ -121,6 +121,7 @@ function stepDown(f: Facts): { subject: string; variants: Variant[] } | null {
 
 function valueText(goalType: string, v: number) {
   if (goalType === "activity_minutes") return `${v} menit`;
+  if (goalType === "daily_steps") return `${v} langkah`;
   if (goalType === "walking_sessions") return `${v} sesi`;
   return `${v} hari`;
 }
@@ -204,9 +205,11 @@ export function detectOpportunities(f: Facts, ctx: SelectContext): Selection {
     if (ctx.activeSources.has(source)) { withheld.push({ source, reason: "PLAN_ALREADY_RUNNING" }); continue; }
     const variant = found.variants.find((v) => !declined[`${source}:${v.variant}`]);
     if (!variant) { withheld.push({ source, reason: "ALL_VARIANTS_DECLINED" }); continue; }
+    if (variant.kind === "ACTIVITY_SESSION" && f.memory.unwell) { withheld.push({ source, reason: "TEMPORARY_CONDITION" }); continue; }
     const unsafe = validateOpportunity(variant, f);
     if (unsafe) { withheld.push({ source, reason: unsafe }); continue; }
-    out.push({ ...variant, key: `${source}:${variant.variant}:${found.subject}`, source, priority });
+    const slot = variant.slot && f.memory.avoidSlots?.includes(variant.slot) ? null : variant.slot;
+    out.push({ ...variant, slot, key: `${source}:${variant.variant}:${found.subject}`, source, priority });
   }
   const score = (s: Source) => {
     const u = ctx.prefs.usefulness?.[s];
@@ -267,8 +270,12 @@ export function positiveObservations(w: WeekFacts): string[] {
   return out;
 }
 
-export type GoalWeek = { id: string; title: string; goalType: string; period: string; target: number; value: number | null; version: number };
-export type Adjustment = { goalId: string; title: string; goalType: string; fromTarget: number; toTarget: number; expectedVersion: number; basis: string };
+export type GoalWeek = { id: string; title: string; goalType: string; period: string; target: number; value: number | null; version: number; history?: (number | null)[] };
+export type Adjustment = { goalId: string; title: string; goalType: string; fromTarget: number; toTarget: number; expectedVersion: number; basis: string; direction: "UP" | "DOWN" };
+
+export const MAX_WEEKLY_INCREASE = 0.1;
+export const UP_PERCENTILE = 0.6;
+const COUNT_GOALS = new Set(["walking_sessions", "record_meals", "manual_checkins"]);
 
 function niceTarget(goalType: string, v: number): number {
   if (goalType === "activity_minutes") return Math.max(10, Math.round(v / 10) * 10);
@@ -276,16 +283,63 @@ function niceTarget(goalType: string, v: number): number {
   return Math.max(1, Math.round(v));
 }
 
+export function percentile(values: number[], p: number): number {
+  const s = [...values].sort((a, b) => a - b);
+  if (s.length === 0) return NaN;
+  const idx = (s.length - 1) * p;
+  const lo = Math.floor(idx), hi = Math.ceil(idx);
+  return s[lo]! + (s[hi]! - s[lo]!) * (idx - lo);
+}
+
+export function raisedTarget(goalType: string, target: number, p60: number): number | null {
+  if (COUNT_GOALS.has(goalType)) {
+    const max = goalType === "record_meals" ? 7 : Number.POSITIVE_INFINITY;
+    const to = Math.min(Math.floor(p60), target + 1, max);
+    return to > target ? to : null;
+  }
+  const to = Math.floor(Math.min(p60, target * (1 + MAX_WEEKLY_INCREASE)) / 5) * 5;
+  return to > target ? to : null;
+}
+
 export function goalAdjustments(goals: GoalWeek[]): Adjustment[] {
   const out: Adjustment[] = [];
   for (const g of goals) {
     if (g.period !== "weekly" || !ADJUSTABLE_GOALS.has(g.goalType) || g.value === null) continue;
-    if (g.value / g.target >= 0.6) continue;
-    const to = niceTarget(g.goalType, Math.max(g.value * 1.2, g.target * 0.5));
-    if (to >= g.target) continue;
-    out.push({ goalId: g.id, title: g.title, goalType: g.goalType, fromTarget: g.target, toTarget: to, expectedVersion: g.version, basis: `Dari catatanmu: ${valueText(g.goalType, g.value)} minggu ini.` });
+    const ratio = g.value / g.target;
+    if (ratio < 0.6) {
+      const to = niceTarget(g.goalType, Math.max(g.value * 1.2, g.target * 0.5));
+      if (to < g.target) out.push({ goalId: g.id, title: g.title, goalType: g.goalType, fromTarget: g.target, toTarget: to, expectedVersion: g.version, basis: `Dari catatanmu: ${valueText(g.goalType, g.value)} minggu ini.`, direction: "DOWN" });
+      continue;
+    }
+    const weeks = [g.value, ...(g.history ?? [])].filter((v): v is number => v !== null);
+    if (ratio < 1 || weeks.length < 3) continue;
+    const reached = weeks.filter((v) => v >= g.target).length;
+    if (reached < 2) continue;
+    const to = raisedTarget(g.goalType, g.target, percentile(weeks, UP_PERCENTILE));
+    if (to === null) continue;
+    out.push({ goalId: g.id, title: g.title, goalType: g.goalType, fromTarget: g.target, toTarget: to, expectedVersion: g.version, basis: `Tercapai di ${reached} dari ${weeks.length} minggu terakhir (${weeks.map((v) => valueText(g.goalType, v)).join(", ")}). Naik paling banyak 10% per minggu; boleh kamu tolak.`, direction: "UP" });
   }
   return out;
+}
+
+export const STEPS_WINDOW_DAYS = 10;
+
+export function dailyStepsAdjustment(g: { id: string; title: string; target: number; version: number }, last: (number | null)[]): Adjustment | null {
+  const values = last.filter((v): v is number => v !== null);
+  if (values.length < 5) return null;
+  const p60 = percentile(values, UP_PERCENTILE);
+  const reached = values.filter((v) => v >= g.target).length;
+  const round100 = (v: number) => Math.floor(v / 100) * 100;
+  const basis = `${values.length} hari dengan data langkah dalam ${STEPS_WINDOW_DAYS} hari terakhir; persentil ke-60: ${Math.round(p60)} langkah.`;
+  if (reached >= Math.ceil(values.length * 0.6) && p60 > g.target) {
+    const to = round100(Math.min(p60, g.target * (1 + MAX_WEEKLY_INCREASE)));
+    if (to > g.target) return { goalId: g.id, title: g.title, goalType: "daily_steps", fromTarget: g.target, toTarget: to, expectedVersion: g.version, basis: `${basis} Naik paling banyak 10%; boleh kamu tolak.`, direction: "UP" };
+  }
+  if (p60 < g.target * 0.6) {
+    const to = Math.max(1000, Math.ceil(Math.max(p60, g.target * (1 - MAX_WEEKLY_INCREASE)) / 100) * 100);
+    if (to < g.target) return { goalId: g.id, title: g.title, goalType: "daily_steps", fromTarget: g.target, toTarget: to, expectedVersion: g.version, basis: `${basis} Turun paling banyak 10% per minggu.`, direction: "DOWN" };
+  }
+  return null;
 }
 
 export function recognitions(input: { streak: number; actionsDone: number; recordedDays: number }): string[] {

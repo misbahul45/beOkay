@@ -21,6 +21,7 @@ import '../../memory/application/memory_controller.dart';
 import '../application/coaching_controller.dart';
 import '../data/coaching_repository.dart';
 import 'coaching_widgets.dart';
+import '../../../core/analytics/usage_tracker.dart';
 
 const _moods = [('GOOD', 'Lancar'), ('MIXED', 'Campur'), ('HARD', 'Berat')];
 const _hardest = [
@@ -57,6 +58,8 @@ class _ReflectionScreenState extends ConsumerState<ReflectionScreen> {
   bool slotTouched = false;
   bool remember = true;
   bool busy = false;
+  ({String barrier, String key})? strategy;
+  bool hardestSeeded = false;
   List<String>? recognition;
 
   @override
@@ -83,7 +86,15 @@ class _ReflectionScreenState extends ConsumerState<ReflectionScreen> {
                 .toList(),
             preferredSlot: picked,
             rememberSlot: picked != null && r.memoryAvailable && remember,
+            strategy: strategy != null && hardest.contains(strategy!.barrier)
+                ? strategy
+                : null,
           );
+      if (strategy != null) {
+        ref
+            .read(usageTrackerProvider)
+            .track('strategy_chosen', domain: 'coaching');
+      }
       ref.invalidate(coachingOverviewProvider);
       ref.invalidate(goalsListProvider);
       ref.invalidate(openInterventionsProvider);
@@ -147,7 +158,13 @@ class _ReflectionScreenState extends ConsumerState<ReflectionScreen> {
                 0 => _Summary(
                   r: r,
                   onNext: r.done == null
-                      ? () => setState(() => step = 1)
+                      ? () => setState(() {
+                          if (!hardestSeeded) {
+                            hardestSeeded = true;
+                            hardest.addAll(r.memoryBarriers);
+                          }
+                          step = 1;
+                        })
                       : null,
                 ),
                 1 => _Questions(
@@ -167,6 +184,10 @@ class _ReflectionScreenState extends ConsumerState<ReflectionScreen> {
                 ),
                 2 => _Adjust(
                   r: r,
+                  hardest: hardest,
+                  strategy: strategy,
+                  onStrategy: (v) =>
+                      setState(() => strategy = strategy == v ? null : v),
                   chosen: chosen,
                   slot: slotTouched ? slot : r.preferredSlot,
                   showRemember:
@@ -259,6 +280,39 @@ class _Summary extends StatelessWidget {
                   ),
                 ],
         ),
+        if (r.learned.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.lg),
+          const SectionTitle('Yang kupelajari minggu lalu'),
+          _Panel(
+            children: [
+              for (final l in r.learned)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Text(l, style: AppTypography.body),
+                ),
+              const SizedBox(height: 4),
+              Text(
+                'Disusun dari keputusan dan catatanmu sendiri.',
+                style: AppTypography.caption,
+              ),
+            ],
+          ),
+        ],
+        if (r.previousStrategy case final p?) ...[
+          const SizedBox(height: AppSpacing.lg),
+          const SectionTitle('Cara yang kamu coba'),
+          _Panel(
+            children: [
+              Text(p.title, style: AppTypography.bodyStrong),
+              Text(
+                p.confirmedDays > 0
+                    ? 'Kamu jalankan ${p.confirmedDays} dari ${p.days} hari${p.barrierLabel == null ? '' : ' · hambatan ${p.barrierLabel!.toLowerCase()}'}.'
+                    : 'Belum ada hari yang kamu konfirmasi. Tidak apa-apa, kita bisa coba cara lain.',
+                style: AppTypography.secondary,
+              ),
+            ],
+          ),
+        ],
         if (r.actionTitles.isNotEmpty || r.fromAssistant > 0) ...[
           const SizedBox(height: AppSpacing.lg),
           const SectionTitle('Rencana'),
@@ -448,6 +502,9 @@ class _Questions extends StatelessWidget {
 class _Adjust extends StatelessWidget {
   const _Adjust({
     required this.r,
+    required this.hardest,
+    required this.strategy,
+    required this.onStrategy,
     required this.chosen,
     required this.slot,
     required this.showRemember,
@@ -460,6 +517,9 @@ class _Adjust extends StatelessWidget {
   });
 
   final Reflection r;
+  final Set<String> hardest;
+  final ({String barrier, String key})? strategy;
+  final ValueChanged<({String barrier, String key})> onStrategy;
   final Set<String> chosen;
   final CoachingSlot? slot;
   final bool showRemember, remember, busy;
@@ -492,7 +552,7 @@ class _Adjust extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  a.change,
+                  '${a.raises ? 'Naikkan' : 'Ringankan'} target: ${a.change}',
                   style: AppTypography.secondaryStrong.copyWith(
                     color: AppColors.brand,
                   ),
@@ -507,6 +567,52 @@ class _Adjust extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xs),
       ],
+      for (final b in _hardest.where(
+        (h) =>
+            hardest.contains(h.$1) && (r.strategies[h.$1]?.isNotEmpty ?? false),
+      )) ...[
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          'Cara mengatasi: ${b.$2.toLowerCase()}',
+          style: AppTypography.bodyStrong,
+        ),
+        const SizedBox(height: 2),
+        Text(
+          'Pilih satu untuk dicoba 7 hari. Boleh dilewati.',
+          style: AppTypography.caption,
+        ),
+        const SizedBox(height: 4),
+        for (final st in r.strategies[b.$1]!)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+            child: Material(
+              color: AppColors.surface,
+              borderRadius: AppRadius.cardRadius,
+              clipBehavior: Clip.antiAlias,
+              child: Semantics(
+                selected: strategy?.key == st.key,
+                child: ListTile(
+                  onTap: () => onStrategy((barrier: b.$1, key: st.key)),
+                  leading: Icon(
+                    strategy?.key == st.key
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_off,
+                    color: strategy?.key == st.key
+                        ? AppColors.brand
+                        : AppColors.decorative,
+                  ),
+                  title: Text(st.title, style: AppTypography.bodyStrong),
+                  subtitle: Text(st.detail, style: AppTypography.caption),
+                ),
+              ),
+            ),
+          ),
+      ],
+      if (hardest.isNotEmpty && !r.strategiesReviewed)
+        Text(
+          'Daftar cara ini masih menunggu tinjauan tenaga kesehatan.',
+          style: AppTypography.caption,
+        ),
       const SizedBox(height: AppSpacing.sm),
       Text(
         'Waktu yang paling enak untuk rencana',

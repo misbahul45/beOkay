@@ -9,6 +9,7 @@ import { referenceService } from "../food-reference/reference.service.ts";
 import { type ImageMime, toDataUrl } from "./image.ts";
 import { parseLabel } from "./label-parser.ts";
 import { createMistralClient } from "./mistral.client.ts";
+import { rateWindow } from "../../shared/http/rate-window.ts";
 
 type Mistral = ReturnType<typeof createMistralClient>;
 type Food = { id: string; name: string; [k: string]: unknown };
@@ -59,19 +60,15 @@ export function referenceCovers(photoName: string, referenceName: string): boole
 const sanitize = (s: string) => s.replace(/[\u0000-\u001f\u007f<>]/g, " ").replace(/\s+/g, " ").trim();
 
 export function createFoodVision(deps: { mistral: Mistral; search?: Search; reference?: Reference; now?: () => number }) {
-  const calls = new Map<string, number[]>();
+  const calls = rateWindow(WINDOW_MS, MAX_CALLS);
   const now = deps.now ?? Date.now;
   const search: Search = deps.search ?? ((u, q) => nutritionService.searchFoods(u, q));
   const reference: Reference = deps.reference ?? ((q) => referenceService.search(q, 2));
 
   function allow(userId: string) {
     const t = now();
-    const recent = (calls.get(userId) ?? []).filter((x) => t - x < WINDOW_MS);
-    if (recent.length >= MAX_CALLS) {
-      calls.set(userId, recent);
-      throw new AppError(429, "IMAGE_SCAN_RATE_LIMITED", "Terlalu sering memindai gambar. Coba lagi beberapa menit lagi.");
-    }
-    calls.set(userId, [...recent, t]);
+    if (calls.full(userId, t)) throw new AppError(429, "IMAGE_SCAN_RATE_LIMITED", "Terlalu sering memindai gambar. Coba lagi beberapa menit lagi.");
+    calls.record(userId, t);
   }
 
   async function guarded<T, F>(userId: string, run: () => Promise<T>, fallback: (code: string) => F): Promise<T | F> {

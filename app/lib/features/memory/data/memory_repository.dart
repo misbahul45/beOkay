@@ -7,8 +7,11 @@ class MemoryItem {
       kindLabel = (j['kindLabel'] as String?) ?? '',
       content = j['content'] as String,
       status = j['status'] as String,
-      version = (j['version'] as int?) ?? 1;
+      version = (j['version'] as int?) ?? 1,
+      expiresAt = DateTime.tryParse((j['expiresAt'] as String?) ?? '');
   final String id, kind, kindLabel, content, status;
+  final DateTime? expiresAt;
+  bool get temporary => kind == 'HEALTH_EVENT';
   final int version;
   bool get active => status == 'ACTIVE';
   bool get proposed => status == 'PROPOSED';

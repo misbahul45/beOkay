@@ -4,11 +4,15 @@
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
     <!-- Pengingat lokal: dijadwalkan ulang setelah perangkat dinyalakan. Tanpa izin alarm eksak (mode inexact). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
-    <!-- Health Connect: hanya membaca sesi olahraga; tidak menulis dan tidak membaca detak jantung dll. -->
+    <!-- Health Connect: hanya membaca; tiap jenis diminta terpisah dan hanya bila pengguna menyalakannya. -->
     <uses-permission android:name="android.permission.health.READ_EXERCISE"/>
     <uses-permission android:name="android.permission.health.READ_DISTANCE"/>
     <uses-permission android:name="android.permission.health.READ_STEPS"/>
+    <uses-permission android:name="android.permission.health.READ_WEIGHT"/>
+    <uses-permission android:name="android.permission.health.READ_BLOOD_GLUCOSE"/>
+    <uses-permission android:name="android.permission.health.READ_SLEEP"/>
     <application
         android:label="beOkay"
         android:name="${applicationName}"
@@ -34,7 +38,20 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <meta-data android:name="flutter_deeplinking_enabled" android:value="true" />
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="beokay" android:host="app" />
+            </intent-filter>
+            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
         </activity>
+        <receiver android:name=".QuickRecordWidget" android:exported="false" android:label="@string/widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/quick_record_widget_info" />
+        </receiver>
         <!-- Tautan kebijakan privasi dari layar izin Health Connect. -->
         <activity-alias
             android:name="ViewPermissionUsageActivity"
@@ -70,6 +87,9 @@
         <package android:name="com.google.android.apps.healthdata" />
         <intent>
             <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+        </intent>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
         </intent>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>

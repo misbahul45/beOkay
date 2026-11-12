@@ -36,6 +36,18 @@ String messageFor(Object error) {
       return 'Data berubah di tempat lain. Muat ulang lalu coba lagi.';
     case 'UNAUTHENTICATED':
       return 'Sesimu sudah berakhir. Masuk kembali.';
+    case 'FEATURE_DISABLED':
+      return 'Fitur ini dimatikan sementara. Fitur lain tetap bisa dipakai.';
+    case 'REPORT_RATE_LIMITED':
+      return 'Kamu sudah mengirim beberapa laporan dalam satu jam. Coba lagi nanti.';
+    case 'UNIT_NOT_ALLOWED':
+      return 'Satuan ini tidak bisa dipakai untuk jenis pengukuran tersebut.';
+    case 'VALUE_OUT_OF_RANGE':
+      return 'Nilai di luar batas yang bisa dicatat. Periksa lagi angkanya.';
+    case 'SYSTOLIC_NOT_ABOVE_DIASTOLIC':
+      return 'Angka atas (sistolik) harus lebih besar dari angka bawah (diastolik).';
+    case 'STRATEGY_NOT_OFFERED':
+      return 'Strategi itu sudah tidak tersedia. Muat ulang refleksi.';
   }
   if (error.status >= 500) return 'Terjadi kendala. Coba lagi nanti.';
   return error.message;

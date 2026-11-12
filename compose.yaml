@@ -26,7 +26,7 @@ services:
       start_period: 5s
 
   mailpit:
-    image: axllent/mailpit:latest # SMTP penampung untuk dev; email tidak keluar ke internet
+    image: axllent/mailpit:v1.33.0 # SMTP penampung untuk dev; email tidak keluar ke internet
     restart: unless-stopped
     ports:
       - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"
@@ -74,6 +74,10 @@ services:
       FCM_PROJECT_ID: ${FCM_PROJECT_ID:-}
       OUTBOX_WORKER_ENABLED: ${OUTBOX_WORKER_ENABLED:-true}
       NOTIFY_WORKER_ENABLED: ${NOTIFY_WORKER_ENABLED:-true}
+      RETENTION_WORKER_ENABLED: ${RETENTION_WORKER_ENABLED:-true}
+      FEATURES_DISABLED: ${FEATURES_DISABLED:-}
+      INCIDENT_EMAIL_TO: ${INCIDENT_EMAIL_TO:-}
+      EDUCATION_INCLUDE_DRAFTS: ${EDUCATION_INCLUDE_DRAFTS:-true}
       CHALLENGE_LIFECYCLE_ENABLED: ${CHALLENGE_LIFECYCLE_ENABLED:-true}
       MISTRAL_AGENT_MODEL: ${MISTRAL_AGENT_MODEL:-}
       MODAL_ML_URL: ${MODAL_ML_URL:-}

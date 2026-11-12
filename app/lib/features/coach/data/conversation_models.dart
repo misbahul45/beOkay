@@ -1,3 +1,5 @@
+import '../../education/education.dart';
+
 class ConversationThread {
   ConversationThread.fromJson(Map<String, dynamic> j)
     : id = j['id'] as String,
@@ -117,6 +119,10 @@ sealed class ChatPart {
           confidence: i['confidence'] as String,
         ),
     ]),
+    'education' => EducationPart([
+      for (final e in j['items'] as List? ?? const [])
+        EducationItem.fromJson(e as Map<String, dynamic>),
+    ]),
     'challenges' => ChallengesPart([
       for (final c in j['items'] as List? ?? const [])
         ChatChallenge.fromJson(c as Map<String, dynamic>),
@@ -146,6 +152,11 @@ class ChatChallenge {
   final String id, title, communityName, statusLabel;
   final bool participating;
   final int? activeDays, targetDays;
+}
+
+class EducationPart extends ChatPart {
+  const EducationPart(this.items);
+  final List<EducationItem> items;
 }
 
 class ChallengesPart extends ChatPart {
@@ -350,8 +361,12 @@ class Basis {
       memories = [
         for (final m in (j['memories'] as List? ?? const []))
           (m as Map<String, dynamic>)['content'] as String,
-      ];
+      ],
+      languageModel = (j['sources'] as List? ?? const []).any(
+        (s) => (s as Map)['kind'] == 'LANGUAGE_MODEL',
+      );
   final List<String> sources, memories;
+  final bool languageModel;
   bool get isEmpty => sources.isEmpty && memories.isEmpty;
 }
 

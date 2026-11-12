@@ -2,7 +2,7 @@ import { z } from "zod";
 import { recordTimestamp } from "../../shared/http/record-schema.ts";
 const goalFields = z.object({
   title: z.string().trim().min(1).max(120),
-  goalType: z.enum(["manual_checkins", "activity_minutes", "record_meals", "record_glucose", "walking_sessions"]),
+  goalType: z.enum(["manual_checkins", "activity_minutes", "record_meals", "record_glucose", "walking_sessions", "daily_steps"]),
   targetValue: z.number().finite().positive().max(1000000).multipleOf(0.01),
   period: z.enum(["daily", "weekly"]),
   startDate: z.iso.date(),

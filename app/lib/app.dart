@@ -8,6 +8,7 @@ import 'core/theme/app_brightness.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'features/preferences/application/preferences_controller.dart';
+import 'features/app_lock/app_lock.dart';
 
 class BeOkayApp extends ConsumerWidget {
   const BeOkayApp({super.key});
@@ -15,7 +16,14 @@ class BeOkayApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final brightness = ref.watch(appBrightnessProvider);
-    AppColors.use(brightness);
+    AppColors.use(
+      brightness,
+      highContrast: WidgetsBinding
+          .instance
+          .platformDispatcher
+          .accessibilityFeatures
+          .highContrast,
+    );
     final router = ref.watch(routerProvider);
     final preferences = ref.watch(effectivePreferencesProvider);
     return MaterialApp.router(
@@ -47,7 +55,7 @@ class BeOkayApp extends ConsumerWidget {
               disableAnimations:
                   media.disableAnimations || preferences.reduceMotion,
             ),
-            child: child ?? const SizedBox.shrink(),
+            child: AppLockGate(child: child ?? const SizedBox.shrink()),
           ),
         );
       },

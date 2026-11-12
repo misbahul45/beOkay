@@ -1,4 +1,4 @@
-import type { Server, ServerWebSocket } from "bun";
+import { RedisClient, type Server, type ServerWebSocket } from "bun";
 import { prisma } from "../database/prisma.ts";
 
 export type SocketData = { userId: string; sessionId: string; topics: Set<string>; checkedAt: number };
@@ -20,18 +20,44 @@ async function sessionAlive(data: SocketData) {
   return Boolean(s && s.userId === data.userId && s.expiresAt.getTime() > Date.now());
 }
 
+const BUS_CHANNEL = "beokay:realtime";
+const instance = crypto.randomUUID();
+let bus: RedisClient | null = null;
+
+function local(channel: string, data: string) {
+  server?.publish(channel, data);
+}
+
+function fanout(channel: string, data: string) {
+  local(channel, data);
+  bus?.publish(BUS_CHANNEL, JSON.stringify({ o: instance, c: channel, d: data })).catch(() => {});
+}
+
 export const realtime = {
   attach(s: Server<SocketData>) {
     server = s;
+  },
+  async connectBus(url: string) {
+    const pub = new RedisClient(url);
+    const sub = new RedisClient(url);
+    await sub.subscribe(BUS_CHANNEL, (message) => {
+      try {
+        const m = JSON.parse(message) as { o: string; c: string; d: string };
+        if (m.o !== instance && typeof m.c === "string" && typeof m.d === "string") local(m.c, m.d);
+      } catch {
+        return;
+      }
+    });
+    bus = pub;
   },
   setTopicGuard(g: TopicGuard) {
     guard = g;
   },
   toUser(userId: string, event: RealtimeEvent) {
-    server?.publish(`user:${userId}`, JSON.stringify(event));
+    fanout(`user:${userId}`, JSON.stringify(event));
   },
   toTopic(topic: string, event: RealtimeEvent) {
-    server?.publish(topic, JSON.stringify(event));
+    fanout(topic, JSON.stringify(event));
   },
   connections(userId: string) {
     return sockets.get(userId) ?? 0;

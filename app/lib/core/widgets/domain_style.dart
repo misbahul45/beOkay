@@ -82,6 +82,17 @@ class DomainStyle {
     listOnly: true,
   );
 
+  static DomainStyle get clinical => DomainStyle(
+    key: 'clinical',
+    label: 'Ukuran & lab',
+    icon: Icons.monitor_heart_outlined,
+    listRoute: Routes.clinical,
+    addRoute: Routes.clinical,
+    tint: AppColors.goalTint,
+    ink: AppColors.goalInk,
+    listOnly: true,
+  );
+
   static List<DomainStyle> get all => [
     meal,
     glucose,

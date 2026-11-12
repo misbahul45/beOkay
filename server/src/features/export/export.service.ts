@@ -1,11 +1,12 @@
 import { prisma } from "../../infrastructure/database/prisma.ts";
 import { recordAudit } from "../../shared/audit/audit.ts";
 import { AppError } from "../../shared/errors/app-error.ts";
+import { rateWindow } from "../../shared/http/rate-window.ts";
 
-export const EXPORT_FORMAT_VERSION = "beokay-export-v2";
+export const EXPORT_FORMAT_VERSION = "beokay-export-v4";
 const WINDOW_MS = 60 * 60_000;
 const MAX_EXPORTS = 5;
-const calls = new Map<string, number[]>();
+const calls = rateWindow(WINDOW_MS, MAX_EXPORTS);
 
 export const EXPORTED_TABLES = [
   "user_profiles",
@@ -55,6 +56,20 @@ export const EXPORTED_TABLES = [
   "recognitions",
   "notifications",
   "notification_preferences",
+  "usage_events",
+  "vital_measurements",
+  "lab_results",
+  "incident_reports",
+  "daily_steps",
+  "sleep_sessions",
+  "device_import_preferences",
+  "share_links",
+  "router_proposals",
+  "weekly_episodes",
+  "companion_links",
+  "cgm_imports",
+  "cgm_readings",
+  "community_reports",
   "audit_events",
 ] as const;
 
@@ -78,12 +93,8 @@ export function stripInternal<T>(value: T): T {
 export const exportService = {
   async build(userId: string, now = new Date()) {
     const t = now.getTime();
-    const recent = (calls.get(userId) ?? []).filter((x) => t - x < WINDOW_MS);
-    if (recent.length >= MAX_EXPORTS) {
-      calls.set(userId, recent);
-      throw new AppError(429, "EXPORT_RATE_LIMITED", "Terlalu sering mengunduh data. Coba lagi dalam satu jam.");
-    }
-    calls.set(userId, [...recent, t]);
+    if (calls.full(userId, t)) throw new AppError(429, "EXPORT_RATE_LIMITED", "Terlalu sering mengunduh data. Coba lagi dalam satu jam.");
+    calls.record(userId, t);
 
     const own = { userId };
     const asc = { createdAt: "asc" as const };
@@ -91,7 +102,7 @@ export const exportService = {
       user, profile, healthProfile, settings, onboarding, consents, foods, portionMeasures, meals, glucose, activities, regimens, goals, revisions,
       foodPreferences, reminders, pushDevices, pushDeliveries, agentRuns, recommendations, plannedMeals, activityPlans, personalization,
       personalizationEvents, communityMemberships, challengeParticipants, challengeCheckins, scoreEvents, interventionPreference, interventionDecisions,
-      mlInferenceRuns, conversationThreads, mealDrafts, memoryItems, coachingActions, coachingEvents, weeklyCheckins, recognitions, notifications, notificationPreference, audit,
+      mlInferenceRuns, conversationThreads, mealDrafts, memoryItems, coachingActions, coachingEvents, weeklyCheckins, recognitions, notifications, notificationPreference, usageEvents, vitals, labs, incidentReports, dailySteps, sleepSessions, devicePrefs, shareLinks, routerProposals, weeklyEpisodes, companionLinks, cgmImports, communityReports, audit,
     ] = await prisma.$transaction(
       [
         prisma.users.findUniqueOrThrow({ where: { id: userId }, select: { id: true, name: true, email: true, emailVerified: true, createdAt: true } }),
@@ -138,6 +149,19 @@ export const exportService = {
         prisma.recognition.findMany({ where: own, orderBy: { achievedAt: "asc" } }),
         prisma.notification.findMany({ where: own, orderBy: asc }),
         prisma.notificationPreference.findUnique({ where: own }),
+        prisma.usageEvent.findMany({ where: own, orderBy: { occurredAt: "asc" } }),
+        prisma.vitalMeasurement.findMany({ where: own, orderBy: { measuredAt: "asc" } }),
+        prisma.labResult.findMany({ where: own, orderBy: { sampledAt: "asc" } }),
+        prisma.incidentReport.findMany({ where: own, select: { id: true, category: true, message: true, contactOk: true, appVersion: true, createdAt: true }, orderBy: { createdAt: "asc" } }),
+        prisma.dailySteps.findMany({ where: own, orderBy: { localDate: "asc" } }),
+        prisma.sleepSession.findMany({ where: own, orderBy: { startedAt: "asc" } }),
+        prisma.deviceImportPreference.findUnique({ where: own }),
+        prisma.shareLink.findMany({ where: own, select: { id: true, periodDays: true, label: true, expiresAt: true, revokedAt: true, accessCount: true, lastAccessedAt: true, createdAt: true }, orderBy: { createdAt: "asc" } }),
+        prisma.routerProposal.findMany({ where: own, orderBy: { createdAt: "asc" } }),
+        prisma.weeklyEpisode.findMany({ where: own, orderBy: { weekStart: "asc" } }),
+        prisma.companionLink.findMany({ where: own, select: { id: true, label: true, expiresAt: true, revokedAt: true, viewCount: true, lastViewedAt: true, createdAt: true }, orderBy: { createdAt: "asc" } }),
+        prisma.cgmImport.findMany({ where: own, include: { readings: { select: { id: true, measuredAt: true, valueMgDl: true, kind: true, source: true, createdAt: true }, orderBy: { measuredAt: "asc" } } }, orderBy: { createdAt: "asc" } }),
+        prisma.communityReport.findMany({ where: own, select: { id: true, communityId: true, aliasSnapshot: true, reason: true, status: true, createdAt: true, resolvedAt: true }, orderBy: { createdAt: "asc" } }),
         prisma.auditEvent.findMany({ where: own, orderBy: { occurredAt: "asc" } }),
       ],
       { isolationLevel: "RepeatableRead" },
@@ -184,6 +208,19 @@ export const exportService = {
       recognitions,
       notifications,
       notificationPreference,
+      usageEvents,
+      vitalMeasurements: vitals,
+      labResults: labs,
+      incidentReports,
+      dailySteps,
+      sleepSessions,
+      deviceImportPreference: devicePrefs,
+      shareLinks,
+      routerProposals,
+      weeklyEpisodes,
+      companionLinks,
+      cgmImports,
+      communityReports,
       auditEvents: audit,
     });
     const counts = Object.fromEntries(Object.entries(data).map(([k, v]) => [k, Array.isArray(v) ? v.length : v ? 1 : 0]));

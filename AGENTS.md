@@ -42,6 +42,11 @@ Sumber spesifikasi: *Database & UI/UX Master Blueprint v0.1* (proposed design, b
 - `bun run typecheck` · `bun run db:generate` · `bun run db:migrate:dev` · `bun run db:migrate:deploy` · `bun run db:studio`.
 - **Pakai script `db:*`, bukan `bunx prisma ...`**: `bunx`/`bun run prisma` tidak memuat `.env` untuk `prisma.config.ts` (DATABASE_URL tidak ter-resolve). Script memanggil `bun --bun ./node_modules/.bin/prisma`.
 
+## Deploy serverless (Vercel + Neon)
+- API produksi: proyek Vercel `beokay-api` (root `server/`, `server/vercel.json`, preset Bun), URL `https://beokay-api.vercel.app`. DB: proyek Neon `beokay`. Panduan: `docs/operations/deploy-vercel-neon.md`.
+- Rahasia deploy ada di `/.env.deploy` (gitignored). **Jangan `source` berkas itu** (URL Neon memuat `&`); baca dengan pengurai kutip.
+- Pekerja latar di Vercel dimatikan; job berjalan lewat `/internal/jobs/tick` (`CRON_SECRET`). Tugas setelah respons memakai `background()` (`waitUntil`).
+
 ## Konvensi data (dari blueprint, berlaku saat skema dibuat)
 - PK `UUID`, waktu `TIMESTAMPTZ`, ukuran `NUMERIC`, `JSONB` hanya untuk metadata variabel.
 - Nilai tidak diketahui = `NULL`, bukan `0`. Prediksi tidak disimpan di tabel pengukuran.

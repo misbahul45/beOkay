@@ -11,6 +11,8 @@ import { createOffClient } from "./off.client.ts";
 import { createUsdaClient } from "./usda.client.ts";
 import { createWebSearchClient } from "./web-search.client.ts";
 import { referenceService } from "../food-reference/reference.service.ts";
+import { rateWindow } from "../../shared/http/rate-window.ts";
+import { featureFlags } from "../feature-flags/feature-flags.service.ts";
 
 type Off = ReturnType<typeof createOffClient>;
 type Usda = ReturnType<typeof createUsdaClient>;
@@ -23,16 +25,12 @@ const MAX_CALLS = 20;
 type Reference = { search(q: string, limit?: number): Promise<{ status: "OK" | "LEXICAL_ONLY"; items: any[] }> };
 
 export function createFoodDiscovery(deps: { off: Off; usda: Usda; web?: Web; reference?: Reference; now?: () => number }) {
-  const calls = new Map<string, number[]>();
+  const calls = rateWindow(WINDOW_MS, MAX_CALLS);
   const now = deps.now ?? Date.now;
   function allow(userId: string) {
     const t = now();
-    const recent = (calls.get(userId) ?? []).filter((x) => t - x < WINDOW_MS);
-    if (recent.length >= MAX_CALLS) {
-      calls.set(userId, recent);
-      throw new AppError(429, "EXTERNAL_LOOKUP_RATE_LIMITED", "Terlalu sering mencari di sumber luar. Coba lagi beberapa menit lagi.");
-    }
-    calls.set(userId, [...recent, t]);
+    if (calls.full(userId, t)) throw new AppError(429, "EXTERNAL_LOOKUP_RATE_LIMITED", "Terlalu sering mencari di sumber luar. Coba lagi beberapa menit lagi.");
+    calls.record(userId, t);
   }
 
   return {
@@ -52,6 +50,7 @@ export function createFoodDiscovery(deps: { off: Off; usda: Usda; web?: Web; ref
       };
       const reference = { status: ref.status, items: annotate(ref.items as any[]) };
       if (!external) return { local: annotate(local.items as any[]), reference, external: { status: "NOT_REQUESTED" as const, providers: [], items: [] as (FoodCandidate & { preferenceCheck: PreferenceCheck })[] } };
+      if (!(await featureFlags.isEnabled("web_discovery"))) return { local: annotate(local.items as any[]), reference, external: { status: "DISABLED" as const, providers: [], items: [] as (FoodCandidate & { preferenceCheck: PreferenceCheck })[] } };
       allow(userId);
       const providers = [
         { name: "Open Food Facts", run: () => deps.off.search(q) },

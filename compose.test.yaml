@@ -15,6 +15,10 @@ x-server: &server
     OUTBOX_WORKER_ENABLED: "false" # tes memanggil outbox.drain() sendiri agar deterministik
     NOTIFY_WORKER_ENABLED: "false"
     CHALLENGE_LIFECYCLE_ENABLED: "false"
+    RETENTION_WORKER_ENABLED: "false"
+    FEATURE_FLAG_CACHE_MS: "0"
+    INCIDENT_EMAIL_TO: "owner@beokay.test"
+    EDUCATION_INCLUDE_DRAFTS: "true"
     HOME: /tmp
     PORT: "3000"
     DATABASE_URL: postgresql://beokay_test:beokay_test@postgres-test:5432/beokay_test
@@ -48,7 +52,7 @@ services:
       retries: 20
 
   mailpit-test:
-    image: axllent/mailpit:latest
+    image: axllent/mailpit:v1.33.0
     healthcheck:
       test: ["CMD", "/mailpit", "readyz"]
       interval: 3s

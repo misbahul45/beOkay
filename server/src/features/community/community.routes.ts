@@ -3,6 +3,7 @@ import { authenticated } from "../auth/guard.ts";
 import { readJson } from "../../shared/http/handler.ts";
 import { communityService } from "./community.service.ts";
 import { recognitionService } from "./recognition.service.ts";
+import { moderationService, reportSchema } from "./moderation.service.ts";
 
 const id = (req: Request, i: number) => z.uuid().parse(new URL(req.url).pathname.split("/")[i]);
 const alias = z.object({ alias: z.string().trim().min(3).max(20) }).strict();
@@ -36,5 +37,6 @@ export const communityRoutes = {
   "/api/me/challenges/:id/visibility": { PATCH: authenticated(async ({ req, session }) => ({ body: await communityService.setVisibility(session.userId, id(req, 4), (await readJson(req, vis)).visible) })) },
   "/api/me/challenges/:id/checkins": { POST: authenticated(async ({ req, session }) => ({ status: 201, body: await communityService.checkin(session.userId, id(req, 4), (await readJson(req, checkin)).localDate) })) },
   "/api/me/challenges/:id/progress": { GET: authenticated(async ({ req, session }) => ({ body: await communityService.progress(session.userId, id(req, 4)) })) },
+  "/api/me/challenges/:id/reports": { POST: authenticated(async ({ req, session }) => ({ status: 201, body: await moderationService.report(session.userId, id(req, 4), await readJson(req, reportSchema)) })) },
   "/api/me/challenges/:id/leaderboard": { GET: authenticated(async ({ req, session }) => ({ body: await communityService.leaderboard(session.userId, id(req, 4), page.parse(Object.fromEntries(new URL(req.url).searchParams))) })) },
 };

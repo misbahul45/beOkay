@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shortcut_quick_short">Catat</string>
+    <string name="shortcut_quick_long">Catat cepat</string>
+    <string name="shortcut_glucose_short">Glukosa</string>
+    <string name="shortcut_glucose_long">Catat glukosa</string>
+    <string name="shortcut_meal_short">Makan</string>
+    <string name="shortcut_meal_long">Catat makan</string>
+    <string name="widget_label">Catat beOkay</string>
+    <string name="widget_text">Catat</string>
+    <string name="widget_description">Satu ketukan membuka lembar Catat</string>
+</resources>

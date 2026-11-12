@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="quick" android:enabled="true" android:icon="@mipmap/ic_launcher" android:shortcutShortLabel="@string/shortcut_quick_short" android:shortcutLongLabel="@string/shortcut_quick_long">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="id.beokay.app" android:targetClass="id.beokay.app.MainActivity" android:data="beokay://app/quick" />
+    </shortcut>
+    <shortcut android:shortcutId="glucose" android:enabled="true" android:icon="@mipmap/ic_launcher" android:shortcutShortLabel="@string/shortcut_glucose_short" android:shortcutLongLabel="@string/shortcut_glucose_long">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="id.beokay.app" android:targetClass="id.beokay.app.MainActivity" android:data="beokay://app/glucose/new" />
+    </shortcut>
+    <shortcut android:shortcutId="meal" android:enabled="true" android:icon="@mipmap/ic_launcher" android:shortcutShortLabel="@string/shortcut_meal_short" android:shortcutLongLabel="@string/shortcut_meal_long">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="id.beokay.app" android:targetClass="id.beokay.app.MainActivity" android:data="beokay://app/meals/new" />
+    </shortcut>
+</shortcuts>

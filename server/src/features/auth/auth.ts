@@ -1,3 +1,4 @@
+import { background } from "../../shared/runtime/background.ts";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { bearer } from "better-auth/plugins/bearer";
@@ -11,7 +12,7 @@ import { logEvent } from "../../shared/http/logger.ts";
 export const CLIENT_IP_HEADER = "x-beokay-client-ip";
 
 function dispatchEmail(kind: string, message: EmailMessage) {
-  void smtpEmailSender.send(message).catch(() => logEvent("error", "email_send_failed", { kind }));
+  background(smtpEmailSender.send(message).catch(() => logEvent("error", "email_send_failed", { kind })), "email_send");
 }
 
 export const auth = betterAuth({

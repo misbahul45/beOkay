@@ -1,3 +1,5 @@
+import { env } from "../../config/env.ts";
+import { featureFlags } from "../feature-flags/feature-flags.service.ts";
 import { Prisma } from "../../generated/prisma/client.ts";
 import { prisma } from "../../infrastructure/database/prisma.ts";
 import { logEvent } from "../../shared/http/logger.ts";
@@ -10,7 +12,7 @@ import type { PushMessage, PushReceipt } from "./fcm.client.ts";
 type Sender = { configured: boolean; send(message: PushMessage): Promise<PushReceipt> };
 
 /** Pengingat yang terlambat lebih dari ini tidak dikirim (misalnya server mati): pengingat basi lebih buruk daripada tidak ada. */
-export const LOOKBACK_MS = 3 * 60_000;
+export const LOOKBACK_MS = env.REMINDER_LOOKBACK_MINUTES * 60_000;
 const isUnique = (e: unknown) => e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002";
 
 export type DispatchStats = { users: number; due: number; sent: number; failed: number; deactivated: number; skippedNoConsent: number; skippedByPreference: number };
@@ -87,7 +89,7 @@ export function startPushDispatcher(sender: Sender, intervalMs = 30_000) {
     if (running) return;
     running = true;
     try {
-      await dispatchDueReminders(sender);
+      if (await featureFlags.isEnabled("push")) await dispatchDueReminders(sender);
     } catch (e) {
       logEvent("error", "push_dispatch_failed", { name: e instanceof Error ? e.name : "unknown" });
     } finally {

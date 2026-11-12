@@ -47,6 +47,18 @@ abstract final class Routes {
   static const communityPrivacy = '/community/privacy';
   static const reflection = '/coaching/reflection';
   static const deleteAccount = '/settings/privacy/delete';
+  static const clinical = '/clinical';
+  static const addVital = '/clinical/vitals/new';
+  static const addLab = '/clinical/labs/new';
+  static const report = '/settings/report';
+  static const devices = '/settings/devices';
+  static const quick = '/quick';
+  static const summaryReport = '/settings/summary-report';
+  static const appLock = '/settings/app-lock';
+  static const learn = '/learn';
+  static const cgm = '/settings/cgm';
+  static const companions = '/settings/companions';
+  static const guest = '/try';
 
   static const publicRoutes = {
     welcome,
@@ -54,6 +66,7 @@ abstract final class Routes {
     login,
     verifyEmail,
     forgotPassword,
+    guest,
   };
 
   static const onboardingSequence = [

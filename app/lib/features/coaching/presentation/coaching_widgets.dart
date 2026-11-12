@@ -32,9 +32,15 @@ String stateLabel(String state) => switch (state) {
 };
 
 class KindIcon extends StatelessWidget {
-  const KindIcon({super.key, required this.activity, this.size = 36});
+  const KindIcon({
+    super.key,
+    required this.activity,
+    this.habit = false,
+    this.size = 36,
+  });
 
   final bool activity;
+  final bool habit;
   final double size;
 
   @override
@@ -42,14 +48,26 @@ class KindIcon extends StatelessWidget {
     height: size,
     width: size,
     decoration: BoxDecoration(
-      color: activity ? AppColors.activityTint : AppColors.mealTint,
+      color: habit
+          ? AppColors.goalTint
+          : activity
+          ? AppColors.activityTint
+          : AppColors.mealTint,
       shape: BoxShape.circle,
     ),
     alignment: Alignment.center,
     child: Icon(
-      activity ? Icons.directions_walk_rounded : Icons.restaurant_outlined,
+      habit
+          ? Icons.lightbulb_outline_rounded
+          : activity
+          ? Icons.directions_walk_rounded
+          : Icons.restaurant_outlined,
       size: size * 0.5,
-      color: activity ? AppColors.activityInk : AppColors.mealInk,
+      color: habit
+          ? AppColors.goalInk
+          : activity
+          ? AppColors.activityInk
+          : AppColors.mealInk,
     ),
   );
 }
@@ -85,7 +103,7 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
     children: [
-      KindIcon(activity: action.isActivity),
+      KindIcon(activity: action.isActivity, habit: action.isHabit),
       const SizedBox(width: AppSpacing.sm),
       Expanded(
         child: Column(
@@ -248,6 +266,7 @@ class _DayChip extends StatelessWidget {
         onTap != null &&
         (day.state == 'NOT_OBSERVED' ||
             day.state == 'RETRACTED' ||
+            day.state == 'UNKNOWN' ||
             (day.today && day.state == 'PLANNED'));
     final label =
         '${dayLong(day.date)}${day.today ? ', hari ini' : ''}: ${stateLabel(day.state)}';
@@ -334,7 +353,9 @@ class ActionCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Hijau: tercatat · Biru: kamu konfirmasi · Garis: belum terlihat',
+            action.isHabit
+                ? 'Biru: kamu konfirmasi · Tanda tanya: belum dikonfirmasi'
+                : 'Hijau: tercatat · Biru: kamu konfirmasi · Garis: belum terlihat',
             style: AppTypography.caption,
           ),
           if (action.running && today != null && today.state == 'PLANNED') ...[

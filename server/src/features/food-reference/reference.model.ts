@@ -22,31 +22,37 @@ export const PROVENANCE_LABEL = "Tabel Komposisi Pangan Indonesia";
 export const REFERENCE_SOURCE = "Tabel Komposisi Pangan Indonesia";
 export const REFERENCE_VERSION = "TKPI 2017";
 
+export const CURATED_PROVENANCE = "Kurasi beOkay · dari bahan TKPI";
+
 export type ReferenceRow = {
   id: string; code: string; name: string; sourceRef: string | null; page: number | null; chapter: string | null;
   water: number | null; calories: number | null; protein: number | null; fat: number | null; carbohydrates: number | null; fiber: number | null; ash: number | null;
+  status?: string; source?: string; sourceVersion?: string; method?: string | null;
+  servingMinG?: number | null; servingTypicalG?: number | null; servingMaxG?: number | null;
 };
 
 export function toReferenceFood(r: ReferenceRow) {
   const core = [r.calories, r.carbohydrates, r.protein, r.fat, r.fiber];
   const known = core.filter((v) => v !== null).length;
+  const curated = r.status === "curated";
   return {
     id: r.id,
     code: r.code,
     name: r.name,
     brand: null,
-    source: REFERENCE_SOURCE,
-    sourceVersion: REFERENCE_VERSION,
+    source: curated ? r.source ?? REFERENCE_SOURCE : REFERENCE_SOURCE,
+    sourceVersion: curated ? r.sourceVersion ?? REFERENCE_VERSION : REFERENCE_VERSION,
     sourceRef: r.sourceRef,
-    provenance: PROVENANCE_LABEL,
-    verification: "verified_auto" as const,
+    provenance: curated ? CURATED_PROVENANCE : PROVENANCE_LABEL,
+    verification: (curated ? "curated" : "verified_auto") as "curated" | "verified_auto",
+    serving: curated && r.servingTypicalG ? { minGrams: r.servingMinG ?? null, typicalGrams: r.servingTypicalG, maxGrams: r.servingMaxG ?? null } : null,
     chapter: r.chapter,
     page: r.page,
     per100g: { calories: r.calories, carbohydrates: r.carbohydrates, protein: r.protein, fat: r.fat, fiber: r.fiber },
     water: r.water,
     ash: r.ash,
     completeness: known === 5 ? ("COMPLETE" as const) : known === 0 ? ("NONE" as const) : ("PARTIAL" as const),
-    note: "Nilai per 100 g bagian yang dapat dimakan. Konsisten secara internal (energi ≈ 4·protein + 9·lemak + 4·karbohidrat), bukan diperiksa manusia.",
+    note: curated ? r.method ?? "Dihitung dari resep standar beOkay." : "Nilai per 100 g bagian yang dapat dimakan. Konsisten secara internal (energi ≈ 4·protein + 9·lemak + 4·karbohidrat), bukan diperiksa manusia.",
   };
 }
 

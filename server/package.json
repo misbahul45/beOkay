@@ -14,6 +14,7 @@
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
+    "@vercel/functions": "^3.11.1",
     "better-auth": "1.7.18",
     "nodemailer": "^10.4.0",
     "uploadthing": "^7.7.4",
@@ -28,6 +29,6 @@
     "db:migrate:deploy": "bun --bun ./node_modules/.bin/prisma migrate deploy",
     "db:migrate:diff": "bun --bun ./node_modules/.bin/prisma migrate diff",
     "db:studio": "bun --bun ./node_modules/.bin/prisma studio",
-    "auth:generate": "bun --bun x auth@latest generate --config src/lib/auth.ts --adapter prisma -y"
+    "auth:generate": "bun --bun x auth@latest generate --config src/features/auth/auth.ts --adapter prisma -y"
   }
 }

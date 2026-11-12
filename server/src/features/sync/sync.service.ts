@@ -14,6 +14,8 @@ import { medicationService } from "../medication/medication.service.ts";
 import { intakeCreateSchema, intakePatchSchema } from "../medication/medication.schema.ts";
 import { goalsService } from "../goals/goals.service.ts";
 import { checkinCreateSchema, checkinPatchSchema } from "../goals/goals.schema.ts";
+import { clinicalService } from "../clinical/clinical.service.ts";
+import { labCreateSchema, labPatchSchema, vitalCreateSchema, vitalPatchSchema } from "../clinical/clinical.schema.ts";
 import type { SyncOperationInput } from "./sync.schema.ts";
 
 export type SyncStatus = "SYNCED" | "CONFLICT" | "NEEDS_REVIEW" | "SYNC_FAILED";
@@ -67,6 +69,14 @@ async function apply(userId: string, op: SyncOperationInput): Promise<unknown> {
       return create
         ? goalsService.createCheckin(userId, needParent(), checkinCreateSchema.parse(body))
         : goalsService.updateCheckin(userId, needParent(), op.recordId, checkinPatchSchema.parse(body));
+    case "vital":
+      return create
+        ? clinicalService.createVital(userId, vitalCreateSchema.parse(body))
+        : clinicalService.updateVital(userId, op.recordId, vitalPatchSchema.parse(body));
+    case "lab":
+      return create
+        ? clinicalService.createLab(userId, labCreateSchema.parse(body))
+        : clinicalService.updateLab(userId, op.recordId, labPatchSchema.parse(body));
   }
 }
 

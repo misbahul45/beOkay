@@ -115,6 +115,8 @@ class QueuedOperation {
     'activity' => 'Aktivitas',
     'medication_intake' => 'Konfirmasi obat',
     'goal_checkin' => 'Check-in tujuan',
+    'vital' => 'Ukuran tubuh',
+    'lab' => 'Hasil lab',
     _ => domain,
   };
 

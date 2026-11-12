@@ -17,6 +17,8 @@ import '../../today/application/today_controller.dart';
 import '../application/glucose_controller.dart';
 import '../data/glucose_models.dart';
 import 'glucose_form_screen.dart';
+import 'glucose_alert_card.dart';
+import 'record_context_section.dart';
 
 class GlucoseDetailScreen extends ConsumerStatefulWidget {
   const GlucoseDetailScreen({super.key, required this.id, this.edit = false});
@@ -112,6 +114,9 @@ class _GlucoseDetailScreenState extends ConsumerState<GlucoseDetailScreen> {
                   record.qualityLabel,
                 ],
               ),
+              if (record.alert != null && !record.archived)
+                GlucoseAlertCard(alert: record.alert!),
+              if (!record.archived) GlucoseContextSection(id: record.id),
               DetailSection(
                 title: 'Rincian',
                 children: [

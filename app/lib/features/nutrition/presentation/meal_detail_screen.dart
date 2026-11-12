@@ -17,6 +17,7 @@ import '../application/nutrition_controller.dart';
 import '../data/nutrition_models.dart';
 import 'meal_form_screen.dart';
 import 'nutrition_widgets.dart';
+import 'meal_context_section.dart';
 import 'record_reason_dialog.dart';
 
 class MealDetailScreen extends ConsumerStatefulWidget {
@@ -142,6 +143,7 @@ class _MealDetailScreenState extends ConsumerState<MealDetailScreen> {
               title: 'Ringkasan gizi',
               children: [NutritionTotals(totals: meal.totals)],
             ),
+            if (!meal.archived) MealContextSection(id: meal.id),
             if (meal.notes != null)
               DetailSection(
                 title: 'Catatan',

@@ -97,6 +97,47 @@ const schema = z.object({
     .string()
     .optional()
     .transform((value) => (value && value.trim() ? value.trim() : "mistral-ocr-latest")),
+  FEATURES_DISABLED: z.string().default("").transform(csv),
+  METRICS_TOKEN: z
+    .string()
+    .optional()
+    .transform((value) => (value && value.trim() ? value.trim() : undefined)),
+  ALERT_EMAIL_TO: z
+    .string()
+    .optional()
+    .transform((value) => (value && value.trim() ? value.trim() : undefined)),
+  PUBLIC_BASE_URL: z
+    .string()
+    .optional()
+    .transform((value) => (value && value.trim() ? value.trim().replace(/\/$/, "") : undefined)),
+  FEATURE_FLAG_CACHE_MS: z.coerce.number().int().min(0).max(300_000).default(30_000),
+  INCIDENT_EMAIL_TO: z
+    .string()
+    .optional()
+    .transform((value) => (value && value.trim() ? value.trim() : undefined)),
+  RETENTION_WORKER_ENABLED: z
+    .string()
+    .default("true")
+    .transform((value) => value === "true"),
+  CRON_SECRET: z
+    .string()
+    .optional()
+    .transform((value) => (value && value.trim().length >= 16 ? value.trim() : undefined)),
+  REMINDER_LOOKBACK_MINUTES: z.coerce.number().int().min(1).max(30).default(3),
+  DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(50).default(10),
+  REALTIME_REDIS_URL: z
+    .string()
+    .optional()
+    .transform((value) => (value && /^rediss?:\/\//.test(value.trim()) ? value.trim() : undefined)),
+  EDUCATION_INCLUDE_DRAFTS: z
+    .string()
+    .default("false")
+    .transform((value) => value === "true"),
+  RETENTION_AGENT_EVENTS_DAYS: z.coerce.number().int().min(7).default(90),
+  RETENTION_READ_NOTIFICATIONS_DAYS: z.coerce.number().int().min(7).default(60),
+  RETENTION_AUDIT_DAYS: z.coerce.number().int().min(30).default(365),
+  RETENTION_USAGE_DAYS: z.coerce.number().int().min(30).default(400),
+  RETENTION_OUTBOX_DAYS: z.coerce.number().int().min(7).default(30),
 });
 
 const parsed = schema.safeParse(process.env);

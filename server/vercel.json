@@ -1,0 +1,20 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "bunVersion": "1.4.x",
+  "regions": [
+    "sin1"
+  ],
+  "installCommand": "bun install --frozen-lockfile",
+  "buildCommand": "bun run db:generate",
+  "crons": [
+    {
+      "path": "/internal/jobs/tick",
+      "schedule": "0 19 * * *"
+    }
+  ],
+  "functions": {
+    "index.ts": {
+      "includeFiles": "node_modules/@better-auth/**"
+    }
+  }
+}

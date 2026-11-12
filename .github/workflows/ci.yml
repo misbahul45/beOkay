@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  secrets:
+    name: Pemindaian rahasia
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: gitleaks pada pohon kerja
+        run: docker run --rm -v "$PWD:/repo:ro" zricethezav/gitleaks:v8.30.1 dir /repo --config /repo/.gitleaks.toml --redact --no-banner
+
+  backend:
+    name: Backend (typecheck dan bun test di Docker)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Izinkan pengguna container menulis ke bind mount
+        run: chmod -R a+rwX server
+      - name: Bangun image uji
+        run: docker compose -f compose.test.yaml --profile tools build
+      - name: Nyalakan stack uji terisolasi
+        run: docker compose -f compose.test.yaml up -d --wait api-test
+      - name: Typecheck
+        run: docker compose -f compose.test.yaml run --rm -T tester bun run typecheck
+      - name: Tes unit dan integrasi
+        run: docker compose -f compose.test.yaml run --rm -T tester bun test
+      - name: Log API bila gagal
+        if: failure()
+        run: docker compose -f compose.test.yaml logs --no-color api-test | tail -n 300
+      - name: Bersihkan stack uji
+        if: always()
+        run: docker compose -f compose.test.yaml down -v
+
+  app:
+    name: Flutter (analyze dan test)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.44.4
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+  app-e2e:
+    name: Flutter E2E di emulator Android
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    needs: app
+    steps:
+      - uses: actions/checkout@v4
+      - name: Aktifkan KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.44.4
+          cache: true
+      - run: flutter pub get
+        working-directory: app
+      - name: Tiga alur E2E (masuk, glukosa luring lalu sinkron, kotak masuk)
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_4
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          working-directory: app
+          script: flutter test integration_test -d emulator-5554

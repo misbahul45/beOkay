@@ -11,7 +11,16 @@
 | F-02 Ekspor tidak lengkap | **DITUTUP** | `beokay-export-v2`; tes membandingkan semua tabel ber-`user_id` dengan daftar ekspor + pengecualian beralasan |
 | F-10 `requiredPermissions` alat | **DITUTUP** | `executeTool` memeriksa consent setiap alat; tanpa consent → `PERMISSION_DENIED` dan tercatat `DENIED` (`tests/integration/conversation.test.ts`) |
 | F-04 Siklus tantangan | **DITUTUP** (11 Nov 2026, 3.0 Fase 6) | `challenge_templates` + `challenge-lifecycle-v1` membuat, membuka, menutup, dan membekukan hasil secara idempoten (unik `(community_id, template_id, starts_on)`); jadwal tiap jam + penyegaran malas; `tests/unit/community-lifecycle.test.ts`, `tests/integration/lifecycle-realtime.test.ts` |
-| F-03 Rilis Android | **SEBAGIAN DITUTUP** | `id.beokay.app`, `INTERNET` di manifes utama, penandatanganan via `key.properties`, guard `API_BASE_URL=https://` — terverifikasi pada APK rilis. Tersisa: kunci rilis milik pemilik dan pendaftaran Firebase |
+| F-03 Rilis Android | **SEBAGIAN DITUTUP** | `id.beokay.app`, `INTERNET` di manifes utama, penandatanganan via `key.properties`, guard `API_BASE_URL=https://` — terverifikasi pada APK rilis; diverifikasi ulang 11 Nov 2026 setelah Fase 6 (kunci sekali pakai, lalu dihapus). Tersisa: kunci rilis milik pemilik dan pendaftaran Firebase |
+| F-05 Pembatas laju di memori | **SEBAGIAN DITUTUP** (3.0 Fase 7) | tujuh pembatas memakai `rateWindow` yang membersihkan entri kedaluwarsa (`tests/unit/rate-window.test.ts`); masih per proses, asumsi satu replika tetap berlaku; batas login Better Auth tetap `memory` |
+| F-06 CI | **DITUTUP** (3.0 Fase 7) | `.github/workflows/ci.yml`: gitleaks, backend di `compose.test.yaml`, Flutter analyze/test; lolos `actionlint`; belum berjalan di GitHub sampai di-push |
+| F-07 Berkas sampah | **SEBAGIAN DITUTUP** (3.0 Fase 7) | lima berkas kosong milik root di `server/` dihapus dari pohon kerja (pemilik perlu meng-commit penghapusannya); `docs/repomix-output.xml` dan `ide.md` dibiarkan (keputusan pemilik) |
+| F-08 Dokumen usang | **SEBAGIAN DITUTUP** (3.0 Fase 7) | `README.md` root, skrip `auth:generate` menunjuk `src/features/auth/auth.ts`, blok `LLM_*` dibuang dari `.env.example`; `AGENTS.md` belum diubah (instruksi agen, keputusan pemilik) |
+| F-09 Sumber aktivitas di linimasa | **DITUTUP** (3.0 Fase 7) | linimasa meneruskan `activity_sessions.source`; `activity-import.test.ts` memeriksa `health_connect` |
+| F-11 Keselamatan regex | **SEBAGIAN** (3.0 Fase 7) | `safety-policy-v2`: normalisasi slang/typo/bahasa daerah, gugus tanda hipoglikemia, angka glukosa ekstrem, menyakiti diri di satu modul, korpus adversarial 99 kalimat; **tinjauan klinisi masih terbuka** ([paket tinjauan](../research/safety-clinical-review-packet.md)) |
+| F-14 Status `CONSENT_REQUIRED` | **DITUTUP** (3.0 Fase 7) | intervensi dan coaching memakai `403` seperti modul lain |
+| F-16 Registri model | **DITUTUP** (3.0 Fase 7) | `scripts/ml/register-model.ts` + kartu model: SHA dari `model.pt`, wajib uji tanpa duplikat dan audit kebocoran, selalu `RESEARCH_ONLY`, idempoten; tes unit + integrasi |
+| F-17 Pengamatan kecil | **SEBAGIAN DITUTUP** (3.0 Fase 7) | `emit()` mengulang bila `seq` bentrok; Mailpit dipin `v1.33.0`; SSE polling dan cakupan Bruno belum diubah |
 
 
 

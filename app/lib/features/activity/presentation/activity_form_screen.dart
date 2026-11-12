@@ -1,3 +1,5 @@
+import '../../../core/a11y/announce.dart';
+import '../../../core/analytics/usage_tracker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -30,6 +32,7 @@ class ActivityFormScreen extends ConsumerStatefulWidget {
 class _ActivityFormState extends ConsumerState<ActivityFormScreen> {
   final form = GlobalKey<FormState>();
   final recordId = newRecordId();
+  final opened = DateTime.now();
   late final duration = TextEditingController(
     text: widget.initial?.durationMinutes.toString(),
   );
@@ -119,6 +122,12 @@ class _ActivityFormState extends ConsumerState<ActivityFormScreen> {
       }, id: widget.initial?.id);
       if (!mounted || !repo.isCurrentAccount()) return;
       ref.invalidate(todayProvider);
+      if (widget.initial == null) {
+        ref
+            .read(usageTrackerProvider)
+            .formSaved('activity', DateTime.now().difference(opened));
+        announce(context, 'Aktivitas tersimpan');
+      }
       ref.invalidate(activityProvider(saved.id));
       ref.invalidate(activityPageProvider);
       ref.invalidate(activityDayProvider);

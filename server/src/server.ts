@@ -1,93 +1,36 @@
 import { env } from "./config/env.ts";
-import { accountRoutes } from "./features/account/account.routes.ts";
-import { authRoutes } from "./features/auth/auth.routes.ts";
-import { consentRoutes } from "./features/consent/consent.routes.ts";
-import { healthProfileRoutes } from "./features/health-profile/health-profile.routes.ts";
-import { onboardingRoutes } from "./features/onboarding/onboarding.routes.ts";
-import { preferencesRoutes } from "./features/preferences/preferences.routes.ts";
-import { profileRoutes } from "./features/profile/profile.routes.ts";
-import { todayRoutes } from "./features/today/today.routes.ts";
-import { nutritionRoutes } from "./features/nutrition/nutrition.routes.ts";
-import { glucoseRoutes } from "./features/glucose/glucose.routes.ts";
-import { timelineRoutes } from "./features/timeline/timeline.routes.ts";
-import { activityRoutes } from "./features/activity/activity.routes.ts";
-import { medicationRoutes } from "./features/medication/medication.routes.ts";
-import { goalsRoutes } from "./features/goals/goals.routes.ts";
-import { foodDiscoveryRoutes } from "./features/food-discovery/food-discovery.routes.ts";
-import { foodVisionRoutes } from "./features/food-vision/food-vision.routes.ts";
-import { foodPreferencesRoutes } from "./features/food-preferences/food-preferences.routes.ts";
-import { remindersRoutes } from "./features/reminders/reminders.routes.ts";
-import { exportRoutes } from "./features/export/export.routes.ts";
-import { pushRoutes } from "./features/push/push.routes.ts";
 import { createFcmClient } from "./features/push/fcm.client.ts";
 import { startPushDispatcher } from "./features/push/push-dispatcher.ts";
 import { startAgentWorker } from "./features/agent/agent-worker.ts";
-import { agentRoutes } from "./features/agent/agent.routes.ts";
-import { communityRoutes } from "./features/community/community.routes.ts";
 import { canSubscribeTopic } from "./features/community/community.service.ts";
 import { startChallengeLifecycle } from "./features/community/lifecycle.service.ts";
-import { mlRoutes } from "./features/ml/ml.routes.ts";
-import { interventionRoutes } from "./features/interventions/intervention.routes.ts";
-import { coachingRoutes } from "./features/coaching/coaching.routes.ts";
 import { coachingService } from "./features/coaching/coaching.service.ts";
-import { syncRoutes } from "./features/sync/sync.routes.ts";
-import { insightsRoutes } from "./features/insights/insights.routes.ts";
-import { conversationRoutes } from "./features/conversation/conversation.routes.ts";
-import { mealDraftRoutes } from "./features/meal-drafts/meal-draft.routes.ts";
-import { memoryRoutes } from "./features/memory/memory.routes.ts";
-import { notificationRoutes, realtimeUpgrade } from "./features/notifications/notification.routes.ts";
 import { notificationService, startNotificationWorker } from "./features/notifications/notification.service.ts";
-import { checkDatabase, prisma } from "./infrastructure/database/prisma.ts";
+import { clinicalService } from "./features/clinical/clinical.service.ts";
+import { startRetentionWorker } from "./features/retention/retention.service.ts";
+import { featureFlags } from "./features/feature-flags/feature-flags.service.ts";
+import { educationService } from "./features/education/education.service.ts";
+import { prisma } from "./infrastructure/database/prisma.ts";
 import { realtime, websocket, type SocketData } from "./infrastructure/realtime/realtime.ts";
 import { route } from "./shared/http/handler.ts";
 import { logEvent } from "./shared/http/logger.ts";
+import { appRoutes } from "./routes.ts";
 
 const server = Bun.serve<SocketData>({
   websocket,
   port: env.PORT,
   idleTimeout: 60, // SSE: peristiwa/detak jantung lebih jarang dari 60 dtk
-  routes: {
-    ...authRoutes,
-    ...accountRoutes,
-    ...consentRoutes,
-    ...onboardingRoutes,
-    ...profileRoutes,
-    ...healthProfileRoutes,
-    ...preferencesRoutes,
-    ...todayRoutes,
-    ...foodDiscoveryRoutes,
-    ...foodVisionRoutes,
-    ...foodPreferencesRoutes,
-    ...remindersRoutes,
-    ...exportRoutes,
-    ...pushRoutes,
-    ...agentRoutes,
-    ...conversationRoutes,
-    ...mealDraftRoutes,
-    ...memoryRoutes,
-    ...communityRoutes,
-    ...mlRoutes,
-    ...interventionRoutes,
-    ...coachingRoutes,
-    ...nutritionRoutes,
-    ...glucoseRoutes,
-    ...activityRoutes,
-    ...medicationRoutes,
-    ...goalsRoutes,
-    ...timelineRoutes,
-    ...syncRoutes,
-    ...insightsRoutes,
-    ...notificationRoutes,
-    "/api/me/realtime": realtimeUpgrade,
-    "/health": route(async () => {
-      const db = await checkDatabase();
-      return { status: db ? 200 : 503, body: { status: db ? "ok" : "degraded", db } };
-    }),
-  },
+  routes: appRoutes,
   fetch: route(async () => ({ status: 404, body: { error: { code: "NOT_FOUND", message: "Rute tidak ditemukan." } } })),
 });
 
 realtime.attach(server);
+if (env.REALTIME_REDIS_URL) {
+  realtime.connectBus(env.REALTIME_REDIS_URL).then(
+    () => logEvent("info", "realtime_bus_connected"),
+    (e) => logEvent("error", "realtime_bus_failed", { name: e instanceof Error ? e.name : "unknown" }),
+  );
+}
 realtime.setTopicGuard(canSubscribeTopic);
 realtime.onOpen = async (ws) => {
   ws.send(JSON.stringify({ type: "hello", ...(await notificationService.unreadCount(ws.data.userId)) }));
@@ -104,17 +47,21 @@ const notifyWorker = env.NOTIFY_WORKER_ENABLED
   ? startNotificationWorker(30_000, async () => {
       if (Date.now() - lastNudge < 60 * 60_000) return;
       lastNudge = Date.now();
-      await coachingService.nudgeReflections();
+      if (await featureFlags.isEnabled("coaching")) await coachingService.nudgeReflections();
+      await clinicalService.remindDueLabs();
     })
   : { stop() {} };
+const retention = env.RETENTION_WORKER_ENABLED ? startRetentionWorker() : { stop() {} };
 const lifecycle = env.CHALLENGE_LIFECYCLE_ENABLED ? startChallengeLifecycle() : { stop() {} };
 logEvent("info", "server_started", { port: server.port, env: env.NODE_ENV });
+educationService.sync().then((r) => logEvent("info", "education_synced", { created: r.created, updated: r.updated, unchanged: r.unchanged, rejected: r.rejected.length }), (e) => logEvent("error", "education_sync_failed", { message: e instanceof Error ? e.message : String(e) }));
 
 async function shutdown() {
   dispatcher.stop();
   agentWorker.stop();
   notifyWorker.stop();
   lifecycle.stop();
+  retention.stop();
   await server.stop();
   await prisma.$disconnect();
   process.exit(0);

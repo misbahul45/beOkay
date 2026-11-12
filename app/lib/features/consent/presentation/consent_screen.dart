@@ -79,6 +79,21 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
     }
   }
 
+  Widget card(PolicyPurpose purpose) => ConsentPurposeCard(
+    purpose: purpose,
+    footer: _AcceptRow(
+      label: purpose.required
+          ? 'Saya menyetujui tujuan wajib ini'
+          : 'Saya menyetujui tujuan opsional ini',
+      value: _accepted.contains(purpose.purpose),
+      onChanged: (checked) => setState(
+        () => checked
+            ? _accepted.add(purpose.purpose)
+            : _accepted.remove(purpose.purpose),
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final policy = ref.watch(consentPolicyProvider);
@@ -129,23 +144,40 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
           data: (data) => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              for (final purpose in data.purposes) ...[
-                ConsentPurposeCard(
-                  purpose: purpose,
-                  footer: _AcceptRow(
-                    label: purpose.required
-                        ? 'Saya menyetujui tujuan wajib ini'
-                        : 'Saya menyetujui tujuan opsional ini',
-                    value: _accepted.contains(purpose.purpose),
-                    onChanged: (checked) => setState(
-                      () => checked
-                          ? _accepted.add(purpose.purpose)
-                          : _accepted.remove(purpose.purpose),
-                    ),
-                  ),
-                ),
+              Semantics(
+                header: true,
+                child: Text('Diperlukan sekarang', style: AppTypography.title),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              for (final purpose in data.purposes.where((p) => p.required)) ...[
+                card(purpose),
                 const SizedBox(height: AppSpacing.sm),
               ],
+              Theme(
+                data: Theme.of(
+                  context,
+                ).copyWith(dividerColor: Colors.transparent),
+                child: ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  childrenPadding: EdgeInsets.zero,
+                  title: Text(
+                    'Nanti, saat fiturnya dipakai',
+                    style: AppTypography.title,
+                  ),
+                  subtitle: Text(
+                    'Saran personal, komunitas, pendamping, dan model bahasa ditanyakan saat kamu membuka fiturnya. Kamu juga bisa menyetujuinya sekarang.',
+                    style: AppTypography.caption,
+                  ),
+                  children: [
+                    for (final purpose in data.purposes.where(
+                      (p) => !p.required,
+                    )) ...[
+                      card(purpose),
+                      const SizedBox(height: AppSpacing.sm),
+                    ],
+                  ],
+                ),
+              ),
               Text(
                 'Kamu bisa menarik persetujuan kapan saja di Profil › Pengaturan › Persetujuan data.',
                 style: AppTypography.caption,

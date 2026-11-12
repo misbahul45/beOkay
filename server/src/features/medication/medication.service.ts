@@ -223,5 +223,17 @@ export const medicationService = {
     });
     return { date: local, timezone: settings.timezone, items, ...summarizeOccurrences(items), computationVersion: "medication-occurrence-v1", computedAt: new Date().toISOString() };
   },
+  async upcoming(userId: string, days: number, now = new Date()) {
+    await requireHealth(userId);
+    const settings = await preferencesService.get(userId);
+    const today = localRecordTime(now, settings.timezone).localDate;
+    const out: { regimenId: string; scheduleId: string; scheduledAt: string; title: string; body: string }[] = [];
+    for (let i = 0; i < days; i++) {
+      const date = new Date(Date.parse(today + "T00:00:00Z") + i * 86_400_000).toISOString().slice(0, 10);
+      const t = await this.today(userId, date);
+      for (const o of t.items) if (o.status === "unknown" && new Date(o.scheduledAt) > now) out.push({ regimenId: o.regimenId, scheduleId: o.scheduleId, scheduledAt: o.scheduledAt, title: "Waktunya obat", body: "Ketuk Sudah bila sudah diminum, atau buka beOkay." });
+    }
+    return { timezone: settings.timezone, items: out.slice(0, 40) };
+  },
 };
 export { zonedToUtc };

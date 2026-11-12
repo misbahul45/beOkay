@@ -16,6 +16,7 @@ import '../../goals/application/goals_controller.dart';
 import '../../medication/application/medication_controller.dart';
 import '../application/today_controller.dart';
 import 'today_extras.dart';
+import '../../devices/application/devices_controller.dart';
 
 /// Domain cards and recent events. Header and Quick Record live in HomeScreen.
 class TodaySection extends ConsumerStatefulWidget {
@@ -151,6 +152,23 @@ class _TodaySectionState extends ConsumerState<TodaySection>
                     onPrimary: () => context.push(Routes.addActivity),
                     secondaryLabel: 'Riwayat aktivitas',
                     onSecondary: () => context.push(Routes.activities),
+                  ),
+                ],
+                if (ref.watch(stepsSummaryProvider).value case final s?
+                    when s.daysWithData > 0) ...[
+                  const SizedBox(height: 10),
+                  MetricCard(
+                    icon: Icons.directions_walk_rounded,
+                    tint: DomainStyle.activity.tint,
+                    ink: DomainStyle.activity.ink,
+                    title: 'Langkah',
+                    value: s.today == null ? null : '${s.today} langkah',
+                    valueCaption: s.median == null
+                        ? 'Dari Health Connect'
+                        : 'Median 7 hari ${s.median!.round()} · dari Health Connect',
+                    emptyMessage: 'Belum ada data langkah hari ini.',
+                    primaryLabel: 'Sinkronkan perangkat',
+                    onPrimary: () => context.push(Routes.devices),
                   ),
                 ],
                 const SizedBox(height: 10),

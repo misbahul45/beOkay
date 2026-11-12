@@ -2,6 +2,7 @@ import type { Server } from "bun";
 import { ZodError, type ZodType } from "zod";
 import { AppError, badRequest } from "../errors/app-error.ts";
 import { logEvent } from "./logger.ts";
+import { metrics } from "../../infrastructure/observability/metrics.ts";
 import { applySecurityHeaders } from "./security-headers.ts";
 
 const MAX_BODY_BYTES = 64 * 1024;
@@ -57,7 +58,8 @@ export function route(handler: (context: RequestContext) => Promise<Result>) {
     }
     const headers = new Headers(response.headers);
     headers.set("X-Request-Id", requestId);
-    applySecurityHeaders(headers, { noStore: path.startsWith("/api/") });
+    applySecurityHeaders(headers, { noStore: true, page: path.startsWith("/s/") || path.startsWith("/api/auth/"), production: process.env.NODE_ENV === "production" });
+    metrics.observeRequest(req.method, path, response.status, performance.now() - started);
     logEvent("info", "request", {
       requestId,
       method: req.method,

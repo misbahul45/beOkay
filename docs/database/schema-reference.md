@@ -154,6 +154,51 @@ Perubahan 3.0 Fase 6 (`challenge-lifecycle-v1`, `recognition-v1`):
 | `intervention_preferences` | per pengguna: jeda, jam tenang (menit), jatah harian/mingguan, `muted_triggers[]` |
 | `intervention_decisions` | log keputusan (termasuk "tidak mengintervensi"): `trigger_type`, `option`, `reason`, `policy_version`, `eligibility_status`, `data_coverage`, `delivery_status`, `approval_status`, `content`, `dedupe_key` unik, `response`; **tanpa nilai klinis mentah** |
 
+## 9a. Fase 8 — ukur dan ringankan
+
+| Tabel | Fungsi |
+|---|---|
+| `usage_events` | peristiwa pemakaian ber-consent `product_analytics`: `event_type` (13 jenis), `domain`, `meta` JSONB berisi kunci tetap (`via`, `screen`, `durationMs`, `source`, `trigger`, `kind`, `position`, `shown`; ≤ 400 karakter), `app_version`, `platform` (`android`/`ios`/`server`), `occurred_at`. **Tanpa isi kesehatan**. Dihapus saat consent analitik ditarik, ikut ekspor, cascade saat hapus akun, retensi 400 hari |
+| `vital_measurements` | `kind` (`weight` kg, `height` cm, `waist` cm, `blood_pressure` mmHg sistolik `value` + diastolik `value2`), `measured_at`, `source` (`manual`/`health_connect`), versi + revisi; CHECK rentang per jenis dan sistolik > diastolik |
+| `lab_results` | `test` (`hba1c`, `fasting_glucose`, `ldl`, `hdl`, `total_cholesterol`, `triglycerides`, `creatinine`, `egfr`, `urine_acr`), `value`, `unit` (CHECK satuan per tes; tidak dikonversi), `sampled_at` DATE, `lab_name`, `source` (`manual`/`lab_report`), versi + revisi |
+| `feature_flags` | `key` (9 fitur), `enabled`, `note`, `updated_by`; tanpa baris = nilai env |
+| `incident_reports` | `category` (`bug`, `adverse_event`, `privacy`, `other`), `message` ≤ 2000, `contact_ok`, `app_version`, `emailed_at`; `user_id SET NULL` saat akun dihapus (catatan keselamatan dipertahankan) |
+
+`coaching_actions` menerima `source = PROBLEM_SOLVING` dan `kind = HABIT_STEP` (rencana 7 hari dari strategi refleksi; hari tidak diamati otomatis, hanya dikonfirmasi pengguna).
+
+## 9b. Fase 9 — sinyal perangkat dan operasi
+
+| Tabel | Fungsi |
+|---|---|
+| `daily_steps` | total langkah per `(user_id, source, local_date)`; `steps` 0–200.000; nilai diganti agregat terbaru |
+| `sleep_sessions` | `started_at`, `ended_at`, `duration_minutes` 1–1440, `external_id` unik per sumber |
+| `device_import_preferences` | `workouts`, `steps`, `weight`, `glucose`, `sleep` (bawaan `false`) |
+| `share_links` | `token_hash` SHA-256 unik, `period_days` 14/30/90, `expires_at` ≤ 7 hari, `revoked_at`, `access_count`, `last_accessed_at` |
+
+Perubahan: `glucose_observations` menerima `source = health_connect` (wajib `source_record_id`, `quality_status` `device_reported`/`needs_review`, `measurement_type` `capillary_blood`/`interstitial_fluid`/`unknown`) dengan indeks unik `(user_id, source, source_record_id)`; `vital_measurements.external_id` (wajib untuk `health_connect`, unik per sumber); `behavior_goals.goal_type` menerima `daily_steps`.
+
+## 9c. Fase 10 — hibrida agentik v2
+
+| Tabel | Fungsi |
+|---|---|
+| `router_proposals` | usulan model per pesan: `message_id`, `router_version`, `proposed_route` (enum), `args` (≤ 400 karakter), `confidence`, `decision` (`ACCEPTED`/`REJECTED`/`HELD`/`ERROR`), `reject_reason`, `judge_verdict`, `judge_category`, `memory_kind`, `model`, `latency_ms`; retensi 90 hari |
+| `weekly_episodes` | ringkasan episodik per minggu (`summary` JSONB, `lines` ≤ 6, `version`), unik `(user_id, week_start)`; turunan |
+
+Perubahan: `memory_items.expires_at`; CHECK memori menerima jenis `FOOD_CONTEXT`/`BARRIER`/`HEALTH_EVENT`, `source_type = LANGUAGE_MODEL`, `confidence = INFERRED`, `sensitivity = MEDIUM`, `retention = EXPIRES` (wajib berpasangan dengan `expires_at`); `consent_records.purpose` menerima `ai_message_understanding`; `feature_flags.key` menerima `llm_router`; versi `dish-classifier` di `model_versions` diubah ke `DEPRECATED` oleh migrasi.
+
+## 9d. Fase 11 — ekosistem
+
+| Tabel | Fungsi |
+|---|---|
+| `education_modules` | modul edukasi berversi: `key`, `version` (unik bersama), `title`, `summary`, `topics[]`, `read_minutes`, `body` (bagian `## `), `content_hash` (SHA-256), `review_status` (`DRAFT`/`REVIEWED`/`RETIRED`), `reviewed_by`, `reviewed_at`, `authored_on`. CHECK: `REVIEWED` wajib punya peninjau dan waktu. Isi berasal dari `server/src/content/education/modules.ts`, disinkronkan saat API mulai; isi versi yang sudah ditinjau tidak bisa diubah tanpa menaikkan versi |
+| `food_recipe_items` | resep hidangan terkurasi: `food_id` → baris `curated`, `ingredient_id` → baris TKPI (`RESTRICT`), `grams`, `position` |
+| `companion_links` | tautan pendamping: `label`, `token_hash` (SHA-256), `expires_at`, `revoked_at`, `last_viewed_at`, `view_count` |
+| `cgm_imports` | satu impor CSV: `source = LIBREVIEW`, `file_name`, `device`, `unit`, jumlah baris (diterima + duplikat + dilewati = total), periode, `parser_version` |
+| `cgm_readings` | bacaan sensor terpisah dari `glucose_observations`: `measured_at`, `value_mg_dl` (20–600), `kind` (`HISTORIC`/`SCAN`), unik `(user_id, source, kind, measured_at)`; terhapus bersama impornya |
+| `community_reports` | laporan alias: pelapor (`user_id`), `membership_id`, `alias_key`, `alias_snapshot`, `reason`, `status` (`OPEN`/`UPHELD`/`DISMISSED`/`ALIAS_CHANGED`), unik `(user_id, membership_id, alias_key)` |
+
+Perubahan: `food_reference` menambah `serving_min_g`, `serving_typical_g`, `serving_max_g`, `method`, status `curated` (wajib metode, porsi umum, dan empat makro); `community_memberships.hidden_at`; `consent_records.purpose` menerima `companion_sharing`; `feature_flags.key` menerima `companion`, `cgm`; `usage_events` menerima `education_opened`, `voice_input_used`, `guest_records_migrated` dan domain `education`; `notifications.kind` menerima `COMMUNITY`.
+
 ## 10. Riwayat migrasi (urut)
 
 | # | Migrasi | Isi |
@@ -184,6 +229,10 @@ Perubahan 3.0 Fase 6 (`challenge-lifecycle-v1`, `recognition-v1`):
 | 24 | `20261111065804_coaching` | rencana kecil, bukti per hari, kuitansi, refleksi mingguan + CHECK dan indeks parsial; perluasan CHECK intervensi |
 | 25 | `20261111120000_community_lifecycle` | templat tantangan + seed, status `SCHEDULED/OPEN/CLOSED`, hasil peserta, pengakuan, sakelar sorotan + CHECK |
 | 26 | `20261111140000_notifications` | kotak masuk notifikasi dan preferensinya + CHECK |
+| 27 | `20261112090000_p8_measure_and_lighten` | `usage_events`, `vital_measurements`, `lab_results`, `feature_flags`, `incident_reports`; `record_revisions.vital_id/lab_id`; CHECK baru dan perluasan CHECK `coaching_actions` (`PROBLEM_SOLVING`, `HABIT_STEP`), `sync_operations` (`vital`, `lab`), `notifications` (`LAB_REMINDER`, `OPEN_CLINICAL`) |
+| 28 | `20261112120000_p9_devices_ops` | `daily_steps`, `sleep_sessions`, `device_import_preferences`, `share_links`; glukosa dari Health Connect; `vital_measurements.external_id`; tujuan `daily_steps` |
+| 29 | `20261112150000_p10_hybrid_agent` | `router_proposals`, `weekly_episodes`, kedaluwarsa memori dan jenis baru, tujuan consent `ai_message_understanding`, sakelar `llm_router`, penghentian `dish-classifier` |
+| 30 | `20261112180000_p11_ecosystem` | `education_modules`, `food_recipe_items`, `companion_links`, `cgm_imports`, `cgm_readings`, `community_reports`; kolom porsi/metode dan status `curated` di `food_reference`; `community_memberships.hidden_at`; perluasan CHECK consent, sakelar, pemakaian, notifikasi |
 
 ## 11. Membuat migrasi baru (ringkas)
 

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const SYNC_DOMAINS = ["meal", "glucose", "activity", "medication_intake", "goal_checkin"] as const;
+export const SYNC_DOMAINS = ["meal", "glucose", "activity", "medication_intake", "goal_checkin", "vital", "lab"] as const;
 export type SyncDomain = (typeof SYNC_DOMAINS)[number];
 
 export const syncOperationSchema = z

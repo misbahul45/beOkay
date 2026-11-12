@@ -1,0 +1,24 @@
+name: jobs-tick
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Panggil /internal/jobs/tick
+        env:
+          API_URL: ${{ secrets.BEOKAY_API_URL }}
+          CRON_SECRET: ${{ secrets.BEOKAY_CRON_SECRET }}
+        run: |
+          if [ -z "$API_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "BEOKAY_API_URL / BEOKAY_CRON_SECRET belum diisi; lewati."
+            exit 0
+          fi
+          curl -fsS --max-time 60 -H "Authorization: Bearer $CRON_SECRET" "$API_URL/internal/jobs/tick" -o /dev/null -w "HTTP %{http_code}\n"

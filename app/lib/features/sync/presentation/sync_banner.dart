@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/a11y/announce.dart';
 import '../../../core/offline/sync_controller.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/theme/app_colors.dart';
@@ -14,6 +15,17 @@ class SyncBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen(syncControllerProvider, (prev, next) {
+      if (prev == null) return;
+      if (prev.pending > 0 &&
+          next.pending == 0 &&
+          next.needsAttention == 0 &&
+          !next.running) {
+        announce(context, 'Semua catatan sudah terkirim');
+      } else if (next.needsAttention > prev.needsAttention) {
+        announce(context, '${next.needsAttention} catatan perlu ditinjau');
+      }
+    });
     final s = ref.watch(syncControllerProvider);
     if (s.items.isEmpty) return const SizedBox.shrink();
     final attention = s.needsAttention > 0;
@@ -49,7 +61,12 @@ class SyncBanner extends ConsumerWidget {
                         : AppColors.infoForeground,
                   ),
                   const SizedBox(width: AppSpacing.sm),
-                  Expanded(child: Text(text, style: AppTypography.secondary)),
+                  Expanded(
+                    child: Semantics(
+                      liveRegion: true,
+                      child: Text(text, style: AppTypography.secondary),
+                    ),
+                  ),
                   const Icon(Icons.chevron_right_rounded, size: 20),
                 ],
               ),

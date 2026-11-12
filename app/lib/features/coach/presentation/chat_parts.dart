@@ -1374,6 +1374,40 @@ class PhotoBubble extends StatelessWidget {
   );
 }
 
+class LanguageModelNote extends StatelessWidget {
+  const LanguageModelNote({super.key});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: AppSpacing.xxs),
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceMuted,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.info_outline_rounded,
+            size: 14,
+            color: AppColors.textSecondary,
+          ),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              'Dipahami dengan bantuan model bahasa · aturan keselamatan tetap berlaku',
+              style: AppTypography.caption,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 class BasisLink extends StatelessWidget {
   const BasisLink({super.key, required this.basis, required this.onManage});
   final Basis basis;

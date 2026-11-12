@@ -1,5 +1,6 @@
 import { authenticated } from "../auth/guard.ts";
 import { exportService } from "./export.service.ts";
+import { fhirExportService } from "./fhir.service.ts";
 
 export const exportRoutes = {
   "/api/me/export": {
@@ -9,6 +10,15 @@ export const exportRoutes = {
       return new Response(JSON.stringify(bundle), {
         status: 200,
         headers: { "content-type": "application/json; charset=utf-8", "content-disposition": `attachment; filename="beokay-data-${stamp}.json"` },
+      });
+    }),
+  },
+  "/api/me/export/fhir": {
+    GET: authenticated(async ({ session }) => {
+      const bundle = await fhirExportService.build(session.userId);
+      return new Response(JSON.stringify(bundle), {
+        status: 200,
+        headers: { "content-type": "application/fhir+json; charset=utf-8", "content-disposition": `attachment; filename="beokay-fhir-${bundle.timestamp.slice(0, 10)}.json"` },
       });
     }),
   },

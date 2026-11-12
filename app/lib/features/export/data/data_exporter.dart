@@ -67,3 +67,41 @@ class ApiDataExporter implements DataExporter {
 final dataExporterProvider = Provider<DataExporter>(
   (ref) => ApiDataExporter(ref.watch(apiClientProvider)),
 );
+
+typedef FhirRunner = Future<int> Function();
+
+Future<void> _shareFhir(String path, String name) async {
+  await SharePlus.instance.share(
+    ShareParams(
+      files: [XFile(path, mimeType: 'application/fhir+json', name: name)],
+      subject: 'Data beOkay (FHIR R4)',
+    ),
+  );
+}
+
+Future<int> exportFhir(
+  ApiClient api, {
+  FileSharer share = _shareFhir,
+  Future<Directory> Function()? tempDir,
+}) async {
+  final res = await api.get('/api/me/export/fhir');
+  final bundle = res.object;
+  final stamp =
+      ((bundle['timestamp'] as String?) ?? DateTime.now().toIso8601String())
+          .substring(0, 10);
+  final name = 'beokay-fhir-$stamp.json';
+  final dir = await (tempDir ?? getTemporaryDirectory)();
+  final file = File('${dir.path}/$name');
+  await file.writeAsString(jsonEncode(bundle), flush: true);
+  try {
+    await share(file.path, name);
+  } finally {
+    if (await file.exists()) await file.delete();
+  }
+  return ((bundle['entry'] as List?) ?? const []).length;
+}
+
+final fhirExporterProvider = Provider<FhirRunner>((ref) {
+  final api = ref.watch(apiClientProvider);
+  return () => exportFhir(api);
+});

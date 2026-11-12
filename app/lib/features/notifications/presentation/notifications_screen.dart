@@ -238,6 +238,7 @@ const notificationKindLabels = {
   'REFLECTION': ('Refleksi mingguan', 'Saat refleksi minggu ini siap'),
   'CHALLENGE': ('Tantangan', 'Tantangan dimulai dan hasilnya'),
   'RECOGNITION': ('Pencapaian', 'Pengakuan usaha pribadi'),
+  'LAB_REMINDER': ('Hasil lab', 'Pengingat mencatat HbA1c setiap 3 bulan'),
 };
 
 class NotificationSettingsScreen extends ConsumerStatefulWidget {

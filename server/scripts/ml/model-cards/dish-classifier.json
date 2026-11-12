@@ -1,0 +1,9 @@
+{
+  "modelKey": "dish-classifier",
+  "featureSchemaVersion": "image-224-imagenet-norm-v1",
+  "intendedUse": "Mengenali NAMA hidangan dari foto untuk evaluasi bayangan. Bukan kalori, bukan porsi, bukan saran medis.",
+  "trainingDataProvenance": "Kaggle rizkyyk/dataset-food-classification (hasil scraping, lisensi tidak tercantum). 13 kelas. Bukan foto pengguna beOkay.",
+  "endpointRef": "modal:beokay-dish-classifier/DishClassifier.web",
+  "architecture": "mobilenet_v3_large",
+  "kernel": "misbahulmuttaqin/beokay-dish-classifier"
+}

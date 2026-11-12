@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/domain_style.dart';
+import 'quick_repeat_card.dart';
 
 Future<void> showQuickRecord(BuildContext context) =>
     showModalBottomSheet<void>(
@@ -33,6 +34,11 @@ Future<void> showQuickRecord(BuildContext context) =>
               ),
             ),
             const SizedBox(height: AppSpacing.md),
+            QuickRepeatCard(
+              maxMeals: 2,
+              maxActivities: 1,
+              onSaved: () => Navigator.maybePop(sheet),
+            ),
             _Option(
               style: DomainStyle.meal,
               subtitle: 'Makanan dan porsi',
@@ -60,6 +66,14 @@ Future<void> showQuickRecord(BuildContext context) =>
               sheet: sheet,
               outer: context,
               route: Routes.medications,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            _Option(
+              style: DomainStyle.clinical,
+              subtitle: 'Berat, tekanan darah, dan hasil lab',
+              sheet: sheet,
+              outer: context,
+              route: Routes.clinical,
             ),
           ],
         ),

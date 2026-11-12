@@ -1,3 +1,4 @@
+import { featureFlags } from "../feature-flags/feature-flags.service.ts";
 import { createHash } from "node:crypto";
 import { Prisma } from "../../generated/prisma/client.ts";
 import { prisma } from "../../infrastructure/database/prisma.ts";
@@ -16,6 +17,7 @@ import { nutritionService } from "../nutrition/nutrition.service.ts";
 import { preferencesService } from "../preferences/preferences.service.ts";
 import type { DraftConfirm } from "./meal-draft.schema.ts";
 import type { MealCategory, MealUnit, ParsedItem } from "./meal-text.parser.ts";
+import { rateWindow } from "../../shared/http/rate-window.ts";
 
 export const DRAFT_TTL_MS = 48 * 3_600_000;
 const NUTRIENTS = ["calories", "carbohydrates", "protein", "fat", "fiber"] as const;
@@ -198,12 +200,13 @@ async function adopt(userId: string, c: DraftCandidate): Promise<string> {
 
 const WEB_WINDOW_MS = 10 * 60_000;
 const WEB_MAX = 10;
-const webCalls = new Map<string, number[]>();
+const webCalls = rateWindow(WEB_WINDOW_MS, WEB_MAX);
 
 const capitalize = (s: string) => (s ? s[0]!.toUpperCase() + s.slice(1) : s);
 
 export const mealDraftService = {
   async webLookup(userId: string, id: string, index: number) {
+    await featureFlags.require("web_discovery");
     await consentService.requireConsent(userId, "health_data_processing");
     const { timezone } = await preferencesService.get(userId);
     const draft = await own(userId, id);
@@ -214,12 +217,8 @@ export const mealDraftService = {
     if (item.webSearch && item.webSearch.status !== "UNAVAILABLE") return { status: item.webSearch.status, draft: draftView(draft, timezone) };
     if (!webSearchRef.current.configured) return { status: "NOT_CONFIGURED" as const, draft: draftView(draft, timezone) };
     const now = Date.now();
-    const recent = (webCalls.get(userId) ?? []).filter((t) => now - t < WEB_WINDOW_MS);
-    if (recent.length >= WEB_MAX) {
-      webCalls.set(userId, recent);
-      throw new AppError(429, "WEB_SEARCH_RATE_LIMITED", "Terlalu sering mencari di web. Coba lagi beberapa menit lagi.");
-    }
-    webCalls.set(userId, [...recent, now]);
+    if (webCalls.full(userId, now)) throw new AppError(429, "WEB_SEARCH_RATE_LIMITED", "Terlalu sering mencari di web. Coba lagi beberapa menit lagi.");
+    webCalls.record(userId, now);
 
     const run = await prisma.agentRun.create({
       data: { userId, status: "RUNNING", intent: "MEAL_DRAFT_ENRICHMENT", inputText: item.name.slice(0, 200), idempotencyKey: `web-${id}-${index}-${now}`, expiresAt: new Date(now + 3_600_000), state: { draftId: id, index } },

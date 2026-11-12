@@ -1,17 +1,7 @@
-import { isIP } from "node:net";
-import type { Server } from "bun";
-import { env } from "../../config/env.ts";
 import { route } from "../../shared/http/handler.ts";
+import { clientIp } from "../../shared/http/client-address.ts";
 import { auth, CLIENT_IP_HEADER } from "./auth.ts";
 import { resetPasswordPage, verifiedPage } from "./auth-pages.ts";
-
-function clientIp(req: Request, server: Server<unknown>): string | undefined {
-  if (env.TRUST_PROXY) {
-    const forwarded = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-    if (forwarded && isIP(forwarded)) return forwarded;
-  }
-  return server.requestIP(req)?.address;
-}
 
 export const authRoutes = {
   "/api/auth/*": route(async ({ req, server }) => {

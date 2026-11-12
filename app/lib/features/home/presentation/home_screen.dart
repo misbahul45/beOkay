@@ -1,3 +1,4 @@
+import '../../guest/guest_mode.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -23,6 +24,11 @@ import '../../onboarding/application/onboarding_controller.dart';
 import '../../profile/application/profile_controller.dart';
 import '../../today/application/today_controller.dart';
 import '../../today/presentation/today_section.dart';
+import '../../quick_record/presentation/quick_record_sheet.dart';
+import '../../quick_record/application/quick_record_controller.dart';
+import '../../quick_record/presentation/quick_repeat_card.dart';
+import '../../clinical/presentation/hba1c_due_card.dart';
+import '../../feature_flags/feature_flags.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -41,6 +47,8 @@ class HomeScreen extends ConsumerWidget {
       onRefresh: () async {
         ref.invalidate(todayProvider);
         ref.invalidate(homeHighlightProvider);
+        ref.invalidate(quickSuggestionsProvider);
+        ref.invalidate(featuresProvider);
         await ref.read(todayProvider.future).catchError((_) => null);
       },
       children: [
@@ -114,9 +122,42 @@ class HomeScreen extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.md),
         ],
+        const GuestImportCard(),
+        const _QuickLaunch(),
+        if (!consentBlocked) const QuickRepeatCard(),
+        if (!consentBlocked) const Hba1cDueCard(),
         const TodaySection(),
-        if (!consentBlocked) const CommunityHighlightCard(),
+        if (!consentBlocked &&
+            featureOn(ref.watch(featuresProvider).value, 'community'))
+          const CommunityHighlightCard(),
       ],
     );
   }
+}
+
+class _QuickLaunch extends StatefulWidget {
+  const _QuickLaunch();
+  @override
+  State<_QuickLaunch> createState() => _QuickLaunchState();
+}
+
+class _QuickLaunchState extends State<_QuickLaunch> {
+  bool done = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (done) return;
+    final quick = GoRouterState.of(context).uri.queryParameters['quick'] == '1';
+    if (!quick) return;
+    done = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.go(Routes.home);
+      showQuickRecord(context);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }

@@ -2,7 +2,8 @@ import { classifyFollowUp, classifyIntent, extractQuery } from "../agent/agent.i
 import { screenRequest } from "../agent/agent.safety.ts";
 import { isMealLogStatement } from "../meal-drafts/meal-text.parser.ts";
 
-export const ROUTER_VERSION = "router-v3";
+export const ROUTER_VERSION = "router-v4";
+export const HYBRID_ROUTER_VERSION = "router-v4-hybrid";
 
 export type StatsDomain = "activity" | "glucose" | "nutrition" | "medication" | "logging";
 export type StatsDays = 7 | 14 | 30;
@@ -35,10 +36,6 @@ const norm = (s: string) =>
     .replace(/[^a-z0-9\s?-]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-
-const SELF_HARM = /(bunuh diri|ingin mati|pengen mati|pingin mati|mau mati saja|mengakhiri hidup|menyakiti diri|melukai diri)/;
-const SELF_HARM_MESSAGE =
-  "Terima kasih sudah bercerita. Kamu tidak harus menghadapinya sendirian. Jika kamu merasa tidak aman sekarang, segera hubungi layanan gawat darurat atau minta orang terdekat menemanimu. Bicara dengan tenaga kesehatan jiwa juga bisa membantu.";
 
 const GREETING = /^(halo|hallo|helo|hai|hi|hey|hello|pagi|siang|sore|malam|selamat (pagi|siang|sore|malam)|assalamualaikum|permisi)\b/;
 const GREETING_TAIL = new Set(["beokay", "spark", "asisten", "kak", "min", "semua", "juga", "lagi", "ya", "nih"]);
@@ -112,9 +109,8 @@ function minutesOf(t: string): number | undefined {
 
 export function routeMessage(text: string, ctx: RouteContext): Route {
   const t = norm(text);
-  if (SELF_HARM.test(t)) return { kind: "SAFETY", code: "SELF_HARM", message: SELF_HARM_MESSAGE, urgent: true };
   const screen = screenRequest(text);
-  if (screen.decision !== "ALLOWED") return { kind: "SAFETY", code: screen.code, message: screen.message, urgent: screen.code === "URGENT_SYMPTOM" };
+  if (screen.decision !== "ALLOWED") return { kind: "SAFETY", code: screen.code, message: screen.message, urgent: screen.urgent };
 
   let body = t;
   const greet = t.match(GREETING);

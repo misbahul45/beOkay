@@ -1,3 +1,4 @@
+import 'package:app/core/widgets/settings_group.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:math';
@@ -422,9 +423,14 @@ void main() {
       expect(find.text('Besar'), findsOneWidget);
       await h.shot(tester, '15b-settings-large-text');
 
-      await tester.tap(find.byType(Switch));
+      final motion = find.descendant(
+        of: find.widgetWithText(SettingsRow, 'Kurangi gerak'),
+        matching: find.byType(Switch),
+      );
+      await tester.ensureVisible(motion);
+      await tester.tap(motion);
       await h.settle(tester);
-      expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+      expect(tester.widget<Switch>(motion).value, isTrue);
     },
   );
 

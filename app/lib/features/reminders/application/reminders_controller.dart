@@ -71,7 +71,13 @@ class ReminderSyncController extends Notifier<DateTime?> {
         if (ref.mounted) state = DateTime.now();
         return;
       }
-      final items = await ref.read(remindersRepositoryProvider).upcoming();
+      final repo = ref.read(remindersRepositoryProvider);
+      final items = [
+        ...await repo.upcoming(),
+        ...await repo.medicationOccurrences().catchError(
+          (_) => <ScheduledReminder>[],
+        ),
+      ]..sort((a, b) => a.at.compareTo(b.at));
       await ref.read(reminderSchedulerProvider).replaceAll(items);
       if (ref.mounted) state = DateTime.now();
     } on ApiException catch (e) {

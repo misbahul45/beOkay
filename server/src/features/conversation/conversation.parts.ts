@@ -17,11 +17,12 @@ export type Part =
   | { type: "memory_proposal"; memoryId: string }
   | { type: "photo"; items: { name: string; confidence: "high" | "medium" | "low" }[] }
   | { type: "reflection"; weekStart: string; positives: string[]; actionsDone: number; canAdjust: boolean; done: boolean }
-  | { type: "challenges"; items: ChallengeItem[] };
+  | { type: "challenges"; items: ChallengeItem[] }
+  | { type: "education"; items: { key: string; title: string; readMinutes: number; reviewStatus: "DRAFT" | "REVIEWED" }[] };
 
 export type ChallengeItem = { id: string; title: string; communityName: string; startsOn: string; endsOn: string; status: string; statusLabel: string; participating: boolean; progress: { activeDays: number; targetDays: number } | null };
 
-export type BasisSource = { kind: "STATISTICS" | "FOOD_REFERENCE" | "USER_CATALOG" | "FOOD_PREFERENCES" | "ACTIVITY_HISTORY" | "GOALS" | "SAFETY_POLICY" | "MESSAGE" | "PHOTO" | "PORTION_MEASURES"; label: string };
+export type BasisSource = { kind: "STATISTICS" | "FOOD_REFERENCE" | "USER_CATALOG" | "FOOD_PREFERENCES" | "ACTIVITY_HISTORY" | "GOALS" | "SAFETY_POLICY" | "MESSAGE" | "PHOTO" | "PORTION_MEASURES" | "LANGUAGE_MODEL"; label: string };
 export type Basis = { sources: BasisSource[]; memories: { id: string; content: string }[] };
 
 export type LinkTarget = "INSIGHTS" | "LOG" | "LOG_MEAL" | "CONSENT" | "COMMUNITY" | "GOALS";
@@ -145,7 +146,7 @@ export const NO_CONTEXT_REPLY: Part[] = [
 export const CLARIFY_FOOD_REPLY: Part[] = [text("Makanan apa yang ingin kamu cari? Tulis namanya, misalnya \"nasi goreng\" atau \"tempe\".")];
 
 export function safetyReply(code: string, message: string, urgent: boolean): Part[] {
-  const title = urgent ? "Segera cari bantuan" : code === "MEDICATION_ADVICE" || code === "INJURY_OR_PAIN" || code === "DIAGNOSIS_REQUEST" ? "Perlu tenaga kesehatan" : "Di luar yang bisa kubantu";
+  const title = urgent ? "Segera cari bantuan" : ["MEDICATION_ADVICE", "INJURY_OR_PAIN", "DIAGNOSIS_REQUEST", "SYMPTOM_REVIEW"].includes(code) ? "Perlu tenaga kesehatan" : "Di luar yang bisa kubantu";
   return [{ type: "safety", code, title, text: message, urgent }];
 }
 

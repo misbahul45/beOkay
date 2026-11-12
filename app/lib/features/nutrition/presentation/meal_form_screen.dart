@@ -1,3 +1,5 @@
+import '../../../core/voice/voice_input.dart';
+import '../../../core/a11y/announce.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -17,6 +19,7 @@ import '../../../core/widgets/pill_button.dart';
 import '../../today/application/today_controller.dart';
 import '../application/nutrition_controller.dart';
 import '../data/nutrition_models.dart';
+import '../../../core/analytics/usage_tracker.dart';
 import 'food_picker.dart';
 import 'meal_item_editor.dart';
 import 'nutrition_widgets.dart';
@@ -31,6 +34,7 @@ class MealFormScreen extends ConsumerStatefulWidget {
 class _MealFormScreenState extends ConsumerState<MealFormScreen> {
   final form = GlobalKey<FormState>();
   final recordId = newRecordId();
+  final opened = DateTime.now();
   late final notes = TextEditingController(text: widget.initial?.notes);
   final reason = TextEditingController();
   late String category = widget.initial?.category ?? 'lunch';
@@ -125,6 +129,12 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
         'items': items.map((item) => item.toInput()).toList(),
       }, id: widget.initial?.id);
       if (!mounted || !repo.isCurrentAccount()) return;
+      if (widget.initial == null) {
+        ref
+            .read(usageTrackerProvider)
+            .formSaved('meal', DateTime.now().difference(opened));
+        announce(context, 'Catatan makan tersimpan');
+      }
       ref.invalidate(todayProvider);
       ref.invalidate(mealProvider(saved.id));
       setState(() {
@@ -309,13 +319,30 @@ class _MealFormScreenState extends ConsumerState<MealFormScreen> {
                       ? 'Catatan'
                       : 'Catatan & alasan',
                   children: [
-                    AppTextField(
-                      label: 'Catatan (opsional)',
-                      hint: 'mis. makan di kantor',
-                      controller: notes,
-                      maxLength: 2000,
-                      enabled: !locked,
-                      onChanged: (_) => setState(() => dirty = true),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: AppTextField(
+                            label: 'Catatan (opsional)',
+                            hint: 'mis. makan di kantor',
+                            controller: notes,
+                            maxLength: 2000,
+                            enabled: !locked,
+                            onChanged: (_) => setState(() => dirty = true),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 24),
+                          child: MicButton(
+                            controller: notes,
+                            domain: 'meal',
+                            enabled: !locked,
+                            onChanged: () => setState(() => dirty = true),
+                          ),
+                        ),
+                      ],
                     ),
                     if (widget.initial != null) ...[
                       const SizedBox(height: 8),
