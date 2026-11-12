@@ -10,7 +10,7 @@ Status 12 November 2026: API produksi berjalan di **https://beokay-api.vercel.ap
 | Postgres | container `pgvector/pgvector:pg17` | Neon; aplikasi memakai URL **pooled**, migrasi memakai URL **direct**; ekstensi `vector` dan `pg_trgm` aktif |
 | Pekerja latar (outbox, pengingat kotak masuk, push, sapuan hasil, siklus tantangan, nudge, sinkron edukasi, retensi) | `setInterval` di proses API | dimatikan lewat env (`*_WORKER_ENABLED=false`, `PUSH_DISPATCH_ENABLED=false`); diganti **`/internal/jobs/tick`** yang dipicu penjadwal. Tiap job punya interval sendiri dan kunci di tabel `job_runs`, jadi tick ganda atau bersamaan tidak menjalankan job dua kali |
 | Tugas setelah respons (kirim email, push, catat pemakaian, run agen latar) | promise biasa | `background()` → `waitUntil` dari `@vercel/functions` |
-| WebSocket `/api/me/realtime` | satu proses | didukung Vercel; koneksi terikat ke satu instance. Untuk meneruskan pesan antar-instance isi `REALTIME_REDIS_URL` (opsional). Tanpa itu, aplikasi tetap memuat kotak masuk lewat HTTP |
+| WebSocket `/api/me/realtime` | satu proses | didukung Vercel; koneksi terikat ke satu instance. Untuk meneruskan pesan antar-instance isi `REALTIME_REDIS_URL` (opsional). Sudah aktif di produksi (log `realtime_bus_connected`). Tanpa itu, aplikasi tetap memuat kotak masuk lewat HTTP |
 | Pembatas laju | memori proses | tetap memori, **per instance** (lebih longgar bila Vercel menjalankan beberapa instance) |
 | Email (verifikasi, reset kata sandi) | Mailpit/SMTP | SMTP pihak ketiga (**belum diisi**, lihat §3) |
 | Push | FCM | FCM (opsional, belum diisi) |
@@ -35,8 +35,9 @@ Berkas: `server/vercel.json` (Bun 1.4.x, region, `bun run db:generate` saat buil
 | Alternatif email | Gmail SMTP dengan App Password (butuh 2FA) | ~500/hari | `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`, `SMTP_SECURE=true`, `SMTP_USER`, `SMTP_PASS` |
 | **Penjadwal tiap 5–10 menit (wajib untuk pengingat kotak masuk, outbox)** | [cron-job.org](https://www.cron-job.org/) | gratis, interval minimal 1 menit, header kustom didukung, batas waktu 30 dtk (tick butuh ~2 dtk) | job GET `https://beokay-api.vercel.app/internal/jobs/tick`, header `Authorization: Bearer <CRON_SECRET>`, tiap 5 menit |
 | Alternatif penjadwal | [Upstash QStash](https://upstash.com/qstash/pricing) | 1.000 pesan/hari (tiap 5 menit = 288/hari) | jadwal ke URL yang sama, header `Upstash-Forward-Authorization: Bearer <CRON_SECRET>` |
-| **Penjadwal aktif sekarang**: GitHub Actions `.github/workflows/jobs-tick.yml` (tiap 10 menit) | gratis di repo; jadwal bisa terlambat beberapa menit dan berhenti setelah 60 hari tanpa aktivitas repo | secret repo `BEOKAY_API_URL` dan `BEOKAY_CRON_SECRET` terpasang; dijalankan manual 12 Nov 2026 → `HTTP 200` |
-| Realtime antar-instance (opsional) | [Upstash Redis](https://upstash.com/pricing/redis) | 256 MB, 500 ribu perintah/bulan | `REALTIME_REDIS_URL=rediss://default:<token>@<host>:6379` |
+| **Penjadwal aktif (utama)**: Upstash QStash, jadwal `beokay-jobs-tick` (`*/5 * * * *`, GET, tanpa retry, header Authorization diteruskan) | akun free: 1.000 pesan/hari (288 dipakai), 10 jadwal; dibuat lewat Developer API | Lihat §11 |
+| **Penjadwal cadangan**: GitHub Actions `.github/workflows/jobs-tick.yml` (tiap 10 menit) | gratis di repo; jadwal bisa terlambat beberapa menit dan berhenti setelah 60 hari tanpa aktivitas repo | secret repo `BEOKAY_API_URL` dan `BEOKAY_CRON_SECRET` terpasang; dijalankan manual 12 Nov 2026 → `HTTP 200` |
+| Realtime antar-instance | [Upstash Redis](https://upstash.com/pricing/redis) database `beokay-realtime` (free, `ap-southeast-1`, TLS) **sudah dipasang** | 256 MB, 500 ribu perintah/bulan | `REALTIME_REDIS_URL` (sensitif di Vercel) |
 | Push saat aplikasi tertutup (opsional) | Firebase Cloud Messaging | gratis | `FCM_PROJECT_ID`, `FCM_SERVICE_ACCOUNT_JSON`; aplikasi butuh `google-services.json` |
 
 Vercel Cron (paket Hobby) hanya boleh sekali sehari; `vercel.json` memakainya sebagai cadangan pukul 02.00 WIB (retensi tetap jalan walau penjadwal eksternal mati).
@@ -133,4 +134,13 @@ sha256sum beokay.apk   # perbarui nilai di index.html dan README bagian "Unduh a
 ```
 
 Batas: berkas statis Vercel Hobby maksimal 100 MB per berkas (APK arm64 34 MB). Versi 1.0.0 (`versionCode` 2001 untuk arm64) diverifikasi dengan `apksigner` (skema v2) dan memuat URL API produksi.
+
+## 11. Upstash (Redis dan QStash)
+
+Dibuat lewat Upstash Developer API (HTTP Basic: email akun Upstash + API key; tersimpan di `.env.deploy` sebagai `UPSTASH_EMAIL`, `UPSTASH_API_KEY`). Nilai turunannya di berkas yang sama: `REALTIME_REDIS_URL`, `UPSTASH_REDIS_ID`, `QSTASH_TOKEN`, `QSTASH_REGION` (`eu-central-1`).
+
+- **Redis `beokay-realtime`**: dipakai hanya untuk pub/sub `beokay:realtime` (`realtime.connectBus`). Pesan membawa id instance pengirim sehingga instance tidak memutar ulang pesannya sendiri. Diuji di produksi 12 Nov 2026: klien WebSocket nyata menerima pesan yang dipublikasikan dari Redis eksternal; PING ±300 ms dari mesin pengembangan. Catatan kuota: setiap publish menghitung satu perintah dari 500 ribu per bulan.
+- **QStash jadwal `beokay-jobs-tick`**: `POST https://qstash-eu-central-1.upstash.io/v2/schedules/https://beokay-api.vercel.app/internal/jobs/tick` dengan header `Upstash-Cron: */5 * * * *`, `Upstash-Method: GET`, `Upstash-Forward-Authorization: Bearer <CRON_SECRET>`, `Upstash-Schedule-Id: beokay-jobs-tick`, `Upstash-Retries: 0`, `Upstash-Timeout: 30s`. Tick bersifat idempoten (kunci `job_runs`), jadi berjalan bersama penjadwal GitHub Actions tidak menggandakan pekerjaan. Mengganti `CRON_SECRET` berarti membuat ulang jadwal dengan Schedule-Id yang sama (memperbarui jadwal yang ada) dan memperbarui secret GitHub.
+- Cek jadwal: `GET https://qstash-eu-central-1.upstash.io/v2/schedules/beokay-jobs-tick` dengan `Authorization: Bearer $QSTASH_TOKEN`.
+- API key Upstash sempat dibagikan di percakapan sesi kerja; bila dianggap bocor, buat ulang di Console → Account → Developer API dan perbarui `.env.deploy`.
 
