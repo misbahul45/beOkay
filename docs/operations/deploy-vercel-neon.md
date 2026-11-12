@@ -16,7 +16,9 @@ Status 12 November 2026: API produksi berjalan di **https://beokay-api.vercel.ap
 | Push | FCM | FCM (opsional, belum diisi) |
 | Pencarian semantik, OCR, model bahasa | Mistral | Mistral (`MISTRAL_API_KEY` sudah dipasang) |
 
-Berkas: `server/vercel.json` (Bun 1.4.x, region, `bun run db:generate` saat build, cron harian, `includeFiles` untuk paket `@better-auth/*` yang tidak ikut terdeteksi pelacak berkas), `server/.vercelignore`.
+Berkas: `server/vercel.json` (Bun 1.4.x, region, `bun run db:generate` saat build, cron harian, `includeFiles` untuk paket `@better-auth/*` yang tidak ikut terdeteksi pelacak berkas; polanya `{node_modules,server/node_modules}/@better-auth/**` agar cocok untuk deploy dari `server/` maupun dari root), `.vercelignore` di root (wajib: `app/build` 3,7 GB), `server/.vercelignore`.
+
+**Root Directory proyek Vercel = `server`** dan proyek tersambung ke GitHub (`misbahul45/beOkay`, branch `main`), jadi push ke `main` otomatis membangun produksi dari `server/`. Penautan CLI (`.vercel/`) ada di **root repo**, bukan di `server/`: jalankan `vercel deploy --prod` dari root. Menjalankannya dari `server/` gagal (`server/server` tidak ada).
 
 ## 2. Yang sudah diverifikasi di produksi
 
@@ -33,7 +35,7 @@ Berkas: `server/vercel.json` (Bun 1.4.x, region, `bun run db:generate` saat buil
 | Alternatif email | Gmail SMTP dengan App Password (butuh 2FA) | ~500/hari | `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`, `SMTP_SECURE=true`, `SMTP_USER`, `SMTP_PASS` |
 | **Penjadwal tiap 5–10 menit (wajib untuk pengingat kotak masuk, outbox)** | [cron-job.org](https://www.cron-job.org/) | gratis, interval minimal 1 menit, header kustom didukung, batas waktu 30 dtk (tick butuh ~2 dtk) | job GET `https://beokay-api.vercel.app/internal/jobs/tick`, header `Authorization: Bearer <CRON_SECRET>`, tiap 5 menit |
 | Alternatif penjadwal | [Upstash QStash](https://upstash.com/qstash/pricing) | 1.000 pesan/hari (tiap 5 menit = 288/hari) | jadwal ke URL yang sama, header `Upstash-Forward-Authorization: Bearer <CRON_SECRET>` |
-| Alternatif tanpa akun baru | GitHub Actions `.github/workflows/jobs-tick.yml` (sudah dibuat, belum di-commit) | gratis di repo; jadwal bisa terlambat beberapa menit dan berhenti setelah 60 hari tanpa aktivitas repo | secret repo `BEOKAY_API_URL` dan `BEOKAY_CRON_SECRET` **sudah dipasang** |
+| **Penjadwal aktif sekarang**: GitHub Actions `.github/workflows/jobs-tick.yml` (tiap 10 menit) | gratis di repo; jadwal bisa terlambat beberapa menit dan berhenti setelah 60 hari tanpa aktivitas repo | secret repo `BEOKAY_API_URL` dan `BEOKAY_CRON_SECRET` terpasang; dijalankan manual 12 Nov 2026 → `HTTP 200` |
 | Realtime antar-instance (opsional) | [Upstash Redis](https://upstash.com/pricing/redis) | 256 MB, 500 ribu perintah/bulan | `REALTIME_REDIS_URL=rediss://default:<token>@<host>:6379` |
 | Push saat aplikasi tertutup (opsional) | Firebase Cloud Messaging | gratis | `FCM_PROJECT_ID`, `FCM_SERVICE_ACCOUNT_JSON`; aplikasi butuh `google-services.json` |
 
@@ -70,13 +72,13 @@ vercel deploy --prod
 NEON_DIRECT_URL=... docker compose run --rm --no-deps -T -e DATABASE_URL="$NEON_DIRECT_URL" api bun run db:migrate:deploy
 
 # Deploy
-cd server && vercel deploy --prod
+vercel deploy --prod        # dari root repo; Root Directory proyek = server
 
 # Status job
 curl -H "Authorization: Bearer $CRON_SECRET" https://beokay-api.vercel.app/internal/jobs/status
 
 # Log runtime
-cd server && vercel logs https://beokay-api.vercel.app --no-follow --limit 50
+vercel logs https://beokay-api.vercel.app --no-follow --limit 50
 ```
 
 Jangan `source .env.deploy` langsung di shell: URL Neon memuat `&`. Baca nilainya dengan alat yang mengurai kutip (mis. `python3 -c` + `shlex`) atau salin manual.
@@ -98,6 +100,37 @@ Saat migrasi pertama, berkas env dibaca dengan `source` dan URL Neon yang memuat
 
 ## 8. Rollback
 
-- Kode: `cd server && vercel rollback` (kembali ke deployment produksi sebelumnya) atau promosikan deployment lama dari dasbor.
+- Kode: `vercel rollback` (kembali ke deployment produksi sebelumnya) atau promosikan deployment lama dari dasbor.
 - Data: buat branch Neon sebelum migrasi berisiko (`neon branches create --project-id <id> --name pra-migrasi`).
 - Kembali ke VPS: `compose.prod.yaml` tidak berubah; set ulang `*_WORKER_ENABLED=true`.
+
+## 9. Insiden build Git (12 Nov 2026)
+
+Push `cf4925a` ke `main` memicu build produksi dari GitHub yang gagal: `bun install` → `Bun could not find a package.json`. Penyebab: `vercel link` (12 Nov) otomatis menyambungkan repo GitHub, tetapi Root Directory proyek kosong, jadi build berangkat dari root repo yang tidak punya `package.json`. Deploy CLI sebelumnya lolos karena diunggah dari dalam `server/`.
+
+Perbaikan: Root Directory diatur ke `server` lewat API Vercel (`PATCH /v9/projects/beokay-api`); penautan CLI dipindah ke root; `.vercelignore` root ditambahkan. Setelah itu build lolos tetapi fungsi crash `Cannot find package '@better-auth/telemetry'` karena tata letak fungsi menjadi `/var/task/server/` dan pola `includeFiles` lama tidak cocok; pola diganti dengan alternatif `{node_modules,server/node_modules}/…`. Perubahan `server/vercel.json`, `.vercelignore`, dan `.gitignore` harus di-commit agar build Git berikutnya memakai pola yang benar; sebelum itu, build Git dari `cf4925a` menghasilkan fungsi yang crash.
+
+## 10. Publikasi APK
+
+APK diterbitkan sebagai situs statis di proyek Vercel **terpisah** `beokay-app` (`https://beokay-app.vercel.app/beokay.apk`), dideploy dari folder **di luar repo** supaya penautan CLI tidak menyambungkan Git (yang akan menerbitkan isi repo sebagai situs statis). Proyek `beokay-app` sengaja tanpa tautan Git dan tanpa Root Directory.
+
+Build (kunci rilis ada di `~/beokay-release.jks`, kata sandi di `app/android/key.properties`; keduanya di luar git, **cadangkan**: tanpa kunci ini APK baru tidak bisa memperbarui yang sudah terpasang):
+
+```bash
+cd app && flutter build apk --release --split-per-abi --dart-define=API_BASE_URL=https://beokay-api.vercel.app
+# hasil: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk (34 MB), armeabi-v7a, x86_64
+```
+
+Terbitkan (folder sementara, mis. di scratchpad):
+
+```bash
+mkdir -p /tmp/apk-site && cd /tmp/apk-site
+cp <repo>/app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk beokay.apk
+# vercel.json: header Content-Type application/vnd.android.package-archive + Content-Disposition attachment untuk /*.apk
+# index.html: halaman unduh dengan versi, ukuran, dan SHA-256
+vercel link --yes --project beokay-app && vercel deploy --prod --yes
+sha256sum beokay.apk   # perbarui nilai di index.html dan README bagian "Unduh aplikasi Android"
+```
+
+Batas: berkas statis Vercel Hobby maksimal 100 MB per berkas (APK arm64 34 MB). Versi 1.0.0 (`versionCode` 2001 untuk arm64) diverifikasi dengan `apksigner` (skema v2) dan memuat URL API produksi.
+

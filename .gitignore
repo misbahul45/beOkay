@@ -149,3 +149,7 @@ server/src/generated/
 
 
 .claude
+
+# Vercel CLI link
+.vercel
+.env*

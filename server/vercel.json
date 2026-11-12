@@ -14,7 +14,7 @@
   ],
   "functions": {
     "index.ts": {
-      "includeFiles": "node_modules/@better-auth/**"
+      "includeFiles": "{node_modules,server/node_modules}/@better-auth/**"
     }
   }
 }

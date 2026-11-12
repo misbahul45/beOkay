@@ -1,0 +1,16 @@
+app
+design
+docs
+.github
+.claude
+.git
+.env
+.env.*
+!.env.example
+**/node_modules
+**/.env
+**/.env.*
+server/src/generated
+server/tests
+server/bruno
+server/scripts/tkpi
