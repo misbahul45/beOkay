@@ -1,6 +1,6 @@
 # Deploy di Vercel + Neon
 
-Status 12 November 2026: API produksi berjalan di **https://beokay-api.vercel.app** (Vercel, proyek `beokay-api`, region `sin1`, runtime Bun 1.4), basis data di **Neon** (proyek `beokay`, `aws-ap-southeast-1`, Postgres 18, org Free). Stack Docker (`compose.prod.yaml`) tetap bisa dipakai; dokumen ini hanya untuk jalur serverless.
+Status 13 November 2026: API produksi **dan landing page** berjalan di **https://beokay-api.vercel.app** (satu URL, lihat §12) (Vercel, proyek `beokay-api`, fungsi di region `sin1` sejak 14 Nov 2026, lihat §13; runtime Bun 1.4), basis data di **Neon** (proyek `beokay`, `aws-ap-southeast-1`, Postgres 18, org Free). Stack Docker (`compose.prod.yaml`) tetap bisa dipakai; dokumen ini hanya untuk jalur serverless.
 
 ## 1. Apa berjalan di mana
 
@@ -12,8 +12,9 @@ Status 12 November 2026: API produksi berjalan di **https://beokay-api.vercel.ap
 | Tugas setelah respons (kirim email, push, catat pemakaian, run agen latar) | promise biasa | `background()` → `waitUntil` dari `@vercel/functions` |
 | WebSocket `/api/me/realtime` | satu proses | didukung Vercel; koneksi terikat ke satu instance. Untuk meneruskan pesan antar-instance isi `REALTIME_REDIS_URL` (opsional). Sudah aktif di produksi (log `realtime_bus_connected`). Tanpa itu, aplikasi tetap memuat kotak masuk lewat HTTP |
 | Pembatas laju | memori proses | tetap memori, **per instance** (lebih longgar bila Vercel menjalankan beberapa instance) |
-| Email (verifikasi, reset kata sandi) | Mailpit/SMTP | SMTP pihak ketiga (**belum diisi**, lihat §3) |
-| Push | FCM | FCM (opsional, belum diisi) |
+| Email (verifikasi, reset kata sandi, laporan insiden) | Mailpit/SMTP | Brevo SMTP `smtp-relay.brevo.com:587`, aktif 14 Nov 2026 (login dan key di `.env.deploy` sebagai `BREVO_SMTP_LOGIN`/`BREVO_SMTP_KEY`); pembatasan IP di Brevo harus mati karena IP Vercel berubah-ubah |
+| Pencarian web alat agen | Firecrawl | `FIRECRAWL_API_KEY` terpasang 13 Nov 2026 (Secret) |
+| Push | FCM | FCM, kunci server terpasang (project `todolist-project-7979d`); APK 1.1.1+ membawa `google-services.json` |
 | Pencarian semantik, OCR, model bahasa | Mistral | Mistral (`MISTRAL_API_KEY` sudah dipasang) |
 
 Berkas: `server/vercel.json` (Bun 1.4.x, region, `bun run db:generate` saat build, cron harian, `includeFiles` untuk paket `@better-auth/*` yang tidak ikut terdeteksi pelacak berkas; polanya `{node_modules,server/node_modules}/@better-auth/**` agar cocok untuk deploy dari `server/` maupun dari root), `.vercelignore` di root (wajib: `app/build` 3,7 GB), `server/.vercelignore`.
@@ -38,7 +39,7 @@ Berkas: `server/vercel.json` (Bun 1.4.x, region, `bun run db:generate` saat buil
 | **Penjadwal aktif (utama)**: Upstash QStash, jadwal `beokay-jobs-tick` (`*/5 * * * *`, GET, tanpa retry, header Authorization diteruskan) | akun free: 1.000 pesan/hari (288 dipakai), 10 jadwal; dibuat lewat Developer API | Lihat §11 |
 | **Penjadwal cadangan**: GitHub Actions `.github/workflows/jobs-tick.yml` (tiap 10 menit) | gratis di repo; jadwal bisa terlambat beberapa menit dan berhenti setelah 60 hari tanpa aktivitas repo | secret repo `BEOKAY_API_URL` dan `BEOKAY_CRON_SECRET` terpasang; dijalankan manual 12 Nov 2026 → `HTTP 200` |
 | Realtime antar-instance | [Upstash Redis](https://upstash.com/pricing/redis) database `beokay-realtime` (free, `ap-southeast-1`, TLS) **sudah dipasang** | 256 MB, 500 ribu perintah/bulan | `REALTIME_REDIS_URL` (sensitif di Vercel) |
-| Push saat aplikasi tertutup (opsional) | Firebase Cloud Messaging | gratis | `FCM_PROJECT_ID`, `FCM_SERVICE_ACCOUNT_JSON`; aplikasi butuh `google-services.json` |
+| Push saat aplikasi tertutup | Firebase Cloud Messaging, project `todolist-project-7979d` (dipakai bersama Ceria) | gratis | `FCM_PROJECT_ID`, `FCM_SERVICE_ACCOUNT_JSON` (base64 JSON akun layanan) **terpasang 13 Nov 2026** sebagai Secret; diuji `validate_only` (OAuth OK). `id.beokay.app` terdaftar di project itu (13 Nov 2026) dan `app/android/app/google-services.json` (gitignored) ikut di APK 1.1.1 |
 
 Vercel Cron (paket Hobby) hanya boleh sekali sehari; `vercel.json` memakainya sebagai cadangan pukul 02.00 WIB (retensi tetap jalan walau penjadwal eksternal mati).
 
@@ -93,7 +94,7 @@ Aplikasi Android untuk server ini: `flutter build apk --debug --dart-define=API_
 3. **Pembatas laju per instance**: login dan aksi komunitas dibatasi per instance, bukan global. Untuk pilot kecil ini cukup; untuk publik luas pindahkan ke Redis.
 4. **WebSocket**: koneksi diputus paling lambat saat batas durasi fungsi; aplikasi menyambung ulang. Tanpa `REALTIME_REDIS_URL`, peristiwa dari instance lain tidak sampai lewat WebSocket (kotak masuk tetap benar lewat HTTP).
 5. **Edukasi**: `EDUCATION_INCLUDE_DRAFTS=false` di produksi, jadi daftar modul kosong sampai klinisi meninjau (lihat runbook).
-6. **Model foto hidangan (Modal)** dan pencarian web (Firecrawl/Brave) tidak dipasang di produksi.
+6. **Model foto hidangan (Modal)** tidak dipasang di produksi. Pencarian web: Firecrawl (alat agen) dan Tavily (penemuan makanan, menggantikan Brave sejak 14 Nov 2026) terpasang.
 
 ## 7. Insiden saat penyiapan
 
@@ -133,7 +134,7 @@ vercel link --yes --project beokay-app && vercel deploy --prod --yes
 sha256sum beokay.apk   # perbarui nilai di index.html dan README bagian "Unduh aplikasi Android"
 ```
 
-Batas: berkas statis Vercel Hobby maksimal 100 MB per berkas (APK arm64 34 MB). Versi 1.0.0 (`versionCode` 2001 untuk arm64) diverifikasi dengan `apksigner` (skema v2) dan memuat URL API produksi.
+Batas: berkas statis Vercel Hobby maksimal 100 MB per berkas (APK arm64 34 MB). Versi terbit sekarang **1.1.2** (`versionCode` 2004 untuk arm64, 34.093.040 byte, SHA-256 `ac05625bc0ad84039dea563fb6dd98e2e2125a2be0e46568a97603c7edf405c4`, dengan konfigurasi Firebase untuk push dan kanal notifikasi `beokay_reminders`), diverifikasi dengan `apksigner` (penanda tangan `CN=beOkay`) dan memuat URL API produksi. Halaman unduh di `beokay-app` menyajikan header `Content-Disposition: attachment; filename="beokay-1.1.2.apk"`. Landing page menautkan `/beokay.apk` di domain API, yang diteruskan (`302`) ke berkas ini; nilai versi, ukuran, dan SHA-256 di kartu unduh ada di konstanta `APK` pada `landing/src/App.tsx`.
 
 ## 11. Upstash (Redis dan QStash)
 
@@ -144,3 +145,75 @@ Dibuat lewat Upstash Developer API (HTTP Basic: email akun Upstash + API key; te
 - Cek jadwal: `GET https://qstash-eu-central-1.upstash.io/v2/schedules/beokay-jobs-tick` dengan `Authorization: Bearer $QSTASH_TOKEN`.
 - API key Upstash sempat dibagikan di percakapan sesi kerja; bila dianggap bocor, buat ulang di Console → Account → Developer API dan perbarui `.env.deploy`.
 
+
+## 12. Landing page dan API di satu URL (13 Nov 2026)
+
+Landing page React (`landing/`) dibangun di dalam build proyek `beokay-api`, jadi `https://beokay-api.vercel.app/` menyajikan landing dan `/api/*` tetap API.
+
+- `server/vercel.json`: `buildCommand` = `bun run db:generate && bun run landing:build`; `includeFiles` ditambah `public/**` dan `server/public/**` supaya fungsi juga membawa berkas landing.
+- `server/package.json` → `landing:build`: `cd ../landing && bun install --frozen-lockfile && bun run build && rm -rf ../server/public && cp -r dist ../server/public`. Membutuhkan folder `landing/` ikut terunggah (Vercel mengunggah seluruh repo karena CLI ditautkan di root).
+- Berkas statis di `server/public` dilayani CDN Vercel. Bila CDN tidak menemukannya, `serveSite()` (`server/src/shared/http/static-site.ts`) di fungsi API melayaninya dengan CSP `'self'`, `nosniff`, `frame-ancestors 'none'`, dan cache immutable untuk `/assets/`. Path traversal, byte nol, dan encoding rusak ditolak (tes `server/tests/unit/static-site.test.ts`).
+- `/beokay.apk` dan `/download` → `302` ke `APK_DOWNLOAD_URL` (bawaan `https://beokay-app.vercel.app/beokay.apk`). `/api`, `/internal`, `/health`, `/metrics` tidak pernah dilayani sebagai berkas.
+- `.vercelignore` membuang `landing/dist`, `landing/.vite`, `landing-page` (scaffold Vite yang tidak dipakai), dan **`server/public`**.
+
+Insiden deploy 13 Nov 2026: deploy pertama gagal dengan `ENOENT: ... server/public/assets/index-*.css`. `server/public` hasil build lokal ikut terunggah, Vercel mencatat daftar berkasnya, lalu `landing:build` menghapus dan menggantinya dengan berkas berhash baru, sehingga berkas yang tercatat hilang. Perbaikan: `server/public` masuk `.vercelignore`; deploy berikutnya `READY`.
+
+Verifikasi produksi setelah deploy: `/` 200 `text/html` dengan CSP, `/img/*` 200, `/assets/*.js` 200, `/beokay.apk` dan `/download` 302, `/health` 200 (`db: true`), `/api/me/journey` tanpa sesi 401, jalur tak dikenal 404 JSON; browser tanpa error konsol dan chunk `phone-3d` (three.js) termuat. Uji asap API (akun sintetis, dihapus setelahnya) 20/20, termasuk `GET /api/me/today/next-action` yang sebelumnya 500 (proyeksi kini satu `INSERT … ON CONFLICT`). Latensi saat itu: catat aktivitas ~3,5 dtk dan langkah berikutnya ~5 dtk pada permintaan pertama (fungsi dan Neon baru bangun), perlu dipantau.
+
+Menjalankan landing secara lokal: lihat README bagian "Landing page" (build dan pratinjau di container `oven/bun:1.4.0`).
+
+## 13. Region fungsi: iad1 → sin1 (14 Nov 2026)
+
+Gejala: latensi produksi tinggi walau fungsi hangat (`/health` ±520 ms, `GET /api/me/journey` ±985 ms, catat aktivitas ±3,3 dtk, `next-action` ±2,1 dtk). Header `x-vercel-id: sin1::iad1::…` dan `vercel inspect` (`λ index [iad1]`) menunjukkan fungsi dijalankan di **iad1 (Washington)**, sementara Neon ada di `aws-ap-southeast-1` (Singapura): setiap kueri menyeberang Pasifik.
+
+Penyebab: proyek dibuat dengan `resourceConfig.functionDefaultRegions = ["iad1"]` (Fluid compute). Setelan proyek itu yang dipakai; `"regions": ["sin1"]` di `server/vercel.json` tidak berpengaruh untuk proyek ini. Dokumen ini sebelumnya menulis "region sin1" tanpa memeriksa hasil deploy.
+
+Perbaikan:
+
+```bash
+vercel api /v9/projects/prj_SFR7Z5UmQw007alHc63dKg6M3lr7 --raw | jq '.resourceConfig.functionDefaultRegions'   # cek
+echo '{"resourceConfig":{"functionDefaultRegions":["sin1"]}}' \
+  | vercel api /v9/projects/prj_SFR7Z5UmQw007alHc63dKg6M3lr7 -X PATCH --input -          # ubah (jangan sertakan serverlessFunctionRegion sekaligus: 400)
+vercel deploy --prod --yes
+vercel inspect https://beokay-api.vercel.app | grep "λ index"                              # harus [sin1]
+```
+
+Hasil (klien yang menjaga koneksi tetap hidup, akun sintetis yang dihapus setelahnya):
+
+| Endpoint | iad1 | sin1 |
+|---|---|---|
+| `/health` | 515–770 ms | 52–68 ms |
+| `GET /api/me/journey` | 980–1.260 ms | 60–72 ms |
+| `POST /api/me/activities` | 3.300–3.370 ms | 100–165 ms |
+| `GET /api/me/today/next-action` | 2.130–4.400 ms | 71–120 ms |
+
+`curl` tanpa keep-alive masih menunjukkan ±0,45 dtk per permintaan karena setiap panggilan membuka TLS baru; itu bukan latensi server. Setelah setiap perubahan proyek, periksa `λ index [sin1]` di `vercel inspect`.
+
+## 14. Uji emulator + Appium (14 Nov 2026)
+
+Emulator `Pixel_4` (Android 17, image Google Play), APK rilis x86_64 yang memakai API produksi, akun sintetis dibuat lewat API (email ditandai terverifikasi di DB karena SMTP belum ada) dan dihapus setelah uji. Kredensial diketik lewat `adb input` dari berkas di scratchpad, tidak lewat alat Appium.
+
+- Pembaruan dari 1.0.0 ke 1.1.1 berhasil (kunci rilis sama).
+- Beranda: kartu langkah berikutnya ("Boleh aku ingat ini?" untuk usulan ingatan yang bertentangan), chip alur, progres (2 hari aktif, skor 2,1, rekor 7 hari), check-in tenaga → "Tersimpan". Chip Progres membuka Aktivitas mingguan (50 menit, 2 sesi).
+- Ingatan: kartu konflik TERSIMPAN/BARU dengan tombol bertumpuk; "Pakai yang baru" mengganti ingatan aktif dan riwayat mencatat "diganti (dulu: …)"; "Jeda" memindahkan ingatan ke daftar dijeda dengan snackbar; memilih ingatan memperbarui kartu riwayat; tombol nonaktif selama permintaan berjalan.
+- Push: sakelar "Kirim lewat notifikasi push" muncul (Firebase terinisialisasi), izin Android diberikan, token terdaftar (`push_devices` aktif = 1). Pesan uji lewat FCM HTTP v1 diterima (`sent`, HTTP 200) dan tampil di emulator saat aplikasi di latar belakang. Saat aplikasi di latar depan FCM tidak menampilkan notifikasi (perilaku FCM).
+- Temuan: notifikasi masuk kanal cadangan `fcm_fallback_notification_channel` karena kanal `beokay_reminders` baru dibuat saat pengingat lokal pertama tampil. Diperbaiki di 1.1.2: kanal dibuat saat penjadwal diinisialisasi (dipanggil juga saat push aktif), dan manifest menetapkan kanal serta ikon bawaan FCM.
+
+Verifikasi 1.1.2 di emulator: pembaruan dari 1.1.1 berhasil; kanal `beokay_reminders` ("Pengingat") terbentuk saat aplikasi dibuka; pesan FCM uji dengan aplikasi di latar belakang tampil di panel notifikasi dengan ikon beOkay pada kanal `beokay_reminders`.
+
+## 15. SMTP Brevo (14 Nov 2026)
+
+Variabel di Vercel: `SMTP_HOST=smtp-relay.brevo.com`, `SMTP_PORT=587`, `SMTP_SECURE=false`, `SMTP_USER` (login SMTP Brevo, bukan email akun), `SMTP_PASS` (SMTP key, Secret), `EMAIL_FROM=beOkay <email pemilik>`, `INCIDENT_EMAIL_TO=<email pemilik>`. Dua kegagalan saat penyiapan:
+
+- `535 Authentication failed` saat memakai email akun sebagai login. Akun Brevo baru memakai login buatan (`…@smtp-brevo.com`) dari SMTP & API → SMTP.
+- `525 5.7.1 Unauthorized IP address` setelah login benar. Akun Brevo memblokir IP tak dikenal; karena IP keluar fungsi Vercel berubah-ubah, pemblokiran dimatikan di Settings → Security → Authorised IPs, bukan mengizinkan IP satu per satu.
+
+Verifikasi: login dari mesin pengembangan `235 Authentication succeeded`; laporan insiden dari akun sintetis di produksi mengembalikan `emailed: true` (akun dihapus setelahnya). Pengirim memakai alamat Gmail lewat Brevo, jadi email bisa masuk spam; domain sendiri dengan SPF/DKIM di Brevo akan memperbaikinya.
+
+Variabel lain yang ditambahkan hari yang sama: `USDA_API_KEY` (kunci pribadi, 3.600 permintaan/jam), `UPLOADTHING_TOKEN` (token dev, hanya untuk skrip TKPI), `INCIDENT_EMAIL_TO`. Total env produksi: 32.
+
+## 16. Pencarian web penemuan makanan: Brave → Tavily (14 Nov 2026)
+
+`GET /api/me/foods/web-search` kini memakai Tavily (`POST https://api.tavily.com/search`, header `Authorization: Bearer`, `country: "indonesia"`, `search_depth: "basic"`, tanpa konten mentah). Klien tetap memakai pengaman yang sama dengan penyedia lain: host dipaku, `redirect: "error"`, batas waktu 8 dtk, batas balasan 600 KB, URL hasil disaring (`https` publik saja), dan hasil ditandai `reviewed: false`, `usableForNutrition: false`. `BRAVE_API_KEY` diganti `TAVILY_API_KEY` di `env.ts`, compose, dan `.env.example`; kunci ada di Vercel (Secret) dan `.env.deploy`. Diuji di produksi dengan akun sintetis: 200, `status: OK`, 5 hasil, ±1 dtk.
+
+Tes Trends (`tests/integration/trends.test.ts`) ternyata gagal bila dijalankan antara 00.00–02.00 WIB karena data "hari ini" dibuat 2 jam sebelum sekarang; tes kini memakai zona waktu yang sedang siang (Asia/Jakarta, Eropa/London, atau Asia/Tokyo). Backend 463/463.

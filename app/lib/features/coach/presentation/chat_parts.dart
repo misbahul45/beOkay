@@ -1579,3 +1579,79 @@ class ChallengeSuggestionsCard extends StatelessWidget {
     ),
   );
 }
+
+class EvidenceChips extends StatelessWidget {
+  const EvidenceChips({super.key, required this.part});
+
+  final EvidencePart part;
+
+  @override
+  Widget build(BuildContext context) {
+    final sources = part.items.map((i) => i.source).where((s) => s.isNotEmpty);
+    Widget chip(String text, Color color) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Text(text, style: AppTypography.caption),
+    );
+    return Semantics(
+      label:
+          'Kepastian: ${part.certaintyLabel}. ${sources.isEmpty ? '' : 'Sumber: ${sources.join(', ')}'}',
+      excludeSemantics: true,
+      child: Wrap(
+        spacing: AppSpacing.xs,
+        runSpacing: AppSpacing.xs,
+        children: [
+          chip(
+            'Kepastian: ${part.certaintyLabel.toLowerCase()}',
+            AppColors.warningBackground,
+          ),
+          for (final s in sources.take(2))
+            chip(
+              'Sumber: ${s.length > 48 ? '${s.substring(0, 45)}…' : s}',
+              AppColors.surfaceMuted,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class StrategyCard extends StatelessWidget {
+  const StrategyCard({super.key, required this.part});
+
+  final StrategyPart part;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(AppSpacing.cardPadding),
+    decoration: BoxDecoration(
+      color: AppColors.brandTint,
+      borderRadius: AppRadius.cardRadius,
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'STRATEGI UNTUK HAMBATAN: ${part.barrierLabel.toUpperCase()}',
+          style: AppTypography.overline,
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(part.title, style: AppTypography.title),
+        const SizedBox(height: 2),
+        Text(part.detail, style: AppTypography.body),
+        if (part.barrier == 'FORGOT') ...[
+          const SizedBox(height: AppSpacing.sm),
+          PillButton(
+            label: 'Atur pengingat',
+            expand: false,
+            onPressed: () => context.push(Routes.reminders),
+          ),
+        ],
+      ],
+    ),
+  );
+}

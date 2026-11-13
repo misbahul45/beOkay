@@ -7,9 +7,7 @@ import 'package:intl/intl.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/format/greeting.dart';
 import '../../../core/theme/app_spacing.dart';
-import '../../../core/widgets/adaptive_hero_card.dart';
-import '../../../core/widgets/beokay_avatar.dart';
-import '../../../core/widgets/beokay_logo.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../notifications/presentation/notification_widgets.dart';
 import '../../community/application/community_controller.dart';
 import '../../community/presentation/community_highlight_card.dart';
@@ -55,22 +53,6 @@ class HomeScreen extends ConsumerWidget {
         await ref.read(todayProvider.future).catchError((_) => null);
       },
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Semantics(
-                  header: true,
-                  child: const BeOkayLogo(height: 32),
-                ),
-              ),
-            ),
-            const NotificationBell(),
-            const ProfileAction(),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.xs),
         Builder(
           builder: (context) {
             final unconfirmed =
@@ -82,16 +64,15 @@ class HomeScreen extends ConsumerWidget {
               noMealToday:
                   today?.nutrition != null && today!.nutrition!.mealCount == 0,
             );
-            return AdaptiveHeroCard(
-              kicker: today == null
-                  ? null
-                  : DateFormat(
-                      'EEEE, d MMMM',
-                      'id_ID',
-                    ).format(DateTime.parse(today.date)),
-              title: message.title,
+            final date = today == null
+                ? null
+                : DateFormat(
+                    'EEEE, d MMMM',
+                    'id_ID',
+                  ).format(DateTime.parse(today.date));
+            return _HomeHeader(
+              greeting: [message.title, ?date].join(' · '),
               detail: message.detail,
-              sparkState: consentBlocked ? SparkState.neutral : SparkState.idle,
             );
           },
         ),
@@ -137,6 +118,38 @@ class HomeScreen extends ConsumerWidget {
       ],
     );
   }
+}
+
+class _HomeHeader extends StatelessWidget {
+  const _HomeHeader({required this.greeting, this.detail});
+
+  final String greeting;
+  final String? detail;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        children: [
+          Expanded(
+            child: Semantics(
+              header: true,
+              child: Text('Beranda', style: AppTypography.headline),
+            ),
+          ),
+          const NotificationBell(),
+          const ProfileAction(),
+        ],
+      ),
+      Text(greeting, style: AppTypography.secondary),
+      if (detail case final d? when d.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(top: AppSpacing.xxs),
+          child: Text(d, style: AppTypography.secondary),
+        ),
+    ],
+  );
 }
 
 class _QuickLaunch extends StatefulWidget {

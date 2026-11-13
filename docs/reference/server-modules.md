@@ -22,7 +22,7 @@
 | today | (komposisi) | H, S | `today` | `summaries` |
 | insights | `summary_projections` | H, S | `daily`, `weekly`, `trends`, `contextual`, `statistics` | `summaries`, `trends`, `statistics` |
 | sync | `sync_operations` | H | — | `sync` |
-| food-discovery | — (egress ke OFF/USDA/Brave) | H | `food-discovery*`, `web-search` | — |
+| food-discovery | — (egress ke OFF/USDA/Tavily) | H | `food-discovery*`, `web-search` | — |
 | food-reference | `food_reference` | H | `food-reference`, `tkpi-parser` | `food-reference` |
 | food-vision | — (egress ke Mistral) | H | `food-vision-service`, `label-parser` | `food-vision` |
 | food-preferences | `food_preferences` | H | `food-preferences` | `food-preferences` |
@@ -104,7 +104,7 @@ Lihat [overview §7.2](../architecture/system-overview.md). Kode: `sync.service.
 
 | Modul | Rincian |
 |---|---|
-| food-discovery | `discover` (lokal → TKPI → OFF+USDA bila `external=true`), `web-search` (Brave; hanya tautan/cuplikan), `barcode/:code` (validasi GTIN lalu OFF), `foods/reference`, ukuran porsi `GET/POST /foods/:id/measures`, `nutrition/calculate`. Batas luar: 20 panggilan / 10 menit / pengguna. |
+| food-discovery | `discover` (lokal → TKPI → OFF+USDA bila `external=true`), `web-search` (Tavily; hanya tautan/cuplikan), `barcode/:code` (validasi GTIN lalu OFF), `foods/reference`, ukuran porsi `GET/POST /foods/:id/measures`, `nutrition/calculate`. Batas luar: 20 panggilan / 10 menit / pengguna. |
 | food-reference | Pipeline TKPI: `scripts/tkpi/{parse,ingest,upload}.ts`; pencarian `reference.service.ts`. Tabel menyimpan `status` (`verified_auto` dipakai, `needs_review` disimpan tapi tidak dicari). 1.132 baris terurai, 1.037 `verified_auto` (menurut catatan P1; **jumlah baris di DB tidak diverifikasi pada audit ini**). `verified_auto` berarti konsisten secara internal (Atwater + jumlah proksimat), **bukan** diperiksa manusia. |
 | food-vision | `scanLabel` (OCR → `parseLabel`), `identifyPhoto` (nama saja, tanpa kalori/porsi). Batas: 10 panggilan / 10 menit. |
 | food-preferences | `kind ∈ {allergy, restriction, dislike, preference}`; `allergy`/`restriction` → `severity=strict`, lainnya `soft`. `checkFood()` mencocokkan **nama** (`NAME`) dan dugaan bahan lazim (`COMMON_INGREDIENT`); status `EXCLUDED | WARNING | NO_MATCH_FOUND`. **Tidak pernah berarti "aman"**. |

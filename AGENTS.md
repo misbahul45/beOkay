@@ -12,14 +12,17 @@ Sumber spesifikasi: *Database & UI/UX Master Blueprint v0.1* (proposed design, b
 ## Struktur
 - `server/` — Bun + TypeScript API. ORM: **Prisma 7** (driver adapter `@prisma/adapter-pg`). Ikuti `server/CLAUDE.md` (Bun-first) **kecuali** untuk database: pakai Prisma, bukan `Bun.sql` (keputusan pengguna).
 - `server/src/` — **feature-based**: `features/{auth,consent,onboarding,profile,health-profile,preferences}/` (masing-masing: routes, service, repository, schema Zod), `shared/` (error, HTTP wrapper, audit), `infrastructure/` (database, email), `config/env.ts`. Modul tidak boleh saling bergantung melingkar.
-- `app/` — Flutter Android (Riverpod, go_router, Health Connect). UI 4.0 belum dibuat; menunggu desain FigCraft.
+- `app/` — Flutter Android (Riverpod, go_router, Health Connect). UI 4.0 dari halaman desain 33; redesain Beranda dan Ingatan 1.1.0 dari halaman 35 (`design/beOkay-ui-v3.figcraft`). Kartu memakai `SoftCard` (`core/widgets/soft_card.dart`), tombol aksi utama `PillButtonKind.ink`.
+- `landing/` — landing page React (Vite 6, React 19, Tailwind 4, komponen gaya shadcn, GSAP, three.js). Dibangun saat build Vercel lewat `server` → `bun run landing:build` (hasil ke `server/public`, gitignored) dan disajikan di URL yang sama dengan API. Build/pratinjau lokal hanya di container `oven/bun:1.4.0`. `landing-page/` adalah scaffold Vite bawaan yang tidak dipakai.
 - `design/` — desain FigCraft + token Dart. `docs/` — audit, arsitektur, database, API.
 - `compose.yaml` (dev), `compose.test.yaml` (uji terisolasi), `compose.prod.yaml` (prod), `.env.example`, `.env.prod.example`.
 
 ## Cakupan saat ini (jangan melebar)
 - Selesai sampai 4.0 (lihat `docs/reports/beokay-4.0-report.md`): pencatatan domain, agen dan percakapan, coaching, komunitas, perangkat Health Connect, aplikasi Flutter Android, deploy Vercel + Neon.
 - 4.0 menambah: jalur (`features/cohort`), peristiwa beramplop + proyeksi `daily_behavior_facts`, registri skill + FSM, pengetahuan jalur A/C, mesin memori, mesin kualitas perangkat, JITAI v3, baseline perilaku mode bayangan, `score-v2`, langkah berikutnya. Arsitektur: `docs/architecture/beokay-4.0-ecosystem.md`.
-- **Jangan dibuat tanpa diminta**: model perilaku terlatih, bandit/uplift, perencana LLM yang menjalankan langkah (`react_llm_planner` tetap mati), aplikasi Wear OS, iOS, layanan infrastruktur baru, klaim efektivitas klinis.
+- **Jangan dibuat tanpa diminta**: model perilaku terlatih, bandit/uplift, perencana LLM yang menjalankan langkah (`react_llm_planner` hanya mode bayangan, bawaan mati; usulannya tidak boleh dieksekusi), aplikasi Wear OS, iOS, layanan infrastruktur baru, klaim efektivitas klinis.
+- Desain FigCraft tanpa jendela: `figcraft-cli run/export` untuk tambalan dan ekspor; untuk membuat layar baru jalankan aplikasi `figcraft --control 7979 <berkas>` lalu kendalikan lewat `figcraft-cli mcp --attach 7979` (skrip generator di scratchpad, bukan di repo).
+- Koleksi Bruno penuh dijalankan dengan akun sintetis runtime; daftar variabel di `docs/api/ecosystem-4.0.md`. Uji pulih cadangan: `server/scripts/ops/backup-restore-check.sh`.
 - Jalur hanya dari pernyataan pengguna. `UNDETERMINED` (tipe 1, < 18, usia tidak diketahui) = pencatatan saja. Konten T2DM tidak boleh sampai ke jalur lain (peta `MODULE_JOURNEYS`/`STRATEGY_JOURNEYS`).
 - Setiap tulis catatan domain wajib memanggil `emitRecordEvent(tx, …)` di transaksi yang sama. Agregasi hari aktif dibaca dari `dailyFacts`, bukan kueri baru.
 - Konten medis/edukasi tetap draf sampai ditinjau klinisi; produksi hanya menyajikan `REVIEWED` (paket: `docs/reports/beokay-4.0-clinical-review-packet.md`).
@@ -49,6 +52,7 @@ Sumber spesifikasi: *Database & UI/UX Master Blueprint v0.1* (proposed design, b
 - API produksi: proyek Vercel `beokay-api` (Root Directory = `server`, `server/vercel.json`, preset Bun, tersambung ke GitHub `main`), URL `https://beokay-api.vercel.app`. Deploy CLI dari **root repo** (`vercel deploy --prod`), bukan dari `server/`. DB: proyek Neon `beokay`. Panduan: `docs/operations/deploy-vercel-neon.md`.
 - Rahasia deploy ada di `/.env.deploy` (gitignored). **Jangan `source` berkas itu** (URL Neon memuat `&`); baca dengan pengurai kutip.
 - Pekerja latar di Vercel dimatikan; job berjalan lewat `/internal/jobs/tick` (`CRON_SECRET`). Tugas setelah respons memakai `background()` (`waitUntil`).
+- Landing page dan API satu URL: `/` dan berkas statis dari `server/public`, `/beokay.apk` → 302 ke `APK_DOWNLOAD_URL`. `server/public` wajib tetap di `.vercelignore` (berkas lokal lama membuat build gagal ENOENT). APK diterbitkan ke proyek `beokay-app` dari folder di luar repo.
 
 ## Konvensi data (dari blueprint, berlaku saat skema dibuat)
 - PK `UUID`, waktu `TIMESTAMPTZ`, ukuran `NUMERIC`, `JSONB` hanya untuk metadata variabel.

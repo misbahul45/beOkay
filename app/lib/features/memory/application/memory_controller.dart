@@ -31,3 +31,8 @@ final personalizationSummaryProvider =
         return null;
       }
     });
+
+final memoryHistoryProvider = FutureProvider.autoDispose
+    .family<List<MemoryRevisionEntry>, String>(
+      (ref, id) => ref.watch(memoryRepositoryProvider).history(id),
+    );

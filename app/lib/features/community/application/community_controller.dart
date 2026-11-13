@@ -38,6 +38,14 @@ final challengeDetailProvider = FutureProvider.autoDispose
     .family<ChallengeDetail, String>(
       (ref, id) => ref.watch(communityRepositoryProvider).challenge(id),
     );
+final teamProgressProvider = FutureProvider.autoDispose
+    .family<TeamProgress?, String>((ref, id) async {
+      try {
+        return await ref.watch(communityRepositoryProvider).team(id);
+      } catch (_) {
+        return null;
+      }
+    });
 final leaderboardProvider = FutureProvider.autoDispose
     .family<Leaderboard, String>(
       (ref, id) => ref.watch(communityRepositoryProvider).leaderboard(id),

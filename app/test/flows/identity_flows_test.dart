@@ -1,3 +1,4 @@
+import 'package:app/features/home/presentation/home_screen.dart';
 import 'package:app/core/widgets/settings_group.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -214,7 +215,13 @@ void main() {
     await h.pump(tester);
     expect(find.textContaining('Halo, Rina!'), findsOneWidget);
     expect(find.text('Mulai Sekarang'), findsNothing);
-    expect(find.bySemanticsLabel('beOkay'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(HomeScreen),
+        matching: find.text('Beranda'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('beOkay'), findsNothing);
     await h.shot(tester, 'today-foundation');
   });

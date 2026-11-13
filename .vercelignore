@@ -14,3 +14,7 @@ server/src/generated
 server/tests
 server/bruno
 server/scripts/tkpi
+landing/dist
+landing/.vite
+landing-page
+server/public

@@ -1,0 +1,27 @@
+meta {
+  name: Energy check-in
+  type: http
+  seq: 15
+}
+
+put {
+  url: {{baseUrl}}/api/me/checkins/energy
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {"energy":"LOW"}
+}
+
+tests {
+  test("One check-in per local day; feeds JITAI v3", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.checkin.energy).to.equal("LOW");
+    expect(res.body.localDate).to.match(/^\d{4}-\d{2}-\d{2}$/);
+  });
+}

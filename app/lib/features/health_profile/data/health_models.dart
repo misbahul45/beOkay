@@ -71,7 +71,11 @@ enum Treatment {
 
 enum RiskStatement {
   prediabetes('prediabetes_told', 'Saya prediabetes', 'Dari hasil pemeriksaan'),
-  atRisk('at_risk_told', 'Saya berisiko diabetes', 'Misalnya karena riwayat keluarga'),
+  atRisk(
+    'at_risk_told',
+    'Saya berisiko diabetes',
+    'Misalnya karena riwayat keluarga',
+  ),
   none('none', 'Tidak pernah', null),
   undisclosed('undisclosed', 'Tidak ingin menjawab', null);
 

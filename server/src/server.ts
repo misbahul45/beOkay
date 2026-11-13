@@ -15,13 +15,16 @@ import { realtime, websocket, type SocketData } from "./infrastructure/realtime/
 import { route } from "./shared/http/handler.ts";
 import { logEvent } from "./shared/http/logger.ts";
 import { appRoutes } from "./routes.ts";
+import { serveSite } from "./shared/http/static-site.ts";
+
+const notFound = route(async () => ({ status: 404, body: { error: { code: "NOT_FOUND", message: "Rute tidak ditemukan." } } }));
 
 const server = Bun.serve<SocketData>({
   websocket,
   port: env.PORT,
   idleTimeout: 60, // SSE: peristiwa/detak jantung lebih jarang dari 60 dtk
   routes: appRoutes,
-  fetch: route(async () => ({ status: 404, body: { error: { code: "NOT_FOUND", message: "Rute tidak ditemukan." } } })),
+  fetch: async (req, srv) => (await serveSite(req)) ?? notFound(req, srv),
 });
 
 realtime.attach(server);

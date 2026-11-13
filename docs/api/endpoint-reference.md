@@ -99,7 +99,7 @@ Catatan khusus:
 | Metode | Path | Keterangan |
 |---|---|---|
 | GET | `/api/me/foods/discover?q=&external=&hideExcluded=` | `q` 2–80 karakter; `external=true` mengirim kata kunci ke OFF/USDA (20/10 mnt) |
-| GET | `/api/me/foods/web-search?q=` | Brave; hanya tautan + cuplikan; `NOT_CONFIGURED` tanpa kunci |
+| GET | `/api/me/foods/web-search?q=` | Tavily; hanya tautan + cuplikan; `NOT_CONFIGURED` tanpa kunci |
 | GET | `/api/me/foods/reference?q=` | langsung ke TKPI (hibrida) |
 | GET | `/api/me/foods/barcode/:code` | GTIN tervalidasi → Open Food Facts |
 | GET · POST | `/api/me/foods/:id/measures` | ukuran porsi rumah tangga |

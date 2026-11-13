@@ -29,8 +29,7 @@ class NextActionView {
       action = NextAction.fromJson(j['action'] as Map<String, dynamic>),
       energy = j['energy'] as String?,
       week = WeekProgress.fromJson(
-        ((j['progress'] as Map?)?['week'] as Map<String, dynamic>?) ??
-            const {},
+        ((j['progress'] as Map?)?['week'] as Map<String, dynamic>?) ?? const {},
       ),
       best7 =
           (((j['progress'] as Map?)?['personalBest'] as Map?)?['best7DayActive']

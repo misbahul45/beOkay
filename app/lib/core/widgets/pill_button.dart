@@ -4,7 +4,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
-enum PillButtonKind { primary, secondary, ghost, danger, light }
+enum PillButtonKind { primary, ink, secondary, ghost, danger, light }
 
 class PillButton extends StatelessWidget {
   const PillButton({
@@ -30,6 +30,11 @@ class PillButton extends StatelessWidget {
       PillButtonKind.primary => (
         AppColors.primary,
         AppColors.onPrimary,
+        BorderSide.none,
+      ),
+      PillButtonKind.ink => (
+        AppColors.textPrimary,
+        AppColors.surface,
         BorderSide.none,
       ),
       PillButtonKind.secondary => (
@@ -85,10 +90,12 @@ class PillButton extends StatelessWidget {
       style: FilledButton.styleFrom(
         backgroundColor: background,
         foregroundColor: foreground,
-        disabledBackgroundColor: kind == PillButtonKind.primary
+        disabledBackgroundColor:
+            kind == PillButtonKind.primary || kind == PillButtonKind.ink
             ? AppColors.disabled
             : background.withValues(alpha: 0.6),
-        disabledForegroundColor: kind == PillButtonKind.primary
+        disabledForegroundColor:
+            kind == PillButtonKind.primary || kind == PillButtonKind.ink
             ? AppColors.onPrimary
             : AppColors.decorative,
         minimumSize: const Size(

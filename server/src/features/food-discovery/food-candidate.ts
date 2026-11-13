@@ -54,20 +54,20 @@ export class ProviderError extends Error {
   }
 }
 
-/** GET JSON dengan batas waktu dan ukuran; tidak mengikuti redirect (mencegah pindah host). */
-export async function boundedGetJson(
-  fetchImpl: typeof fetch,
-  url: URL,
-  opts: { allowedHost: string; timeoutMs?: number; maxBytes?: number; headers?: Record<string, string> },
-): Promise<unknown> {
+/** JSON (GET atau POST) dengan batas waktu dan ukuran; tidak mengikuti redirect (mencegah pindah host). */
+type BoundedOptions = { allowedHost: string; timeoutMs?: number; maxBytes?: number; headers?: Record<string, string> };
+
+async function boundedJson(fetchImpl: typeof fetch, url: URL, opts: BoundedOptions & { body?: unknown }): Promise<unknown> {
   if (url.protocol !== "https:" || url.hostname !== opts.allowedHost)
     throw new ProviderError("PROVIDER_BAD_RESPONSE", "Host penyedia tidak diizinkan.");
+  const post = opts.body !== undefined;
   let res: Response;
   try {
     res = await fetchImpl(url, {
+      ...(post ? { method: "POST", body: JSON.stringify(opts.body) } : {}),
       redirect: "error",
       signal: AbortSignal.timeout(opts.timeoutMs ?? 5000),
-      headers: { accept: "application/json", "user-agent": "beOkay/1.0", ...opts.headers },
+      headers: { accept: "application/json", "user-agent": "beOkay/1.0", ...(post ? { "content-type": "application/json" } : {}), ...opts.headers },
     });
   } catch (e) {
     const timedOut = e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError");
@@ -82,3 +82,7 @@ export async function boundedGetJson(
     throw new ProviderError("PROVIDER_BAD_RESPONSE", "Balasan penyedia tidak valid.");
   }
 }
+
+export const boundedGetJson = (fetchImpl: typeof fetch, url: URL, opts: BoundedOptions): Promise<unknown> => boundedJson(fetchImpl, url, opts);
+
+export const boundedPostJson = (fetchImpl: typeof fetch, url: URL, body: unknown, opts: BoundedOptions): Promise<unknown> => boundedJson(fetchImpl, url, { ...opts, body });

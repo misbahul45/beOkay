@@ -27,6 +27,8 @@ class ChallengeSummary {
       startsOn = j['startsOn'] as String,
       endsOn = j['endsOn'] as String,
       targetDays = (j['targetDays'] as int?) ?? 0,
+      kind = (j['kind'] as String?) ?? 'ACTIVE_DAYS',
+      teamTargetDays = j['teamTargetDays'] as int?,
       status = (j['status'] as String?) ?? 'OPEN',
       statusLabel = (j['statusLabel'] as String?) ?? '',
       daysLeft = j['daysLeft'] as int?,
@@ -41,6 +43,9 @@ class ChallengeSummary {
           : null;
   final String id, title, description, startsOn, endsOn, status, statusLabel;
   final int targetDays;
+  final String kind;
+  final int? teamTargetDays;
+  bool get team => kind == 'TEAM_ACTIVE_DAYS';
   final int? daysLeft, activeDays;
   final double? score;
   final bool participating, leaderboardVisible;
@@ -49,6 +54,21 @@ class ChallengeSummary {
   bool get open => status == 'OPEN';
   bool get scheduled => status == 'SCHEDULED';
   bool get closed => status == 'CLOSED';
+}
+
+class TeamProgress {
+  TeamProgress.fromJson(Map<String, dynamic> j)
+    : visible = j['visible'] == true,
+      teamActiveDays = j['teamActiveDays'] as int?,
+      teamTargetDays = j['teamTargetDays'] as int?,
+      contributors = j['contributors'] as int?,
+      participants = (j['participants'] as int?) ?? 0,
+      minParticipants = (j['minParticipants'] as int?) ?? 5,
+      note = (j['note'] as String?) ?? '';
+  final bool visible;
+  final int? teamActiveDays, teamTargetDays, contributors;
+  final int participants, minParticipants;
+  final String note;
 }
 
 class ChallengeDetail extends ChallengeSummary {
@@ -249,6 +269,10 @@ class CommunityRepository extends AccountScopedRepository {
             as List)
       ChallengeSummary.fromJson(v as Map<String, dynamic>),
   ];
+  Future<TeamProgress> team(String id) async => TeamProgress.fromJson(
+    (await api.get('/api/me/challenges/$id/team')).object,
+  );
+
   Future<ChallengeDetail> challenge(String id) async =>
       ChallengeDetail.fromJson(
         (await api.get('/api/me/challenges/$id')).object,

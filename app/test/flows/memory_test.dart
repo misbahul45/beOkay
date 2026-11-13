@@ -137,7 +137,7 @@ void main() {
       expect(find.text('Diturunkan: goreng'), findsOneWidget);
       expect(find.text('Preferensi & alergi makanan'), findsOneWidget);
 
-      await tester.tap(find.byTooltip('Ubah ingatan').first);
+      await tester.tap(find.byTooltip('Ubah ingatan'));
       await tester.pumpAndSettle();
       await tester.enterText(
         find.byType(TextField),
@@ -152,15 +152,23 @@ void main() {
       });
       expect(find.text('Lebih suka beraktivitas sore hari'), findsOneWidget);
 
-      await tester.tap(find.byTooltip('Hapus ingatan').last);
+      await tester.tap(
+        find.text('Punya waktu sekitar 15 menit untuk aktivitas'),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.text('RIWAYAT · PUNYA WAKTU SEKITAR 15 MENIT UNTUK AKTIVITAS'),
+        findsOneWidget,
+      );
+      await tester.tap(find.byTooltip('Hapus ingatan'));
       await tester.pumpAndSettle();
       expect(find.text('Hapus ingatan ini?'), findsOneWidget);
       await tester.tap(find.text('Batal'));
       await tester.pumpAndSettle();
       expect(b.seen.where((r) => r.method == 'DELETE'), isEmpty);
-      await tester.tap(find.byTooltip('Hapus ingatan').last);
+      await tester.tap(find.byTooltip('Hapus ingatan'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Hapus'));
+      await tester.tap(find.text('Hapus').last);
       await tester.pumpAndSettle();
       expect(b.seen.where((r) => r.method == 'DELETE'), hasLength(1));
       expect(
@@ -206,7 +214,8 @@ void main() {
         find.text('Tidak tersedia tanpa persetujuan saran personal.'),
         findsOneWidget,
       );
-      expect(find.byTooltip('Hapus ingatan'), findsNWidgets(2));
+      expect(find.byTooltip('Hapus ingatan'), findsOneWidget);
+      expect(find.text('Jeda'), findsNWidgets(2));
       await tester.tap(find.text('Buka persetujuan'));
       await tester.pumpAndSettle();
       expect(find.text('Halaman persetujuan'), findsOneWidget);

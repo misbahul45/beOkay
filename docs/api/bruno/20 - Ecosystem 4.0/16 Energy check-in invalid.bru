@@ -1,0 +1,25 @@
+meta {
+  name: Energy check-in invalid
+  type: http
+  seq: 16
+}
+
+put {
+  url: {{baseUrl}}/api/me/checkins/energy
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {"energy":"TIRED"}
+}
+
+tests {
+  test("400 for unknown level", function () {
+    expect(res.status).to.equal(400);
+  });
+}

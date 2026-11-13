@@ -103,4 +103,4 @@ export function createFoodDiscovery(deps: { off: Off; usda: Usda; web?: Web; ref
   };
 }
 
-export const foodDiscoveryService = createFoodDiscovery({ off: createOffClient(), usda: createUsdaClient(env.USDA_API_KEY), web: createWebSearchClient(env.BRAVE_API_KEY), reference: referenceService });
+export const foodDiscoveryService = createFoodDiscovery({ off: createOffClient(), usda: createUsdaClient(env.USDA_API_KEY), web: createWebSearchClient(env.TAVILY_API_KEY), reference: referenceService });

@@ -630,6 +630,8 @@ class _AssistantTurn extends StatelessWidget {
         PhotoPart() => null,
         ReflectionPart() => ReflectionCard(part: part),
         ChallengesPart() => ChallengeSuggestionsCard(part: part),
+        EvidencePart() => EvidenceChips(part: part),
+        StrategyPart() => StrategyCard(part: part),
         EducationPart(:final items) => EducationLinks(items: items),
         MealDraftPart(:final draft) =>
           draft == null

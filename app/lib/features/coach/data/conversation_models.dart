@@ -123,6 +123,23 @@ sealed class ChatPart {
       for (final e in j['items'] as List? ?? const [])
         EducationItem.fromJson(e as Map<String, dynamic>),
     ]),
+    'evidence' => EvidencePart(
+      certainty: (j['certainty'] as String?) ?? 'unknown',
+      items: [
+        for (final e in j['items'] as List? ?? const [])
+          (
+            title: ((e as Map<String, dynamic>)['title'] as String?) ?? '',
+            source: (e['source'] as String?) ?? '',
+            reviewed: e['reviewStatus'] == 'REVIEWED',
+          ),
+      ],
+    ),
+    'strategy' => StrategyPart(
+      barrier: (j['barrier'] as String?) ?? 'OTHER',
+      key: (j['key'] as String?) ?? '',
+      title: (j['title'] as String?) ?? '',
+      detail: ((j['detail'] as String?) ?? '').split(' Hambatan:').first,
+    ),
     'challenges' => ChallengesPart([
       for (final c in j['items'] as List? ?? const [])
         ChatChallenge.fromJson(c as Map<String, dynamic>),
@@ -157,6 +174,39 @@ class ChatChallenge {
 class EducationPart extends ChatPart {
   const EducationPart(this.items);
   final List<EducationItem> items;
+}
+
+class EvidencePart extends ChatPart {
+  const EvidencePart({required this.certainty, required this.items});
+  final String certainty;
+  final List<({String title, String source, bool reviewed})> items;
+
+  String get certaintyLabel => switch (certainty) {
+    'verified' => 'Terverifikasi',
+    'reported' => 'Dilaporkan',
+    'estimated' => 'Perkiraan',
+    'insufficient' =>
+      items.any((i) => !i.reviewed) ? 'Belum ditinjau' : 'Belum cukup',
+    _ => 'Tidak diketahui',
+  };
+}
+
+class StrategyPart extends ChatPart {
+  const StrategyPart({
+    required this.barrier,
+    required this.key,
+    required this.title,
+    required this.detail,
+  });
+  final String barrier, key, title, detail;
+
+  String get barrierLabel => switch (barrier) {
+    'TIME' => 'waktu',
+    'FORGOT' => 'lupa',
+    'ENERGY' => 'tenaga',
+    'MOTIVATION' => 'motivasi',
+    _ => 'hal lain',
+  };
 }
 
 class ChallengesPart extends ChatPart {

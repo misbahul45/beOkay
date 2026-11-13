@@ -32,6 +32,7 @@ const schema = z.object({
     .optional()
     .transform((value) => (value && value.trim() ? value.trim() : undefined)),
   // Opsional: tanpa kunci, pemindaian label (OCR) dan foto makanan nonaktif. Host dipaku di kode.
+  APK_DOWNLOAD_URL: z.string().url().default("https://beokay-app.vercel.app/beokay.apk"),
   MISTRAL_API_KEY: z
     .string()
     .optional()
@@ -46,7 +47,7 @@ const schema = z.object({
     .optional()
     .transform((value) => (value && value.trim() ? value.trim() : "mistral-small-latest")),
   // Opsional: tanpa kunci, pencarian web nonaktif.
-  BRAVE_API_KEY: z
+  TAVILY_API_KEY: z
     .string()
     .optional()
     .transform((value) => (value && value.trim() ? value.trim() : undefined)),

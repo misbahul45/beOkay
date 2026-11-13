@@ -9,6 +9,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/beokay_spark.dart';
 import '../../../core/widgets/choice_chips.dart';
 import '../../../core/widgets/pill_button.dart';
+import '../../../core/widgets/soft_card.dart';
 import '../application/next_action_controller.dart';
 import '../data/next_action_repository.dart';
 
@@ -53,6 +54,22 @@ String routeForTarget(String target) => switch (target) {
   _ => Routes.log,
 };
 
+String routeForStep(String step, NextAction action) => switch (step) {
+  'TODAY' => Routes.log,
+  'NEXT_ACTION' => routeForTarget(action.target),
+  'CONFIRM' =>
+    action.step == 'CONFIRM' ? routeForTarget(action.target) : Routes.coaching,
+  'PROGRESS' => Routes.activityWeek,
+  'REFLECTION' => Routes.reflection,
+  'INSIGHTS' => Routes.insights,
+  'CHALLENGES' => Routes.community,
+  _ => Routes.log,
+};
+
+String formatScore(double v) => v == v.roundToDouble()
+    ? v.toStringAsFixed(0)
+    : v.toStringAsFixed(1).replaceAll('.', ',');
+
 class NextActionSection extends ConsumerWidget {
   const NextActionSection({super.key});
 
@@ -64,21 +81,51 @@ class NextActionSection extends ConsumerWidget {
     final safety = a.kind == 'SAFETY_FOLLOW_UP';
     final celebrate = a.kind == 'CELEBRATE_RETURN';
     final loggingOnly = view.journey == 'UNDETERMINED';
+    final extras = !safety && !loggingOnly;
+    final lead = [
+      NextActionCard(action: a),
+      if (extras) ...[
+        const SizedBox(height: AppSpacing.sm),
+        _FlowChips(flow: view.flow, action: a),
+      ],
+    ];
+    final side = [
+      _ProgressCard(view: view, celebrate: celebrate),
+      const SizedBox(height: AppSpacing.sm),
+      _EnergyCard(current: view.energy),
+    ];
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          NextActionCard(action: a),
-          if (!safety && !loggingOnly) ...[
-            const SizedBox(height: AppSpacing.sm),
-            _FlowChips(flow: view.flow, current: a.step),
-            const SizedBox(height: AppSpacing.sm),
-            _ProgressCard(view: view, celebrate: celebrate),
-            const SizedBox(height: AppSpacing.sm),
-            _EnergyCard(current: view.energy),
-          ],
-        ],
+      child: LayoutBuilder(
+        builder: (context, c) {
+          if (extras && c.maxWidth >= 720) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: lead,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: side,
+                  ),
+                ),
+              ],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ...lead,
+              if (extras) ...[const SizedBox(height: AppSpacing.sm), ...side],
+            ],
+          );
+        },
       ),
     );
   }
@@ -102,60 +149,54 @@ class NextActionCard extends StatelessWidget {
     return Semantics(
       container: true,
       label: '$kicker. ${action.title}. ${action.body}',
-      child: Material(
+      child: SoftCard(
         color: color,
-        borderRadius: AppRadius.cardRadius,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.cardPadding),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  BeOkaySpark(
-                    size: 48,
-                    state: sparkStateFromWire(action.spark),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: ExcludeSemantics(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            kicker,
-                            style: AppTypography.overline.copyWith(
-                              color: safety
-                                  ? AppColors.textSecondary
-                                  : celebrate
-                                  ? AppColors.sparkAmber
-                                  : AppColors.brand,
-                            ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                BeOkaySpark(size: 48, state: sparkStateFromWire(action.spark)),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: ExcludeSemantics(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          kicker,
+                          style: AppTypography.overline.copyWith(
+                            color: safety
+                                ? AppColors.textSecondary
+                                : celebrate
+                                ? AppColors.sparkAmber
+                                : AppColors.brand,
                           ),
-                          const SizedBox(height: 2),
-                          Text(action.title, style: AppTypography.title),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(height: AppSpacing.xxs),
+                        Text(action.title, style: AppTypography.title),
+                      ],
                     ),
                   ),
-                ],
-              ),
-              if (action.body.isNotEmpty) ...[
-                const SizedBox(height: AppSpacing.xs),
-                ExcludeSemantics(
-                  child: Text(action.body, style: AppTypography.secondary),
                 ),
               ],
-              const SizedBox(height: AppSpacing.sm),
-              PillButton(
-                label: _buttons[action.kind] ?? 'Buka',
-                kind: safety || celebrate
-                    ? PillButtonKind.secondary
-                    : PillButtonKind.primary,
-                onPressed: () => context.push(routeForTarget(action.target)),
+            ),
+            if (action.body.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.xs),
+              ExcludeSemantics(
+                child: Text(action.body, style: AppTypography.secondary),
               ),
             ],
-          ),
+            const SizedBox(height: AppSpacing.md),
+            PillButton(
+              label: _buttons[action.kind] ?? 'Buka',
+              kind: safety || celebrate
+                  ? PillButtonKind.secondary
+                  : PillButtonKind.ink,
+              onPressed: () => context.push(routeForTarget(action.target)),
+            ),
+          ],
         ),
       ),
     );
@@ -163,29 +204,28 @@ class NextActionCard extends StatelessWidget {
 }
 
 class _FlowChips extends StatelessWidget {
-  const _FlowChips({required this.flow, required this.current});
+  const _FlowChips({required this.flow, required this.action});
 
   final List<String> flow;
-  final String current;
+  final NextAction action;
 
   @override
   Widget build(BuildContext context) {
     final steps = flow.take(5).toList();
+    final current = action.step;
     return Semantics(
+      container: true,
       label: 'Alur hari ini, sekarang: ${_stepLabels[current] ?? current}',
-      child: ExcludeSemantics(
-        child: Wrap(
-          spacing: AppSpacing.xs,
-          runSpacing: AppSpacing.xs,
-          children: [
-            for (final s in steps)
-              PillChip(
-                label: _stepLabels[s] ?? s,
-                selected: s == current,
-                onTap: null,
-              ),
-          ],
-        ),
+      child: Wrap(
+        spacing: AppSpacing.xs,
+        children: [
+          for (final s in steps)
+            PillChip(
+              label: _stepLabels[s] ?? s,
+              selected: s == current,
+              onTap: () => context.push(routeForStep(s, action)),
+            ),
+        ],
       ),
     );
   }
@@ -209,45 +249,41 @@ class _ProgressCard extends StatelessWidget {
         ],
       ),
     );
+    final score = formatScore(w.total);
     return Semantics(
       container: true,
       label:
-          'Progres minggu ini: ${w.activeDays} hari aktif, ${w.deviceDays} dari perangkat, rekor 7 hari ${view.best7}.',
+          'Progres minggu ini: ${w.activeDays} hari aktif, ${w.deviceDays} dari perangkat, skor minggu ini $score, rekor 7 hari ${view.best7}.',
       child: ExcludeSemantics(
-        child: Material(
-          color: AppColors.surface,
-          borderRadius: AppRadius.cardRadius,
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.cardPadding),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('PROGRES MINGGU INI', style: AppTypography.overline),
-                const SizedBox(height: AppSpacing.xs),
-                Row(
-                  children: [
-                    stat('${w.activeDays}', 'hari aktif'),
-                    stat('${w.deviceDays}', 'dari perangkat'),
-                    stat('${view.best7}', 'rekor 7 hari'),
-                  ],
+        child: SoftCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('PROGRES MINGGU INI', style: AppTypography.overline),
+              const SizedBox(height: AppSpacing.xs),
+              Row(
+                children: [
+                  stat('${w.activeDays}', 'hari aktif'),
+                  stat('${w.deviceDays}', 'dari perangkat'),
+                  stat(score, 'skor minggu ini'),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: (w.activeDays / 7).clamp(0, 1),
+                  minHeight: 8,
+                  color: AppColors.brand,
+                  backgroundColor: AppColors.border,
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: (w.activeDays / 7).clamp(0, 1),
-                    minHeight: 8,
-                    color: AppColors.brand,
-                    backgroundColor: AppColors.border,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  'Hari tanpa catatan bukan kegagalan; skor hanya bertambah.',
-                  style: AppTypography.caption,
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Rekor 7 hari: ${view.best7}. Hari tanpa catatan bukan kegagalan; skor hanya bertambah.',
+                style: AppTypography.caption,
+              ),
+            ],
           ),
         ),
       ),
@@ -267,6 +303,7 @@ class _EnergyCard extends ConsumerStatefulWidget {
 class _EnergyCardState extends ConsumerState<_EnergyCard> {
   late String? _value = widget.current;
   bool _saving = false;
+  bool _saved = false;
 
   Future<void> _set(String v) async {
     if (_saving || v == _value) return;
@@ -274,9 +311,11 @@ class _EnergyCardState extends ConsumerState<_EnergyCard> {
     setState(() {
       _value = v;
       _saving = true;
+      _saved = false;
     });
     try {
       await ref.read(nextActionRepositoryProvider).setEnergy(v);
+      if (mounted) setState(() => _saved = true);
     } catch (_) {
       if (!mounted) return;
       setState(() => _value = before);
@@ -291,41 +330,41 @@ class _EnergyCardState extends ConsumerState<_EnergyCard> {
   @override
   Widget build(BuildContext context) {
     const options = [('LOW', 'Lelah'), ('OK', 'Biasa'), ('HIGH', 'Segar')];
-    return Material(
-      color: AppColors.surface,
-      borderRadius: AppRadius.cardRadius,
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.cardPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Semantics(
-              header: true,
-              child: Text(
-                'BAGAIMANA TENAGAMU HARI INI?',
-                style: AppTypography.overline,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Wrap(
-              spacing: AppSpacing.xs,
-              runSpacing: AppSpacing.xs,
-              children: [
-                for (final (wire, label) in options)
-                  PillChip(
-                    label: label,
-                    selected: _value == wire,
-                    onTap: () => _set(wire),
-                  ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Opsional. Saat kamu lelah, pengingat ditahan hari ini.',
+    return SoftCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Overline('BAGAIMANA TENAGAMU HARI INI?'),
+          const SizedBox(height: AppSpacing.xs),
+          Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              for (final (wire, label) in options)
+                PillChip(
+                  label: label,
+                  selected: _value == wire,
+                  onTap: _saving ? null : () => _set(wire),
+                ),
+              if (_saving)
+                const SizedBox.square(
+                  dimension: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Semantics(
+            liveRegion: true,
+            child: Text(
+              _saved
+                  ? 'Tersimpan. Saat kamu lelah, pengingat ditahan hari ini.'
+                  : 'Opsional. Saat kamu lelah, pengingat ditahan hari ini.',
               style: AppTypography.caption,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

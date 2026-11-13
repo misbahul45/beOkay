@@ -1,0 +1,65 @@
+@import "tailwindcss";
+@import "@fontsource/figtree/400.css";
+@import "@fontsource/figtree/500.css";
+@import "@fontsource/figtree/600.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
+  --color-cream: #f6f5f1;
+  --color-sand: #ede9e1;
+  --color-ink: #3a3a3a;
+  --color-ink-strong: #18252a;
+  --color-navy: #2c3355;
+  --color-line: #d9dcd6;
+  --color-brand: #0f7a6c;
+  --color-brand-deep: #0f4c5c;
+  --color-panel-green: #0f5e57;
+  --color-panel-indigo: #3b3f7a;
+  --color-panel-clay: #7a3b2e;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-ring: var(--ring);
+  --animate-accordion-down: accordion-down 0.25s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  @keyframes accordion-down {
+    from { height: 0; }
+    to { height: var(--radix-accordion-content-height); }
+  }
+  @keyframes accordion-up {
+    from { height: var(--radix-accordion-content-height); }
+    to { height: 0; }
+  }
+}
+
+:root {
+  --background: #f6f5f1;
+  --foreground: #3a3a3a;
+  --primary: #0f7a6c;
+  --primary-foreground: #ffffff;
+  --secondary: #ede9e1;
+  --secondary-foreground: #18252a;
+  --muted-foreground: #5c6b73;
+  --ring: #0f7a6c;
+}
+
+@layer base {
+  html { scroll-behavior: smooth; }
+  body { @apply bg-background font-sans text-foreground antialiased; }
+  h1, h2, h3 { font-weight: 400; letter-spacing: -0.01em; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+
+.animate-in { animation: enter 0.25s ease-out; }
+.animate-out { animation: exit 0.2s ease-in; }
+@keyframes enter { from { opacity: 0; transform: translateX(16px); } }
+@keyframes exit { to { opacity: 0; transform: translateX(16px); } }

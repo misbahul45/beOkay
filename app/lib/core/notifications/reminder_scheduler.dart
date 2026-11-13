@@ -62,6 +62,13 @@ final notificationActions = StreamController<NotificationAction>.broadcast();
 /// Batas perangkat: iOS hanya mengizinkan 64 notifikasi tertunda; satu angka aman untuk semua platform.
 const maxScheduledReminders = 60;
 
+const reminderChannel = AndroidNotificationChannel(
+  'beokay_reminders',
+  'Pengingat',
+  description: 'Pengingat mencatat dari beOkay',
+  importance: Importance.defaultImportance,
+);
+
 abstract interface class ReminderScheduler {
   /// True bila pengguna mengizinkan notifikasi.
   Future<bool> requestPermission();
@@ -98,6 +105,11 @@ class LocalNotificationsScheduler implements ReminderScheduler {
         ),
       ),
     );
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.createNotificationChannel(reminderChannel);
     _ready = true;
     final launch = await _plugin.getNotificationAppLaunchDetails();
     final r = launch?.notificationResponse;
@@ -153,9 +165,9 @@ class LocalNotificationsScheduler implements ReminderScheduler {
             : jsonEncode(item.medication!.toJson()),
         notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(
-            'beokay_reminders',
-            'Pengingat',
-            channelDescription: 'Pengingat mencatat dari beOkay',
+            reminderChannel.id,
+            reminderChannel.name,
+            channelDescription: reminderChannel.description,
             importance: Importance.defaultImportance,
             priority: Priority.defaultPriority,
             visibility: NotificationVisibility.private,

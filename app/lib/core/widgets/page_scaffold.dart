@@ -15,6 +15,7 @@ class PageScaffold extends StatelessWidget {
     this.actions,
     this.background,
     this.onRefresh,
+    this.maxContentWidth = 960,
   });
 
   final List<Widget> children;
@@ -24,6 +25,7 @@ class PageScaffold extends StatelessWidget {
   final Widget? bottom;
   final List<Widget>? actions;
   final Color? background;
+  final double maxContentWidth;
 
   /// When set, the page supports pull-to-refresh.
   final Future<void> Function()? onRefresh;
@@ -90,9 +92,18 @@ class PageScaffold extends StatelessWidget {
               AppSpacing.page,
               AppSpacing.lg,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: children,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxContentWidth),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: children,
+                  ),
+                ),
+              ),
             ),
           ),
         ),

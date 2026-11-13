@@ -5,7 +5,7 @@
     "sin1"
   ],
   "installCommand": "bun install --frozen-lockfile",
-  "buildCommand": "bun run db:generate",
+  "buildCommand": "bun run db:generate && bun run landing:build",
   "crons": [
     {
       "path": "/internal/jobs/tick",
@@ -14,7 +14,7 @@
   ],
   "functions": {
     "index.ts": {
-      "includeFiles": "{node_modules,server/node_modules}/@better-auth/**"
+      "includeFiles": "{node_modules/@better-auth/**,server/node_modules/@better-auth/**,public/**,server/public/**}"
     }
   }
 }

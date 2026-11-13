@@ -132,6 +132,7 @@ void main() {
       });
       await _pump(tester, const MemoryScreen(), [
         memoryOverviewProvider.overrideWith((ref) async => overview),
+        memoryHistoryProvider.overrideWith((ref, id) async => const []),
       ]);
       expect(find.text('Sedang berpuasa'), findsOneWidget);
       expect(find.text('Berakhir otomatis 19 Nov 2026'), findsOneWidget);

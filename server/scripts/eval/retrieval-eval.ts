@@ -1,11 +1,14 @@
 import { knowledgeService } from "../../src/features/knowledge/knowledge.service.ts";
 import { RETRIEVAL_QUERIES } from "../../tests/fixtures/retrieval-queries.ts";
+import { RETRIEVAL_QUERIES_HELDOUT } from "../../tests/fixtures/retrieval-queries-heldout.ts";
 
 const K = Number(process.argv[2] ?? 3);
+const SET = process.argv[3] === "heldout" ? "heldout" : "dev";
+const QUERIES = SET === "heldout" ? RETRIEVAL_QUERIES_HELDOUT : RETRIEVAL_QUERIES;
 await knowledgeService.sync();
 let recallSum = 0, rr = 0, answerable = 0, correctAbstain = 0, wrongAnswer = 0, unanswerable = 0;
 const rows: string[] = [];
-for (const q of RETRIEVAL_QUERIES) {
+for (const q of QUERIES) {
   const r = await knowledgeService.retrieve({ query: q.query, lane: q.lane, journey: q.journey, limit: K, includeDrafts: true });
   const got = r.items.map((i) => i.slug);
   if (!q.relevant.length) {
@@ -23,5 +26,5 @@ for (const q of RETRIEVAL_QUERIES) {
   rows.push(`${first >= 0 ? "ok  " : "MISS"} ${r.decision.status.padEnd(7)} ${q.query} -> ${got.join(", ") || "-"}`);
 }
 console.log(rows.join("\n"));
-console.log(JSON.stringify({ k: K, answerable, unanswerable, recallAtK: Math.round((recallSum / answerable) * 1000) / 1000, mrr: Math.round((rr / answerable) * 1000) / 1000, correctAbstain, wrongAnswer, note: "Set kueri kecil yang ditulis tim; dilaporkan apa adanya, tanpa ambang." }, null, 2));
+console.log(JSON.stringify({ set: SET, k: K, answerable, unanswerable, recallAtK: Math.round((recallSum / answerable) * 1000) / 1000, mrr: Math.round((rr / answerable) * 1000) / 1000, correctAbstain, wrongAnswer, note: "Set kueri kecil yang ditulis tim; dilaporkan apa adanya, tanpa ambang." }, null, 2));
 process.exit(0);

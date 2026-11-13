@@ -64,7 +64,7 @@ catatan manual / impor Health Connect / umpan balik
 - `authorize(receipt)` hanya dari `AWAIT_CONFIRMATION` dan hanya dengan `operationId` + `ACCEPT`. Di `decide()`, transisi `EXECUTE_AUTHORIZED_ACTION → OBSERVE_OUTCOME → COMPLETED` ditulis sebagai `FSM_DECISION` dalam transaksi keputusan.
 - Run agen 3.0 (gizi, aktivitas) tidak ditulis ulang. Saat status menetap, jalur keadaannya diturunkan (`pathFor`), diputar lewat mesin (gagal bila ilegal), lalu dicatat sebagai `FSM_PATH`; `agent_runs.fsm_state/skill_id/iterations` diisi.
 - Skill baru berjalan di `skills/runner.ts` dengan loop berbatas: `PLAN → EXECUTE_READ_TOOLS → EVALUATE_EVIDENCE → (PLAN lagi bila bukti kurang dan anggaran sisa)`. Perencananya deterministik per skill. Setiap transisi dicatat sebagai peristiwa `FSM`.
-- Perencana LLM (`react_llm_planner`) **tidak dibangun**; sakelarnya ada dan bawaan mati (`DEFAULT_OFF`). Membukanya butuh evaluasi bayangan yang dibaca pemilik (T7).
+- Perencana LLM (`skills/llm-planner.ts`, `llm-planner-shadow-v1`) hanya berjalan dalam **mode bayangan** dan bawaan mati (`react_llm_planner` di `DEFAULT_OFF`). Bila dinyalakan dan kunci Mistral ada, setiap iterasi meminta usulan alat berikutnya, memvalidasinya terhadap `allowedTools` skill (`TOOL_NOT_ALLOWED` bila di luar), lalu mencatatnya sebagai peristiwa `LLM_PLAN_SHADOW { executed: false, deterministic, proposed, agree }`. Usulan **tidak pernah dijalankan**; jumlah panggilan alat dan isi jawaban identik dengan sakelar mati (diuji). Menjadikannya pengambil keputusan butuh evaluasi tingkat kecocokan oleh pemilik (T7).
 
 ## 6. Tingkat alat
 
@@ -89,7 +89,7 @@ catatan manual / impor Health Connect / umpan balik
 - `retrieve(userId, skillId, budget)`: hanya ingatan aktif, tidak dijeda, tidak kedaluwarsa, sesuai jenis untuk skill itu, dibatasi anggaran; lingkup `SOCIAL` hanya dengan consent `social_outcomes_memory`. `activeFor` (dipakai coaching dan percakapan) kini juga melewati ingatan yang dijeda.
 - Endpoint baru: `POST /api/me/memories/:id/pause|resume`, `GET /api/me/memories/:id/history`; `GET /api/me/memories` mengembalikan `items`, `paused`, `conflicts`.
 - Pencabutan consent `personalized_ai` dalam transaksi yang sama: usulan ingatan ditolak, ingatan aktif dijeda (`CONSENT_WITHDRAWN`), rencana coaching usulan kedaluwarsa, rekomendasi terbuka dibatalkan. Tidak menunggu dibaca.
-- Memori turunan dari proyeksi belum diusulkan otomatis; yang ada hanya baseline slot dalam mode bayangan (§10).
+- Memori turunan: setelah `record.created` aktivitas, `memoryService.proposeDerived` menghitung bagian hari sesi (pagi 04–11, siang 11–15, sore 15–18, malam 18–22) dalam 28 hari. Bila ≥4 sesi dan ≥60% di satu bagian, dibuat **usulan** `ACTIVITY_TIME` (`source_type = DERIVED`, `memory_type = DERIVED`, `confidence = INFERRED`, `source_ids` = sesi pendukung, revisi mencatat "n dari m sesi"). Isinya memakai kalimat yang sama dengan ingatan dari percakapan ("Lebih suka beraktivitas pagi hari") sehingga coaching membacanya dengan cara yang sama setelah dikonfirmasi. Tidak diusulkan bila sudah ada ingatan waktu aktif/usulan, bila usulan yang sama pernah ditolak, atau tanpa consent `personalized_ai`. `GET /api/me/memories` mengembalikan `proposals[]`.
 
 ## 9. Perangkat: provenans dan kualitas `device-quality-v1`
 
@@ -110,7 +110,7 @@ catatan manual / impor Health Connect / umpan balik
 - Fungsi murni `decideV3` membungkus v2; tanpa sinyal baru hasilnya identik dengan v2 (diuji), jadi jam tenang, batas harian/mingguan, jeda minimum, dan tidak-eskalasi tetap berlaku.
 - Kelas: `INTERVENE, DEFER, ASK_FOR_CLARIFICATION, WITHHOLD, NO_INTERVENTION`. `WITHHOLD` untuk: balasan keselamatan dalam 24 jam (proaktif), ingatan `HEALTH_EVENT` aktif (proaktif), energi rendah yang dilaporkan, tujuan berbasis langkah dengan data langkah tidak andal, dan `REQUIRES_REVIEW`.
 - Disimpan sebagai `NO_INTERVENTION` dengan alasan `WITHHOLD:<alasan>` dan `policy_version = jitai-policy-v3`, sehingga skema lama tetap valid. Tampilan memberi `decisionV3`.
-- Check-in energi satu ketukan belum ada di aplikasi; masukan `energy` saat ini selalu `null`.
+- Masukan `energy` berasal dari check-in energi satu ketukan (`daily_checkins`, satu baris per tanggal lokal, `LOW|OK|HIGH`, berversi, menerbitkan `record.*` jenis `energy_checkin`). `LOW` menahan pengingat rencana proaktif hari itu (`WITHHOLD:LOW_ENERGY_REPORTED`).
 - Sakelar `jitai_v3`.
 
 ## 12. Sosial `score-v2` dan langkah berikutnya
@@ -118,6 +118,7 @@ catatan manual / impor Health Connect / umpan balik
 - `score-v2` (`community/scoring.v2.ts`) dari proyeksi: hari aktif (sesi ≥10 menit atau check-in), bobot hari dengan bukti perangkat 1,0 dan manual 0,8, batas harian 1, bonus 0,5 bila hari aktif minggu ini melampaui rata-rata diri sendiri; hari istirahat tidak mengurangi. Tantangan berjalan tetap `score-v1`.
 - Rekor pribadi (7 hari terbaik, beruntun terpanjang), kembali-setelah-jeda (≥7 hari), pita sebaya (0–1, 2–3, 4–5, 6–7 hari/minggu) dengan minimum 5 anggota; di bawah itu tanpa perbandingan. `GET /api/me/progress/peers` hanya memberi "separuh atas/bawah", tanpa nama dan nilai kesehatan.
 - `GET /api/me/today/next-action`: satu langkah berikutnya dengan urutan prioritas: tindak lanjut keselamatan, jalur pencatatan saja, rekomendasi menunggu, rencana usulan, kembali-setelah-jeda, rencana diterima, usulan ingatan, refleksi akhir pekan, catat sesuatu. Beserta langkah alur `TODAY → NEXT_ACTION → CONFIRM → PROGRESS → REFLECTION → INSIGHTS → CHALLENGES`, keadaan Spark (`NEUTRAL, THINKING, ENCOURAGING, CELEBRATING, AWAITING_CONFIRMATION, SAFETY_WARNING`), dan progres `score-v2`.
+- Misi tim (`kind = TEAM_ACTIVE_DAYS`, kolom `team_target_days`, templat `misi-tim-7-hari`): skor pribadi tetap `score-v1`; `GET /api/me/challenges/:id/team` menjumlahkan hari aktif (proyeksi) semua peserta yang masih ikut dan masih memberi consent `challenge_participation`. Agregat hanya tampil bila peserta ≥ 5; kontribusi per orang, nama, dan alias tidak pernah dikembalikan.
 - Peristiwa tantangan masuk outbox. Memakai hasil tantangan untuk memori masih dibatasi consent `social_outcomes_memory`; pengisian memori sosial otomatis belum dibangun.
 
 ## 13. Consent 1.1
@@ -131,6 +132,27 @@ Teks netral jalur; dua tujuan opsional baru `device_data_coaching` dan `social_o
 | `projection_consumers` | nyala | komunitas dan coaching kembali ke kueri catatan lama |
 | `skill_registry` | nyala | percakapan kembali ke dispatch 3.0 (tanpa gerbang jalur, tanpa rute tidur/edukasi, SUPPORT tanpa strategi) |
 | `jitai_v3` | nyala | intervensi kembali ke `jitai-policy-v2` |
-| `react_llm_planner` | **mati** | tidak ada implementasi; disiapkan untuk evaluasi bayangan |
+| `react_llm_planner` | **mati** | bila nyala: usulan perencana LLM dicatat dalam mode bayangan, tidak pernah dijalankan |
 
-Migrasi `p12_cohort_events` dan `p13_skills_knowledge_memory` punya skrip turun di `server/prisma/rollback/`. Keduanya diuji: turun, cek skema, lalu `db:migrate:deploy` lagi.
+Migrasi `p12_cohort_events`, `p13_skills_knowledge_memory`, dan `p14_checkins_team_derived` punya skrip turun di `server/prisma/rollback/`. Ketiganya diuji: turun, cek skema, lalu `db:migrate:deploy` lagi.
+
+## 15. Aplikasi Flutter 4.0
+
+Desain di FigCraft dulu: halaman `33 — beOkay 4.0` di `design/beOkay-ui-v3.figcraft` (ekspor `design/exports/33-*.png`), 10 bingkai A–J. Implementasi:
+
+| Desain | Kode | Isi |
+|---|---|---|
+| A | `health_profile/presentation/health_profile_screen.dart` | pertanyaan "Apakah tenaga kesehatan pernah bilang…" (4 pilihan `riskStatement`), hanya bila belum terdiagnosis; ikut di langkah onboarding yang sama |
+| B | `journey/presentation/journey_screen.dart`, ubin di Profil | jalur, sumber pernyataan, kemampuan per jalur, catatan "pencatatan saja" |
+| C, D | `next_action/presentation/next_action_section.dart` di Beranda | kartu langkah berikutnya dengan Spark sesuai `action.spark`, chip alur, progres `score-v2`, check-in energi; mode keselamatan dan pencatatan saja menyembunyikan progres dan energi |
+| E | `memory/presentation/memory_screen.dart` | konflik (pakai yang baru / tetap yang lama), usulan dari catatan, jeda/lanjut, lembar riwayat |
+| F | `devices/presentation/device_status_section.dart` | cakupan 14 hari per sinyal, sinkron terakhir, hari dari dua perangkat, asal data, sakelar consent `device_data_coaching` |
+| G | `coach/presentation/chat_parts.dart` | part `evidence` (chip kepastian + sumber) dan `strategy` (kartu teal; hambatan lupa → Pengingat) |
+| H | `core/widgets/beokay_spark.dart` | `awaitingConfirmation` (lencana teal "?") dan `safetyWarning` (lencana abu tua "!", statis); `sparkStateFromWire` memetakan keadaan server |
+| J | `community/presentation/challenge_screen.dart` | progres tim agregat atau penjelasan "minimal 5 anggota" |
+
+Impor Health Connect kini mengirim `dataOrigin` (`HealthDataPoint.sourceId`) untuk berat, glukosa, tidur, dan sesi latihan, serta `recordingMethod` untuk sesi latihan. Langkah agregat dari `getTotalStepsInInterval` tidak punya asal data, jadi tetap tanpa `dataOrigin`.
+
+## 16. Operasi: uji pulih cadangan
+
+`server/scripts/ops/backup-restore-check.sh [compose-file] [service]` menjalankan `pg_dump -Fc` di container Postgres, memulihkan ke DB `restore_check` dengan `pg_restore --exit-on-error`, membandingkan jumlah baris setiap tabel `public` dan daftar ekstensi, lalu menghapus DB sementara. Kredensial dibaca dari env container, tidak ada literal.

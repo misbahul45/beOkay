@@ -36,7 +36,7 @@ Catatan cakupan populasi: `computeEligibility` (`health-profile/eligibility.ts`)
                                                            └──────────────────┘
 Layanan luar (semua opsional; kosong = fitur nonaktif):
   SMTP (verifikasi email, reset sandi) · Mistral (OCR label, visi foto, embedding, penulis teks saran)
-  Open Food Facts (tanpa kunci) · USDA FoodData Central · Brave Search · FCM HTTP v1 (push)
+  Open Food Facts (tanpa kunci) · USDA FoodData Central · Tavily Search · FCM HTTP v1 (push)
   Modal (inferensi model pengenal hidangan) · UploadThing (hanya skrip operasional)
 Artefak offline (bukan service di compose): ml/kaggle/train.py (pelatihan), ml/modal_app.py (deploy)
 ```
@@ -203,7 +203,7 @@ Wilayah = 38 provinsi (`regions`), satu komunitas bawaan per provinsi. Alias 3�
 | Kata sandi | 10–128 karakter, verifikasi email wajib, reset berlaku 1 jam dan mencabut semua sesi |
 | Rate limit auth | 120/menit umum; sign-in 5, sign-up 5, reset 3, kirim verifikasi 3, ganti sandi 5 per menit (penyimpanan **memori**) |
 | IP klien | header `x-beokay-client-ip` selalu ditimpa server; `X-Forwarded-For` dipercaya hanya bila `TRUST_PROXY=true` |
-| Egress | host dipaku per klien (`api.mistral.ai`, Brave, OFF, USDA, `*.modal.run`), `redirect: "error"`, batas ukuran balasan, batas waktu |
+| Egress | host dipaku per klien (`api.mistral.ai`, `api.tavily.com`, OFF, USDA, `*.modal.run`), `redirect: "error"`, batas ukuran balasan, batas waktu |
 | Hasil web | hanya judul/tautan/cuplikan https tanpa kredensial/port/host IP; `usableForNutrition: false` |
 | Gambar | tidak disimpan; ukuran maks 1,5 MB; tipe dari byte |
 | Push | teks generik; token tidak pernah dikembalikan utuh (`…xxxxxx`) |

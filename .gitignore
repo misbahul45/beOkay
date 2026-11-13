@@ -153,3 +153,10 @@ server/src/generated/
 # Vercel CLI link
 .vercel
 .env*
+
+# Hasil build landing (dibangun saat deploy)
+server/public/
+landing/dist/
+
+# Konfigurasi Firebase aplikasi (memuat kunci API proyek)
+app/android/app/google-services.json

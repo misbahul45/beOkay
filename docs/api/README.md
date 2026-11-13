@@ -113,7 +113,7 @@ Kesalahan khas: `422 DETAILS_REQUIRE_DIAGNOSIS`, `422 DIAGNOSIS_BEFORE_BIRTH`, `
 | `POST /api/me/food-preferences/check` | `{items:[{name, brand?}]}` → `EXCLUDED`/`WARNING`/`NO_MATCH_FOUND` per nama. **Berbasis nama saja; `NO_MATCH_FOUND` bukan jaminan aman** |
 | `GET /api/me/foods/discover?q=&external=&hideExcluded=` | Lokal + **`reference`** (TKPI) + sumber luar (hanya bila `external=true`); tiap hasil membawa `preferenceCheck` |
 | `GET /api/me/foods/reference?q=` | Pencarian hibrida TKPI (leksikal + semantik pgvector); hanya `verified_auto`. `status`: `OK` atau `LEXICAL_ONLY` (embedding tak tersedia) |
-| `GET /api/me/foods/web-search?q=` | Pencarian web terkontrol (Brave). `NOT_CONFIGURED` tanpa kunci. Hanya tautan + cuplikan, `usableForNutrition:false`. Dibatasi 20/10 menit bersama sumber luar |
+| `GET /api/me/foods/web-search?q=` | Pencarian web terkontrol (Tavily, `TAVILY_API_KEY`). `NOT_CONFIGURED` tanpa kunci. Hanya tautan + cuplikan, `usableForNutrition:false`. Dibatasi 20/10 menit bersama sumber luar |
 | `GET/POST /api/me/reminders`, `PATCH /api/me/reminders/:id` | Aturan pengingat `{kind, title, localTime "HH:MM", daysOfWeek [1..7], enabled}`; maks 20 aktif; `lockScreen` generik |
 | `GET /api/me/reminders/upcoming?days=1..14` | Kejadian untuk dijadwalkan sebagai notifikasi **lokal** di perangkat (DST-aman). Server tidak mengirim notifikasi |
 | `GET /api/me/export` | Unduh JSON data sendiri (`beokay-export-v1`). Tanpa sesi/akun/hash internal. Tetap bisa setelah consent ditarik. 5/jam. Tidak butuh consent |
@@ -122,7 +122,7 @@ Kesalahan khas: `422 DETAILS_REQUIRE_DIAGNOSIS`, `422 DIAGNOSIS_BEFORE_BIRTH`, `
 | `GET/POST /api/me/push-devices`, `DELETE /api/me/push-devices/:id` | Perangkat untuk push FCM (butuh consent kesehatan, kecuali DELETE). Maks 5 aktif; token tidak dikembalikan utuh (`tokenHint`). Lihat `docs/architecture/push-notifications.md` |
 | `GET /api/me/summaries/daily` | Seperti sebelumnya; kini juga disimpan sebagai proyeksi turunan (`summary_projections`, kind `daily`) |
 
-Env tambahan (opsional, kosong = fitur nonaktif): `FCM_PROJECT_ID`, `FCM_SERVICE_ACCOUNT_JSON` (base64), `PUSH_DISPATCH_ENABLED`, `MISTRAL_API_KEY`, `MISTRAL_EMBEDDING_MODEL` (bawaan `mistral-embed`), `BRAVE_API_KEY`, `UPLOADTHING_TOKEN` (hanya skrip operasional).
+Env tambahan (opsional, kosong = fitur nonaktif): `FCM_PROJECT_ID`, `FCM_SERVICE_ACCOUNT_JSON` (base64), `PUSH_DISPATCH_ENABLED`, `MISTRAL_API_KEY`, `MISTRAL_EMBEDDING_MODEL` (bawaan `mistral-embed`), `TAVILY_API_KEY`, `UPLOADTHING_TOKEN` (hanya skrip operasional).
 
 ## Konfigurasi (env)
 `BETTER_AUTH_SECRET` (≥ 32), `BETTER_AUTH_URL`, `TRUSTED_ORIGINS`, `TRUST_PROXY`, `EMAIL_FROM`, `SMTP_HOST/PORT/SECURE/USER/PASS`, `DATABASE_URL`. Aplikasi menolak start bila konfigurasi tidak valid.

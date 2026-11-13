@@ -1,3 +1,4 @@
+import { Prisma } from "../../generated/prisma/client.ts";
 import { prisma } from "../../infrastructure/database/prisma.ts";
 import { localRecordTime } from "../../shared/http/record-schema.ts";
 import { ACTIVITY_COUNTED_QUALITY } from "../activity/activity.model.ts";
@@ -38,31 +39,6 @@ async function computeRange(userId: string, dates: string[], tz: string): Promis
   );
 }
 
-function toRow(userId: string, tz: string, f: DayFacts, now: Date) {
-  return {
-    userId,
-    localDate: asDate(f.localDate),
-    timezone: tz,
-    activeMinutes: f.activeMinutes,
-    activeMinutesManual: f.activeMinutesManual,
-    activeMinutesDevice: f.activeMinutesDevice,
-    sessionCount: f.sessionCount,
-    longestSessionMinutes: f.longestSessionMinutes,
-    steps: f.steps,
-    stepsSources: f.stepsSources,
-    sleepMinutes: f.sleepMinutes,
-    mealsLogged: f.mealsLogged,
-    mealCategories: f.mealCategories,
-    glucoseChecks: f.glucoseChecks,
-    medicationConfirmed: f.medicationConfirmed,
-    goalCheckins: f.goalCheckins,
-    sources: f.sources,
-    dirty: false,
-    computationVersion: PROJECTION_VERSION,
-    computedAt: now,
-  };
-}
-
 type FactRow = Awaited<ReturnType<typeof prisma.dailyBehaviorFact.findMany>>[number];
 const fromRow = (r: FactRow): DayFacts => ({
   localDate: iso(r.localDate),
@@ -88,12 +64,19 @@ export const dailyFacts = {
     const dates = datesBetween(from, to);
     if (!dates.length) return new Map<string, DayFacts>();
     const facts = await computeRange(userId, dates, zone);
-    await prisma.$transaction(
-      [...facts.values()].map((f) => {
-        const data = toRow(userId, zone, f, now);
-        return prisma.dailyBehaviorFact.upsert({ where: { userId_localDate: { userId, localDate: data.localDate } }, create: data, update: data });
-      }),
+    const values = [...facts.values()].map(
+      (f) =>
+        Prisma.sql`(${userId}::uuid, ${f.localDate}::date, ${zone}, ${f.activeMinutes}::int, ${f.activeMinutesManual}::int, ${f.activeMinutesDevice}::int, ${f.sessionCount}::int, ${f.longestSessionMinutes}::int, ${f.steps}::int, ${f.stepsSources}::text[], ${f.sleepMinutes}::int, ${f.mealsLogged}::int, ${f.mealCategories}::text[], ${f.glucoseChecks}::int, ${f.medicationConfirmed}::int, ${f.goalCheckins}::int, ${f.sources}::text[], false, ${PROJECTION_VERSION}, ${now}::timestamptz)`,
     );
+    await prisma.$executeRaw`
+      INSERT INTO daily_behavior_facts (user_id, local_date, timezone, active_minutes, active_minutes_manual, active_minutes_device, session_count, longest_session_minutes, steps, steps_sources, sleep_minutes, meals_logged, meal_categories, glucose_checks, medication_confirmed, goal_checkins, sources, dirty, computation_version, computed_at)
+      VALUES ${Prisma.join(values)}
+      ON CONFLICT (user_id, local_date) DO UPDATE SET
+        timezone = EXCLUDED.timezone, active_minutes = EXCLUDED.active_minutes, active_minutes_manual = EXCLUDED.active_minutes_manual, active_minutes_device = EXCLUDED.active_minutes_device,
+        session_count = EXCLUDED.session_count, longest_session_minutes = EXCLUDED.longest_session_minutes, steps = EXCLUDED.steps, steps_sources = EXCLUDED.steps_sources,
+        sleep_minutes = EXCLUDED.sleep_minutes, meals_logged = EXCLUDED.meals_logged, meal_categories = EXCLUDED.meal_categories, glucose_checks = EXCLUDED.glucose_checks,
+        medication_confirmed = EXCLUDED.medication_confirmed, goal_checkins = EXCLUDED.goal_checkins, sources = EXCLUDED.sources, dirty = false,
+        computation_version = EXCLUDED.computation_version, computed_at = EXCLUDED.computed_at`;
     return facts;
   },
 

@@ -395,9 +395,10 @@ class _Body extends StatelessWidget {
               ),
             ],
           ),
+        if (c.team) _TeamSection(challengeId: c.id),
         if (c.participating && !c.closed)
           DetailSection(
-            title: 'Progresmu',
+            title: c.team ? 'Kontribusimu' : 'Progresmu',
             children: [
               Text(
                 '$active dari ${c.targetDays} hari aktif',
@@ -611,5 +612,79 @@ Future<void> showReportSheet(
         context,
       ).showSnackBar(SnackBar(content: Text(messageFor(e))));
     }
+  }
+}
+
+class _TeamSection extends ConsumerWidget {
+  const _TeamSection({required this.challengeId});
+
+  final String challengeId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = ref.watch(teamProgressProvider(challengeId)).value;
+    if (t == null) return const SizedBox.shrink();
+    if (!t.visible) {
+      return Padding(
+        padding: const EdgeInsets.only(top: AppSpacing.md),
+        child: InfoCard(
+          tone: InfoTone.neutral,
+          title: 'Progres tim',
+          text:
+              'Progres tim tampil setelah ada minimal ${t.minParticipants} anggota. Sekarang: ${t.participants} anggota.',
+        ),
+      );
+    }
+    final target = t.teamTargetDays ?? 0;
+    final done = t.teamActiveDays ?? 0;
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.md),
+      child: Semantics(
+        container: true,
+        label:
+            'Progres tim: $done dari $target hari aktif, ${t.contributors ?? 0} anggota berkontribusi.',
+        excludeSemantics: true,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppSpacing.cardPadding),
+          decoration: BoxDecoration(
+            color: AppColors.brandTint,
+            borderRadius: AppRadius.cardRadius,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('PROGRES TIM', style: AppTypography.overline),
+              const SizedBox(height: AppSpacing.xs),
+              Row(
+                children: [
+                  for (final (v, l) in [
+                    ('$done', 'hari aktif tim'),
+                    ('$target', 'target tim'),
+                    ('${t.contributors ?? 0}', 'anggota berkontribusi'),
+                  ])
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(v, style: AppTypography.metric),
+                          Text(l, style: AppTypography.caption),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              ProgressBar(ratio: target == 0 ? 0 : (done / target).clamp(0, 1)),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Kontribusi per orang tidak ditampilkan. Tanpa nama dan tanpa nilai kesehatan.',
+                style: AppTypography.caption,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

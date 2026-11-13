@@ -113,13 +113,13 @@ class AppPalette {
     peach: Color(0xFFFFE9E2),
     lavender: Color(0xFFF0EBFA),
     softBlue: Color(0xFFE6EFFF),
-    background: Color(0xFFF8F9F6),
+    background: Color(0xFFF7F7F4),
     surface: Color(0xFFFFFFFF),
     surfaceMuted: Color(0xFFEEF2EF),
     border: Color(0xFFE4E9E7),
     overlay: Color(0xFF8A9AA0),
     onPrimary: Color(0xFFFFFFFF),
-    textPrimary: Color(0xFF18252A),
+    textPrimary: Color(0xFF1E292B),
     textSecondary: Color(0xFF5C6B73),
     decorative: Color(0xFF7C8C92),
     disabled: Color(0xFFB4C2C0),
@@ -138,7 +138,7 @@ class AppPalette {
     medicationInk: Color(0xFF6F54B5),
     goalSolid: Color(0xFFB87A12),
     goalInk: Color(0xFF8F5D0E),
-    shadow: Color(0x1A18252A),
+    shadow: Color(0x141E292B),
   );
 
   static const dark = AppPalette(

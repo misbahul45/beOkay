@@ -3,8 +3,8 @@ import { prisma } from "../../src/infrastructure/database/prisma.ts";
 
 const api = process.env.API_BASE_URL;
 const users: string[] = [];
-const call = (path: string, token?: string, body?: object) =>
-  fetch(api + path, { method: body ? "POST" : "GET", headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), ...(body ? { "content-type": "application/json" } : {}) }, body: body ? JSON.stringify(body) : undefined });
+const call = (path: string, token?: string, body?: object, method?: string) =>
+  fetch(api + path, { method: method ?? (body ? "POST" : "GET"), headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), ...(body ? { "content-type": "application/json" } : {}) }, body: body ? JSON.stringify(body) : undefined });
 async function actor(consent = true) {
   const id = crypto.randomUUID(), token = crypto.randomUUID();
   users.push(id);
@@ -20,10 +20,13 @@ afterAll(async () => { await prisma.users.deleteMany({ where: { id: { in: users 
 const J = async (r: Response) => (await r.json()) as any;
 const hash = () => crypto.randomUUID().replaceAll("-", "").repeat(2);
 const ago = (ms: number) => new Date(Date.now() - ms);
+const localHour = (timeZone: string) => Number(new Intl.DateTimeFormat("en-GB", { hour: "2-digit", hourCycle: "h23", timeZone }).format(new Date()));
+const daytimeZone = () => ["Asia/Jakarta", "Europe/London", "Asia/Tokyo"].find((z) => localHour(z) >= 6 && localHour(z) < 21)!;
 
 test("Trends: consent, input range, ownership, unknown stays null, archived/review rows excluded", async () => {
   if (!api || process.env.NODE_ENV !== "test") throw new Error("Isolated API required");
   const a = await actor(), b = await actor(), none = await actor(false);
+  expect((await call("/api/me/preferences", a.token, { timezone: daytimeZone() }, "PATCH")).status).toBe(200);
   expect((await call("/api/me/trends")).status).toBe(401);
   expect((await call("/api/me/trends", none.token)).status).toBe(403);
   expect((await call("/api/me/trends?days=5", a.token)).status).toBe(400);

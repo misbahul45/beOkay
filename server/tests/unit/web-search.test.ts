@@ -26,19 +26,36 @@ test("hasil dibersihkan: tag HTML dibuang, URL berbahaya dibuang, ditandai tidak
   let seen: { url?: string; init?: RequestInit } = {};
   const fetchImpl = (async (url: URL, init: RequestInit) => {
     seen = { url: String(url), init };
-    return new Response(JSON.stringify({ web: { results: [
-      { title: "<strong>Tempe</strong> &amp; gizinya", url: "https://id.wikipedia.org/wiki/Tempe", description: "<b>Tempe</b> kaya protein." },
-      { title: "Jahat", url: "http://evil.example/x", description: "x" },
-      { title: "Lokal", url: "https://localhost/x", description: "x" },
+    return new Response(JSON.stringify({ query: "tempe", results: [
+      { title: "<strong>Tempe</strong> &amp; gizinya", url: "https://id.wikipedia.org/wiki/Tempe", content: "<b>Tempe</b> kaya protein.", score: 0.9 },
+      { title: "Jahat", url: "http://evil.example/x", content: "x" },
+      { title: "Lokal", url: "https://localhost/x", content: "x" },
       { title: 5, url: "https://a.example.com/x" },
-    ] } }));
+    ] }));
   }) as unknown as typeof fetch;
-  const items = await createWebSearchClient("brave-test-key", fetchImpl).search("tempe");
+  const key = `tvly-${crypto.randomUUID()}`;
+  const items = await createWebSearchClient(key, fetchImpl).search("tempe");
   expect(items).toEqual([{ title: "Tempe & gizinya", url: "https://id.wikipedia.org/wiki/Tempe", host: "id.wikipedia.org", snippet: "Tempe kaya protein.", reviewed: false, usableForNutrition: false }]);
-  expect(seen.url).toContain("https://api.search.brave.com/res/v1/web/search?");
-  expect(seen.url).not.toContain("brave-test-key");
-  expect((seen.init!.headers as Record<string, string>)["x-subscription-token"]).toBe("brave-test-key");
+  expect(seen.url).toBe("https://api.tavily.com/search");
+  expect(seen.init!.method).toBe("POST");
   expect(seen.init!.redirect).toBe("error");
+  const headers = seen.init!.headers as Record<string, string>;
+  expect(headers.authorization).toBe(`Bearer ${key}`);
+  expect(headers["content-type"]).toBe("application/json");
+  const sent = JSON.parse(String(seen.init!.body));
+  expect(sent).toMatchObject({ query: "tempe", max_results: 5, search_depth: "basic", country: "indonesia", include_raw_content: false, include_answer: false });
+  expect(JSON.stringify(sent)).not.toContain(key);
+});
+
+test("kueri dipotong 120 karakter dan jumlah hasil dibatasi 8", async () => {
+  let sent: { query?: string; max_results?: number } = {};
+  const fetchImpl = (async (_url: URL, init: RequestInit) => {
+    sent = JSON.parse(String(init.body));
+    return new Response(JSON.stringify({ results: [] }));
+  }) as unknown as typeof fetch;
+  await createWebSearchClient("k", fetchImpl).search("a".repeat(300), 20);
+  expect(sent.query).toHaveLength(120);
+  expect(sent.max_results).toBe(8);
 });
 
 test("balasan rusak dan galat jaringan menjadi ProviderError", async () => {
@@ -56,7 +73,7 @@ test("layanan: nonaktif tanpa kunci, dibatasi laju bersama sumber luar, kegagala
   const down = createFoodDiscovery({ off, usda, web: createWebSearchClient("k", reply({}, 503)) });
   expect(await down.web("u", "tempe")).toMatchObject({ status: "UNAVAILABLE", items: [], code: "PROVIDER_UNAVAILABLE" });
 
-  const ok = createFoodDiscovery({ off, usda, web: createWebSearchClient("k", reply({ web: { results: [] } })) });
+  const ok = createFoodDiscovery({ off, usda, web: createWebSearchClient("k", reply({ results: [] })) });
   for (let i = 0; i < 20; i++) await ok.web("u", "tempe");
   await expect(ok.web("u", "tempe")).rejects.toMatchObject({ status: 429 });
 });

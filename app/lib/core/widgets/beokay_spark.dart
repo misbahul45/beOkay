@@ -313,7 +313,11 @@ class SparkPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
     if (glyph == '!') {
       canvas.drawLine(const Offset(80, 78), const Offset(80, 85.5), mark);
-      canvas.drawCircle(const Offset(80, 90), 1.6, Paint()..color = const Color(0xFFFFFFFF));
+      canvas.drawCircle(
+        const Offset(80, 90),
+        1.6,
+        Paint()..color = const Color(0xFFFFFFFF),
+      );
     } else {
       canvas.drawPath(
         Path()
@@ -324,7 +328,11 @@ class SparkPainter extends CustomPainter {
           ..lineTo(80, 85.5),
         mark,
       );
-      canvas.drawCircle(const Offset(80, 90), 1.6, Paint()..color = const Color(0xFFFFFFFF));
+      canvas.drawCircle(
+        const Offset(80, 90),
+        1.6,
+        Paint()..color = const Color(0xFFFFFFFF),
+      );
     }
   }
 

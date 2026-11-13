@@ -22,6 +22,7 @@
   },
   "scripts": {
     "dev": "bun --hot index.ts",
+    "landing:build": "cd ../landing && bun install --frozen-lockfile && bun run build && rm -rf ../server/public && cp -r dist ../server/public",
     "start": "bun index.ts",
     "typecheck": "tsc --noEmit",
     "db:generate": "bun --bun ./node_modules/.bin/prisma generate",

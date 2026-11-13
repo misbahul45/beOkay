@@ -1,6 +1,6 @@
-import { boundedGetJson, ProviderError } from "./food-candidate.ts";
+import { boundedPostJson, ProviderError } from "./food-candidate.ts";
 
-const HOST = "api.search.brave.com";
+const HOST = "api.tavily.com";
 
 export type WebResult = {
   title: string;
@@ -30,7 +30,7 @@ export function safeResultUrl(raw: unknown): URL | null {
 }
 
 /**
- * Pencarian web terkontrol (Brave Search API). Host dipaku, tanpa redirect, kunci hanya di header.
+ * Pencarian web terkontrol (Tavily Search API). Host dipaku, tanpa redirect, kunci hanya di header.
  * Hanya judul, tautan, dan cuplikan yang dikembalikan; halaman tidak pernah diambil oleh server.
  */
 export function createWebSearchClient(apiKey: string | undefined, fetchImpl: typeof fetch = fetch) {
@@ -38,10 +38,18 @@ export function createWebSearchClient(apiKey: string | undefined, fetchImpl: typ
     configured: Boolean(apiKey),
     async search(query: string, limit = 5): Promise<WebResult[]> {
       if (!apiKey) throw new ProviderError("PROVIDER_NOT_CONFIGURED", "Pencarian web belum dikonfigurasi.");
-      const url = new URL(`https://${HOST}/res/v1/web/search`);
-      url.search = new URLSearchParams({ q: query.slice(0, 120), count: String(Math.min(limit, 8)), country: "ID", search_lang: "id", safesearch: "moderate" }).toString();
-      const body = (await boundedGetJson(fetchImpl, url, { allowedHost: HOST, maxBytes: 600_000, headers: { "x-subscription-token": apiKey } })) as { web?: { results?: { title?: unknown; url?: unknown; description?: unknown }[] } };
-      const results = body.web?.results;
+      const request = {
+        query: query.slice(0, 120),
+        max_results: Math.min(limit, 8),
+        search_depth: "basic",
+        topic: "general",
+        country: "indonesia",
+        include_answer: false,
+        include_raw_content: false,
+        include_images: false,
+      };
+      const body = (await boundedPostJson(fetchImpl, new URL(`https://${HOST}/search`), request, { allowedHost: HOST, timeoutMs: 8000, maxBytes: 600_000, headers: { authorization: `Bearer ${apiKey}` } })) as { results?: { title?: unknown; url?: unknown; content?: unknown }[] };
+      const results = body.results;
       if (!Array.isArray(results)) throw new ProviderError("PROVIDER_BAD_RESPONSE", "Balasan penyedia tidak valid.");
       const out: WebResult[] = [];
       for (const r of results) {
@@ -51,7 +59,7 @@ export function createWebSearchClient(apiKey: string | undefined, fetchImpl: typ
           title: stripTags(r.title).slice(0, 140),
           url: u.toString(),
           host: u.hostname,
-          snippet: typeof r.description === "string" ? stripTags(r.description).slice(0, 300) : "",
+          snippet: typeof r.content === "string" ? stripTags(r.content).slice(0, 300) : "",
           reviewed: false,
           usableForNutrition: false,
         });

@@ -12,8 +12,11 @@ import '../../../core/widgets/async_body.dart';
 import '../../../core/widgets/info_card.dart';
 import '../../../core/widgets/page_scaffold.dart';
 import '../../../core/widgets/pill_button.dart';
+import '../../../core/widgets/soft_card.dart';
 import '../application/memory_controller.dart';
 import '../data/memory_repository.dart';
+
+String _day(DateTime d) => DateFormat('d MMM', 'id_ID').format(d.toLocal());
 
 class MemoryScreen extends ConsumerStatefulWidget {
   const MemoryScreen({super.key});
@@ -24,6 +27,7 @@ class MemoryScreen extends ConsumerStatefulWidget {
 
 class _MemoryScreenState extends ConsumerState<MemoryScreen> {
   bool busy = false;
+  String? selectedId;
 
   MemoryRepository get _repo => ref.read(memoryRepositoryProvider);
 
@@ -33,6 +37,7 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
       await action();
       ref.invalidate(memoryOverviewProvider);
       ref.invalidate(personalizationSummaryProvider);
+      ref.invalidate(memoryHistoryProvider);
       if (mounted && done != null) {
         ScaffoldMessenger.of(
           context,
@@ -78,14 +83,27 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
     await _run(() => _repo.update(m, value), done: 'Ingatan diperbarui.');
   }
 
+  Future<void> _delete(MemoryItem m) async {
+    if (await _confirm(
+      'Hapus ingatan ini?',
+      '"${m.content}" tidak akan dipakai lagi untuk saran.',
+      'Hapus',
+    )) {
+      if (selectedId == m.id) setState(() => selectedId = null);
+      await _run(() => _repo.remove(m.id), done: 'Ingatan dihapus.');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final overview = ref.watch(memoryOverviewProvider);
     return PageScaffold(
-      title: 'Memori & personalisasi',
+      title: 'Ingatan asisten',
+      maxContentWidth: 720,
       onRefresh: () async {
         ref.invalidate(memoryOverviewProvider);
         ref.invalidate(personalizationSummaryProvider);
+        ref.invalidate(memoryHistoryProvider);
         await ref.read(memoryOverviewProvider.future).catchError((_) => _empty);
       },
       children: [
@@ -98,11 +116,14 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
           data: (o) => _Body(
             overview: o,
             busy: busy,
+            selectedId: selectedId,
+            onSelect: (m) => setState(() => selectedId = m.id),
             onToggle: (v) => _run(
               () => _repo.setEnabled(v),
               done: v ? 'Ingatan diaktifkan.' : 'Ingatan dijeda.',
             ),
             onEdit: _edit,
+            onDelete: _delete,
             onPause: (m) =>
                 _run(() => _repo.pause(m.id), done: 'Ingatan dijeda.'),
             onResume: (m) =>
@@ -111,26 +132,13 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
                 _run(() => _repo.confirm(m.id), done: 'Ingatan disimpan.'),
             onReject: (m) =>
                 _run(() => _repo.dismiss(m.id), done: 'Usulan ditolak.'),
-            onHistory: (m) => showModalBottomSheet<void>(
-              context: context,
-              showDragHandle: true,
-              builder: (_) => _HistorySheet(item: m),
-            ),
-            onDelete: (m) async {
-              if (await _confirm(
-                'Hapus ingatan ini?',
-                '"${m.content}" tidak akan dipakai lagi untuk saran.',
-                'Hapus',
-              )) {
-                await _run(() => _repo.remove(m.id), done: 'Ingatan dihapus.');
-              }
-            },
             onDeleteAll: () async {
               if (await _confirm(
                 'Hapus semua ingatan?',
                 'Semua yang diingat asisten dihapus. Catatan kesehatanmu tidak terpengaruh.',
                 'Hapus semua',
               )) {
+                setState(() => selectedId = null);
                 await _run(_repo.removeAll, done: 'Semua ingatan dihapus.');
               }
             },
@@ -159,6 +167,8 @@ class _Body extends ConsumerWidget {
   const _Body({
     required this.overview,
     required this.busy,
+    required this.selectedId,
+    required this.onSelect,
     required this.onToggle,
     required this.onEdit,
     required this.onDelete,
@@ -168,42 +178,39 @@ class _Body extends ConsumerWidget {
     required this.onResume,
     required this.onAccept,
     required this.onReject,
-    required this.onHistory,
   });
 
   final MemoryOverview overview;
   final bool busy;
+  final String? selectedId;
   final ValueChanged<bool> onToggle;
-  final ValueChanged<MemoryItem> onEdit,
+  final ValueChanged<MemoryItem> onSelect,
+      onEdit,
       onDelete,
       onPause,
       onResume,
       onAccept,
-      onReject,
-      onHistory;
+      onReject;
   final VoidCallback onDeleteAll, onResetPersonalization;
+
+  MemoryItem? get _selected {
+    final all = [...overview.items, ...overview.paused];
+    for (final m in all) {
+      if (m.id == selectedId) return m;
+    }
+    return all.isEmpty ? null : all.first;
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final o = overview;
     final personalization = ref.watch(personalizationSummaryProvider).value;
+    final selected = _selected;
+    const gap = SizedBox(height: AppSpacing.sm);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Section(
-          child: SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            value: o.enabled,
-            onChanged: busy ? null : onToggle,
-            title: Text('Gunakan ingatan', style: AppTypography.bodyStrong),
-            subtitle: Text(
-              'Asisten hanya mengingat hal yang kamu setujui, untuk menyesuaikan saran.',
-              style: AppTypography.secondary,
-            ),
-          ),
-        ),
         if (!o.consentGiven) ...[
-          const SizedBox(height: AppSpacing.sm),
           InfoCard(
             tone: InfoTone.warning,
             title: 'Ingatan tidak dipakai',
@@ -216,16 +223,16 @@ class _Body extends ConsumerWidget {
               onPressed: () => context.push(Routes.consentManagement),
             ),
           ),
+          gap,
         ] else if (!o.enabled) ...[
-          const SizedBox(height: AppSpacing.sm),
           const InfoCard(
             tone: InfoTone.neutral,
             text:
                 'Ingatan dijeda: tidak ada yang ditambah atau dipakai. Yang tersimpan tetap bisa kamu lihat dan hapus.',
           ),
+          gap,
         ],
         for (final c in o.conflicts) ...[
-          const SizedBox(height: AppSpacing.sm),
           _ConflictCard(
             proposal: c,
             current: o.activeFor(c),
@@ -233,128 +240,169 @@ class _Body extends ConsumerWidget {
             onAccept: () => onAccept(c),
             onReject: () => onReject(c),
           ),
+          gap,
         ],
         if (o.proposals.isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.lg),
-          Semantics(
-            header: true,
-            child: Text('Usulan dari catatanmu', style: AppTypography.heading),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          for (final p in o.proposals)
-            _Section(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(p.content, style: AppTypography.bodyStrong),
-                    Text(
-                      'Dihitung dari sesi aktivitas yang kamu catat. Baru dipakai setelah kamu menyimpannya.',
-                      style: AppTypography.caption,
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Wrap(
-                      spacing: AppSpacing.xs,
-                      children: [
-                        PillButton(
-                          label: 'Simpan',
-                          expand: false,
-                          onPressed: busy ? null : () => onAccept(p),
-                        ),
-                        PillButton(
-                          label: 'Tolak',
-                          kind: PillButtonKind.secondary,
-                          expand: false,
-                          onPressed: busy ? null : () => onReject(p),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
-        const SizedBox(height: AppSpacing.lg),
-        Semantics(
-          header: true,
-          child: Text('Yang kuingat', style: AppTypography.heading),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        if (o.items.isEmpty)
-          Text(
-            'Belum ada. Saat kamu menyebut kebiasaan, misalnya "aku lebih suka olahraga pagi", asisten akan bertanya dulu sebelum mengingatnya.',
-            style: AppTypography.secondary,
-          )
-        else
-          _Section(
-            padding: 0,
+          SoftCard(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (var i = 0; i < o.items.length; i++) ...[
-                  _MemoryTile(
-                    item: o.items[i],
-                    busy: busy,
-                    onEdit: () => onEdit(o.items[i]),
-                    onDelete: () => onDelete(o.items[i]),
-                    onPause: () => onPause(o.items[i]),
-                    onHistory: () => onHistory(o.items[i]),
+                const Overline('USULAN DARI CATATANMU'),
+                for (final p in o.proposals) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(p.content, style: AppTypography.bodyStrong),
+                  Text(
+                    'Dihitung dari sesi aktivitas yang kamu catat. Baru dipakai setelah kamu menyimpannya.',
+                    style: AppTypography.caption,
                   ),
-                  if (i < o.items.length - 1)
-                    Divider(height: 1, color: AppColors.border, indent: 16),
+                  const SizedBox(height: AppSpacing.xs),
+                  Wrap(
+                    spacing: AppSpacing.xs,
+                    runSpacing: AppSpacing.xs,
+                    children: [
+                      PillButton(
+                        label: 'Simpan',
+                        kind: PillButtonKind.ink,
+                        expand: false,
+                        onPressed: busy ? null : () => onAccept(p),
+                      ),
+                      PillButton(
+                        label: 'Tolak',
+                        kind: PillButtonKind.secondary,
+                        expand: false,
+                        onPressed: busy ? null : () => onReject(p),
+                      ),
+                    ],
+                  ),
                 ],
               ],
             ),
           ),
-        if (o.paused.isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.lg),
-          Semantics(
-            header: true,
-            child: Text('Dijeda, tidak dipakai', style: AppTypography.heading),
+          gap,
+        ],
+        SoftCard(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.sm,
+            AppSpacing.xs,
           ),
-          const SizedBox(height: AppSpacing.xs),
-          _Section(
-            padding: 0,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Overline(
+                o.items.isEmpty
+                    ? 'DIPAKAI UNTUK SARAN'
+                    : 'DIPAKAI UNTUK SARAN · ${o.items.length}',
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              if (o.items.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(
+                    right: AppSpacing.xs,
+                    bottom: AppSpacing.xs,
+                  ),
+                  child: Text(
+                    'Belum ada. Saat kamu menyebut kebiasaan, misalnya "aku lebih suka olahraga pagi", asisten akan bertanya dulu sebelum mengingatnya.',
+                    style: AppTypography.secondary,
+                  ),
+                )
+              else ...[
+                for (final m in o.items)
+                  _MemoryRow(
+                    item: m,
+                    selected: selected?.id == m.id,
+                    busy: busy,
+                    actionLabel: 'Jeda',
+                    onAction: () => onPause(m),
+                    onSelect: () => onSelect(m),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                  child: Text(
+                    'Ketuk ingatan untuk melihat riwayat, mengubah, atau menghapusnya.',
+                    style: AppTypography.caption,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        if (o.paused.isNotEmpty) ...[
+          gap,
+          SoftCard(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.xs,
+              AppSpacing.xs,
+            ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const Overline('DIJEDA · TIDAK DIPAKAI'),
+                const SizedBox(height: AppSpacing.xs),
                 for (final m in o.paused)
-                  ListTile(
-                    title: Text(
-                      m.content,
-                      style: AppTypography.body.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    subtitle: Text(
-                      m.pauseReason == 'CONSENT_WITHDRAWN'
-                          ? 'Dijeda karena persetujuan saran personal dicabut'
-                          : 'Dijeda olehmu',
-                      style: AppTypography.caption,
-                    ),
-                    trailing: TextButton(
-                      onPressed: busy ? null : () => onResume(m),
-                      child: const Text('Lanjutkan'),
-                    ),
-                    onTap: () => onHistory(m),
+                  _MemoryRow(
+                    item: m,
+                    selected: selected?.id == m.id,
+                    busy: busy,
+                    actionLabel: 'Lanjutkan',
+                    onAction: () => onResume(m),
+                    onSelect: () => onSelect(m),
                   ),
               ],
             ),
           ),
         ],
-        const SizedBox(height: AppSpacing.lg),
-        Semantics(
-          header: true,
-          child: Text(
-            'Yang juga memengaruhi saran',
-            style: AppTypography.heading,
+        if (selected != null) ...[
+          gap,
+          _DetailCard(
+            item: selected,
+            busy: busy,
+            onEdit: () => onEdit(selected),
+            onDelete: () => onDelete(selected),
+          ),
+        ],
+        gap,
+        SoftCard(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.xs,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Overline('PENGATURAN'),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                value: o.enabled,
+                onChanged: busy ? null : onToggle,
+                title: Text('Gunakan ingatan', style: AppTypography.bodyStrong),
+                subtitle: Text(
+                  'Asisten hanya mengingat hal yang kamu setujui, untuk menyesuaikan saran.',
+                  style: AppTypography.secondary,
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: AppSpacing.xs),
-        _Section(
-          padding: 0,
+        gap,
+        SoftCard(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.xs,
+            AppSpacing.xs,
+          ),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const Overline('YANG JUGA MEMENGARUHI SARAN'),
               ListTile(
+                contentPadding: const EdgeInsets.only(right: AppSpacing.xs),
                 title: Text(
                   'Preferensi & alergi makanan',
                   style: AppTypography.bodyStrong,
@@ -366,8 +414,8 @@ class _Body extends ConsumerWidget {
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => context.push(Routes.foodPreferences),
               ),
-              Divider(height: 1, color: AppColors.border, indent: 16),
               ListTile(
+                contentPadding: const EdgeInsets.only(right: AppSpacing.xs),
                 title: Text(
                   'Saran yang kamu tolak',
                   style: AppTypography.bodyStrong,
@@ -391,15 +439,17 @@ class _Body extends ConsumerWidget {
           ),
         ),
         if (o.items.isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.lg),
-          TextButton(
-            onPressed: busy ? null : onDeleteAll,
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.errorForeground,
-              backgroundColor: Colors.transparent,
-              padding: EdgeInsets.zero,
+          const SizedBox(height: AppSpacing.md),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: busy ? null : onDeleteAll,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.errorForeground,
+                backgroundColor: Colors.transparent,
+              ),
+              child: const Text('Hapus semua ingatan'),
             ),
-            child: const Text('Hapus semua ingatan'),
           ),
         ],
       ],
@@ -407,84 +457,250 @@ class _Body extends ConsumerWidget {
   }
 }
 
-class _Section extends StatelessWidget {
-  const _Section({required this.child, this.padding = 14});
-  final Widget child;
-  final double padding;
+class _MemoryRow extends StatelessWidget {
+  const _MemoryRow({
+    required this.item,
+    required this.selected,
+    required this.busy,
+    required this.actionLabel,
+    required this.onAction,
+    required this.onSelect,
+  });
+
+  final MemoryItem item;
+  final bool selected, busy;
+  final String actionLabel;
+  final VoidCallback onAction, onSelect;
 
   @override
-  Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    padding: EdgeInsets.symmetric(horizontal: padding, vertical: padding / 2),
-    decoration: BoxDecoration(
-      color: AppColors.surface,
-      borderRadius: BorderRadius.circular(AppRadius.lg - 2),
-      border: Border.all(color: AppColors.border),
+  Widget build(BuildContext context) {
+    final paused = item.paused;
+    final meta = paused
+        ? (item.pauseReason == 'CONSENT_WITHDRAWN'
+              ? 'Dijeda karena persetujuan saran personal dicabut'
+              : 'Dijeda olehmu')
+        : [
+            item.typeLabel,
+            if (item.confirmedAt case final c?) 'dikonfirmasi ${_day(c)}',
+          ].join(' · ');
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
+      child: Row(
+        children: [
+          Expanded(
+            child: Semantics(
+              button: true,
+              selected: selected,
+              hint: 'Tampilkan riwayat',
+              child: InkWell(
+                onTap: onSelect,
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: paused
+                                ? AppColors.decorative
+                                : AppColors.brand,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.content,
+                              style: paused
+                                  ? AppTypography.body.copyWith(
+                                      color: AppColors.textSecondary,
+                                    )
+                                  : AppTypography.bodyStrong,
+                            ),
+                            Text(meta, style: AppTypography.caption),
+                            if (item.expiresAt case final e?)
+                              Text(
+                                '${item.temporary ? 'Berakhir otomatis' : 'Diperiksa ulang'} ${DateFormat('d MMM yyyy', 'id_ID').format(e.toLocal())}',
+                                style: AppTypography.caption,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          _CompactPill(
+            label: actionLabel,
+            semanticsLabel: '$actionLabel: ${item.content}',
+            onPressed: busy ? null : onAction,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactPill extends StatelessWidget {
+  const _CompactPill({
+    required this.label,
+    required this.semanticsLabel,
+    required this.onPressed,
+  });
+
+  final String label, semanticsLabel;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    enabled: onPressed != null,
+    label: semanticsLabel,
+    excludeSemantics: true,
+    onTap: onPressed,
+    child: OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.textPrimary,
+        backgroundColor: AppColors.surface,
+        side: BorderSide(color: AppColors.border),
+        shape: const StadiumBorder(),
+        minimumSize: const Size(56, AppSpacing.chipHeight),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        tapTargetSize: MaterialTapTargetSize.padded,
+        textStyle: AppTypography.secondaryStrong,
+      ),
+      child: Text(label),
     ),
-    child: Material(color: Colors.transparent, child: child),
   );
 }
 
-class _MemoryTile extends StatelessWidget {
-  const _MemoryTile({
+class _DetailCard extends ConsumerWidget {
+  const _DetailCard({
     required this.item,
     required this.busy,
     required this.onEdit,
     required this.onDelete,
-    required this.onPause,
-    required this.onHistory,
   });
+
   final MemoryItem item;
   final bool busy;
-  final VoidCallback onEdit, onDelete, onPause, onHistory;
+  final VoidCallback onEdit, onDelete;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 8, 4, 8),
-    child: Row(
-      children: [
-        Expanded(
-          child: InkWell(
-            onTap: onHistory,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final history = ref.watch(memoryHistoryProvider(item.id));
+    return SoftCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Overline('RIWAYAT · ${item.content.toUpperCase()}'),
+          const SizedBox(height: AppSpacing.sm),
+          history.when(
+            loading: () => const LinearProgressIndicator(),
+            error: (_, _) => Row(
               children: [
-                Text(
-                  [
-                    item.typeLabel,
-                    if (item.confirmedAt case final c?)
-                      'dikonfirmasi ${DateFormat('d MMM', 'id_ID').format(c.toLocal())}',
-                  ].join(' · '),
-                  style: AppTypography.caption,
-                ),
-                Text(item.content, style: AppTypography.body),
-                if (item.expiresAt case final e?)
-                  Text(
-                    '${item.temporary ? 'Berakhir otomatis' : 'Diperiksa ulang'} ${DateFormat('d MMM yyyy', 'id_ID').format(e.toLocal())}',
-                    style: AppTypography.caption,
+                Expanded(
+                  child: Text(
+                    'Riwayat belum bisa dimuat.',
+                    style: AppTypography.secondary,
                   ),
+                ),
+                TextButton(
+                  onPressed: () =>
+                      ref.invalidate(memoryHistoryProvider(item.id)),
+                  child: const Text('Coba lagi'),
+                ),
               ],
             ),
+            data: (entries) => entries.isEmpty
+                ? Text('Belum ada perubahan.', style: AppTypography.secondary)
+                : Column(
+                    children: [
+                      for (final (i, e) in entries.reversed.indexed)
+                        _HistoryLine(entry: e, latest: i == 0),
+                    ],
+                  ),
           ),
-        ),
-        IconButton(
-          tooltip: 'Jeda ingatan',
-          onPressed: busy ? null : onPause,
-          icon: const Icon(Icons.pause_circle_outline_rounded),
-        ),
-        IconButton(
-          tooltip: 'Ubah ingatan',
-          onPressed: busy ? null : onEdit,
-          icon: Icon(Icons.edit_outlined, color: AppColors.brand),
-        ),
-        IconButton(
-          tooltip: 'Hapus ingatan',
-          onPressed: busy ? null : onDelete,
-          icon: const Icon(Icons.delete_outline_rounded),
-        ),
-      ],
-    ),
-  );
+          const SizedBox(height: AppSpacing.xs),
+          Wrap(
+            spacing: AppSpacing.xs,
+            children: [
+              Tooltip(
+                message: 'Ubah ingatan',
+                child: TextButton.icon(
+                  onPressed: busy ? null : onEdit,
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  label: const Text('Ubah'),
+                ),
+              ),
+              Tooltip(
+                message: 'Hapus ingatan',
+                child: TextButton.icon(
+                  onPressed: busy ? null : onDelete,
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.errorForeground,
+                  ),
+                  icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                  label: const Text('Hapus'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HistoryLine extends StatelessWidget {
+  const _HistoryLine({required this.entry, required this.latest});
+
+  final MemoryRevisionEntry entry;
+  final bool latest;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = [
+      _day(entry.at),
+      entry.label,
+      if (entry.change == 'SUPERSEDED') '(dulu: ${entry.content})',
+      if (entry.reason case final r? when entry.change == 'PROPOSED') r,
+    ].join(' · ');
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 5),
+            child: Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: latest ? AppColors.brand : AppColors.decorative,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(child: Text(text, style: AppTypography.body)),
+        ],
+      ),
+    );
+  }
 }
 
 class _EditMemoryDialog extends StatefulWidget {
@@ -541,94 +757,92 @@ class _ConflictCard extends StatelessWidget {
   final VoidCallback onAccept, onReject;
 
   @override
-  Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      color: AppColors.warningBackground,
-      borderRadius: BorderRadius.circular(AppRadius.lg - 2),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'DUA INGATAN BERTENTANGAN',
-          style: AppTypography.overline.copyWith(
-            color: AppColors.warningForeground,
-          ),
+  Widget build(BuildContext context) {
+    Widget value(String label, String text, {required bool fresh}) => Semantics(
+      container: true,
+      label: '$label: $text',
+      excludeSemantics: true,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+        decoration: BoxDecoration(
+          color: fresh
+              ? AppColors.surface
+              : AppColors.surface.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(AppRadius.md - 2),
+          border: fresh ? Border.all(color: AppColors.brand) : null,
         ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          current == null
-              ? 'Baru: "${proposal.content}". Simpan untuk mengganti yang lama?'
-              : 'Tersimpan: "${current!.content}". Baru: "${proposal.content}". Mana yang benar sekarang?',
-          style: AppTypography.body,
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Wrap(
-          spacing: AppSpacing.xs,
-          runSpacing: AppSpacing.xs,
-          children: [
-            PillButton(
-              label: 'Pakai yang baru',
-              expand: false,
-              onPressed: busy ? null : onAccept,
-            ),
-            PillButton(
-              label: 'Tetap yang lama',
-              kind: PillButtonKind.secondary,
-              expand: false,
-              onPressed: busy ? null : onReject,
-            ),
-          ],
-        ),
-      ],
-    ),
-  );
-}
-
-class _HistorySheet extends ConsumerWidget {
-  const _HistorySheet({required this.item});
-
-  final MemoryItem item;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) => FutureBuilder(
-    future: ref.read(memoryRepositoryProvider).history(item.id),
-    builder: (context, snap) => SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Semantics(
-              header: true,
-              child: Text('Riwayat', style: AppTypography.heading),
+            Text(
+              label.toUpperCase(),
+              style: AppTypography.overline.copyWith(
+                color: fresh ? AppColors.brand : AppColors.textSecondary,
+              ),
             ),
-            Text(item.content, style: AppTypography.secondary),
-            const SizedBox(height: AppSpacing.sm),
-            if (snap.hasError)
-              Text('Riwayat belum bisa dimuat.', style: AppTypography.body)
-            else if (!snap.hasData)
-              const LinearProgressIndicator()
-            else
-              for (final e in snap.data!.reversed)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Text(
-                    [
-                      DateFormat('d MMM', 'id_ID').format(e.at.toLocal()),
-                      e.label,
-                      if (e.change == 'SUPERSEDED') '(dulu: ${e.content})',
-                      if (e.reason case final r? when e.change == 'PROPOSED') r,
-                    ].join(' · '),
-                    style: AppTypography.body,
-                  ),
-                ),
+            const SizedBox(height: 2),
+            Text(
+              text,
+              style: fresh
+                  ? AppTypography.bodyStrong
+                  : AppTypography.body.copyWith(color: AppColors.textSecondary),
+            ),
           ],
         ),
       ),
-    ),
-  );
+    );
+    return SoftCard(
+      color: AppColors.warningBackground,
+      shadow: false,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Overline(
+            'DUA INGATAN BERTENTANGAN',
+            color: AppColors.warningForeground,
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          Text('Mana yang benar sekarang?', style: AppTypography.title),
+          const SizedBox(height: AppSpacing.sm),
+          if (current case final c?) ...[
+            value('Tersimpan', c.content, fresh: false),
+            const SizedBox(height: AppSpacing.xs),
+          ],
+          value('Baru', proposal.content, fresh: true),
+          const SizedBox(height: AppSpacing.sm),
+          LayoutBuilder(
+            builder: (context, c) {
+              final accept = PillButton(
+                label: 'Pakai yang baru',
+                kind: PillButtonKind.ink,
+                onPressed: busy ? null : onAccept,
+              );
+              final keep = PillButton(
+                label: current == null ? 'Tolak' : 'Tetap yang lama',
+                kind: PillButtonKind.secondary,
+                onPressed: busy ? null : onReject,
+              );
+              if (c.maxWidth < 360) {
+                return Column(
+                  children: [
+                    accept,
+                    const SizedBox(height: AppSpacing.xs),
+                    keep,
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: accept),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(child: keep),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
 }
