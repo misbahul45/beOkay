@@ -1,0 +1,25 @@
+meta {
+  name: Device status and quality
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/me/devices/status
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+tests {
+  test("Overlapping nights from two origins are CONFLICT and counted once", function () {
+    expect(res.status).to.equal(200);
+    const night = res.body.days.sleep.find((d) => d.value !== null);
+    expect(night.status).to.equal("CONFLICT");
+    expect(night.value).to.equal(450);
+    expect(res.body.notice).to.contain("tidak pernah dianggap tidak aktif");
+  });
+}

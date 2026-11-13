@@ -6,6 +6,11 @@ import 'package:health/health.dart';
 import '../../../core/network/account_scoped_repository.dart';
 
 /// Satu sesi olahraga dari perangkat, sudah dipetakan ke bentuk beOkay. Jarak/langkah kosong bila tidak jelas.
+final _originPattern = RegExp(r'^[A-Za-z0-9_.]{1,200}$');
+
+String? validOrigin(String? origin) =>
+    origin != null && _originPattern.hasMatch(origin) ? origin : null;
+
 class DeviceSession {
   const DeviceSession({
     required this.externalId,
@@ -14,12 +19,16 @@ class DeviceSession {
     required this.durationMinutes,
     this.distanceKm,
     this.steps,
+    this.dataOrigin,
+    this.recordingMethod,
   });
   final String externalId, activityType;
   final DateTime startedAt;
   final int durationMinutes;
   final double? distanceKm;
   final int? steps;
+  final String? dataOrigin;
+  final String? recordingMethod;
 
   Map<String, dynamic> toJson() => {
     'externalId': externalId,
@@ -28,6 +37,8 @@ class DeviceSession {
     'durationMinutes': durationMinutes,
     'distanceKm': ?distanceKm,
     'steps': ?steps,
+    'dataOrigin': ?validOrigin(dataOrigin),
+    'recordingMethod': ?recordingMethod,
   };
 }
 
@@ -138,6 +149,8 @@ class HealthConnectSource implements DeviceActivitySource {
             v.totalDistanceUnit?.name,
           ),
           steps: v.totalStepsUnit?.name == 'COUNT' ? v.totalSteps : null,
+          dataOrigin: p.sourceId,
+          recordingMethod: p.recordingMethod.name,
         ),
       );
     }

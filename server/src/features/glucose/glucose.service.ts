@@ -9,6 +9,7 @@ import {
 } from "../../shared/errors/app-error.ts";
 import { localRecordTime } from "../../shared/http/record-schema.ts";
 import { consentService } from "../consent/consent.service.ts";
+import { emitRecordEvent } from "../events/record-events.ts";
 import { preferencesService } from "../preferences/preferences.service.ts";
 import type { GlucoseUnit } from "../preferences/glucose-units.ts";
 import { canonicalGlucose, displayGlucose } from "./glucose.model.ts";
@@ -96,6 +97,7 @@ export const glucoseService = {
           eventType: "glucose_recorded",
           metadata: { recordId: saved.id },
         });
+        await emitRecordEvent(tx, { userId, kind: "glucose", action: "created", recordId: saved.id, revision: saved.version, occurredAt: saved.measuredAt, localDates: [localRecordTime(saved.measuredAt, settings.timezone).localDate], timezone: settings.timezone, source: saved.source, quality: saved.qualityStatus });
         return saved;
       });
       return view(row, settings);
@@ -181,7 +183,9 @@ export const glucoseService = {
         eventType: archived ? "glucose_archived" : "glucose_corrected",
         metadata: { recordId: id, version: old.version + 1 },
       });
-      return (await glucoseRepository.find(userId, id, tx))!;
+      const after = (await glucoseRepository.find(userId, id, tx))!;
+      await emitRecordEvent(tx, { userId, kind: "glucose", action: archived ? "archived" : "corrected", recordId: id, revision: after.version, occurredAt: after.measuredAt, localDates: [localRecordTime(old.measuredAt, settings.timezone).localDate, localRecordTime(after.measuredAt, settings.timezone).localDate], timezone: settings.timezone, source: after.source, quality: after.qualityStatus });
+      return after;
     });
     return view(row, settings);
   },

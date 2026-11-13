@@ -36,6 +36,7 @@ abstract final class Routes {
   static const profile = '/profile';
   static const editProfile = '/profile/edit';
   static const editHealth = '/profile/health';
+  static const journey = '/profile/journey';
   static const settings = '/settings';
   static const consentManagement = '/settings/consent';
   static const accountSecurity = '/settings/security';

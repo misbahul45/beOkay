@@ -2,6 +2,7 @@ import { z } from "zod";
 import { recordTimestamp } from "../../shared/http/record-schema.ts";
 
 const externalId = z.string().trim().min(1).max(200);
+export const dataOrigin = z.string().trim().regex(/^[A-Za-z0-9_.]{1,200}$/).optional();
 const localDate = z.iso.date().refine((d) => d >= "2000-01-01" && Date.parse(d + "T00:00:00Z") <= Date.now() + 2 * 86_400_000, "invalid date");
 
 export const devicePreferencesSchema = z
@@ -13,8 +14,8 @@ export const devicePreferencesSchema = z
 export const deviceImportSchema = z
   .object({
     source: z.literal("health_connect"),
-    steps: z.array(z.object({ localDate, steps: z.number().int().min(0).max(200000) }).strict()).max(62).default([]),
-    weights: z.array(z.object({ externalId, measuredAt: recordTimestamp, kg: z.number().finite().min(10).max(500) }).strict()).max(100).default([]),
+    steps: z.array(z.object({ localDate, steps: z.number().int().min(0).max(200000), dataOrigin }).strict()).max(62).default([]),
+    weights: z.array(z.object({ externalId, measuredAt: recordTimestamp, kg: z.number().finite().min(10).max(500), dataOrigin }).strict()).max(100).default([]),
     glucose: z
       .array(
         z
@@ -25,12 +26,13 @@ export const deviceImportSchema = z
             unit: z.enum(["mg/dL", "mmol/L"]),
             specimen: z.enum(["capillary_blood", "interstitial_fluid", "unknown"]).default("unknown"),
             mealContext: z.enum(["fasting", "before_meal", "after_meal", "bedtime", "other", "unknown"]).default("unknown"),
+            dataOrigin,
           })
           .strict(),
       )
       .max(300)
       .default([]),
-    sleep: z.array(z.object({ externalId, startedAt: recordTimestamp, endedAt: recordTimestamp }).strict()).max(62).default([]),
+    sleep: z.array(z.object({ externalId, startedAt: recordTimestamp, endedAt: recordTimestamp, dataOrigin }).strict()).max(62).default([]),
   })
   .strict()
   .refine((v) => v.steps.length + v.weights.length + v.glucose.length + v.sleep.length > 0, "empty import");

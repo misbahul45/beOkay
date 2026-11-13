@@ -1,3 +1,4 @@
+import { cohortService } from "../cohort/cohort.service.ts";
 import { educationService } from "../education/education.service.ts";
 import { Prisma } from "../../generated/prisma/client.ts";
 import { prisma } from "../../infrastructure/database/prisma.ts";
@@ -33,6 +34,7 @@ import {
   type Part,
 } from "./conversation.parts.ts";
 import { HYBRID_ROUTER_VERSION, ROUTER_VERSION, routeMessage, type Route } from "./conversation.router.ts";
+import { basisOf, blocksToParts, denialParts, gateSkill, runRouteSkill, secondaryRoutes, type Gate } from "./conversation.skills.ts";
 import { createLlmRouter, type LlmRouter } from "./intent-classifier.ts";
 import { env } from "../../config/env.ts";
 import { featureFlags } from "../feature-flags/feature-flags.service.ts";
@@ -340,12 +342,45 @@ async function compose(userId: string, thread: Thread, msg: Message): Promise<Re
       if (llmMemory.length) return { parts: UNKNOWN_REPLY, route: "UNKNOWN", runId: null, continuesRun: false, basis: null, hybrid: true, llmMemory };
     }
   }
-  return dispatch(userId, thread, msg, body, route, context);
+  return withSecondary(userId, msg, body, route, context, await dispatch(userId, thread, msg, body, route, context));
+}
+
+async function skillReply(userId: string, msg: Message, body: string, route: Route, gate: Gate, prefix: Part[] = [], suffix: Part[] = []): Promise<Reply> {
+  if (!gate.skill) return { parts: [...prefix, ...suffix], route: route.kind, runId: null, continuesRun: false, basis: null };
+  const r = await runRouteSkill(userId, gate.skill, body, msg.clientMessageId!, gate.journey);
+  return { parts: [...prefix, ...blocksToParts(r.blocks), ...suffix], route: route.kind, runId: null, continuesRun: false, basis: basisOf(r) };
+}
+
+async function withSecondary(userId: string, msg: Message, body: string, route: Route, context: { lastRoute?: string }, reply: Reply): Promise<Reply> {
+  if (route.kind === "SAFETY" || reply.route === "SAFETY" || !(await featureFlags.isEnabled("skill_registry"))) return reply;
+  const extra = secondaryRoutes(body, route);
+  if (!extra.length) return reply;
+  const parts = [...reply.parts];
+  const sources = [...(reply.basis?.sources ?? [])];
+  const skills: unknown[] = [];
+  for (const r of extra) {
+    const gate = await gateSkill(userId, r, context.lastRoute);
+    if (gate.denial) {
+      parts.push(...denialParts(gate.denial));
+      continue;
+    }
+    if (!gate.skill) continue;
+    const res = await runRouteSkill(userId, gate.skill, body, msg.clientMessageId!, gate.journey);
+    parts.push(...blocksToParts(res.blocks));
+    sources.push(...(res.sources as BasisSource[]));
+    skills.push({ id: res.skillId, runId: res.runId, fsm: res.fsm, certainty: res.certainty });
+  }
+  return { ...reply, parts, basis: { ...(reply.basis ?? { memories: [] }), sources, memories: reply.basis?.memories ?? [], secondarySkills: skills } };
 }
 
 async function dispatch(userId: string, thread: Thread, msg: Message, body: string, route: Route, context: { lastRoute?: string }): Promise<Reply> {
   const fixed = (parts: Part[], basis: Basis | null = null): Reply => ({ parts, route: route.kind, runId: null, continuesRun: false, basis });
+  const gate = await gateSkill(userId, route, context.lastRoute);
+  if (gate.denial) return fixed(denialParts(gate.denial), { sources: [], memories: [], denial: gate.denial });
   switch (route.kind) {
+    case "SLEEP":
+    case "EDUCATION":
+      return gate.skill ? skillReply(userId, msg, body, route, gate) : fixed(UNKNOWN_REPLY);
     case "SAFETY":
       return fixed(safetyReply(route.code, route.message, route.urgent), { sources: [SAFETY_SOURCE], memories: [] });
     case "GREETING":
@@ -353,7 +388,7 @@ async function dispatch(userId: string, thread: Thread, msg: Message, body: stri
     case "THANKS":
       return fixed(THANKS_REPLY);
     case "SUPPORT":
-      return fixed(SUPPORT_REPLY);
+      return gate.skill ? skillReply(userId, msg, body, route, gate, SUPPORT_REPLY.filter((p) => p.type !== "suggestions"), SUPPORT_REPLY.filter((p) => p.type === "suggestions")) : fixed(SUPPORT_REPLY);
     case "REFLECTION":
       return reflectionReply(userId);
     case "COMMUNITY":
@@ -385,11 +420,11 @@ async function dispatch(userId: string, thread: Thread, msg: Message, body: stri
 
 const QUIET_ROUTES = new Set(["UNKNOWN", "NO_CONTEXT", "CLARIFY_FOOD", "HELP"]);
 
-async function withEducation(reply: Reply): Promise<Reply> {
+async function withEducation(userId: string, reply: Reply): Promise<Reply> {
   if (reply.route !== "SAFETY") return reply;
   const safety = reply.parts.find((p): p is Extract<Part, { type: "safety" }> => p.type === "safety");
   if (!safety || safety.code === "SELF_HARM") return reply;
-  const items = await educationService.forSafety(safety.code);
+  const items = await educationService.forSafety(safety.code, await cohortService.journeyOf(userId));
   return items.length ? { ...reply, parts: [...reply.parts, { type: "education", items }] } : reply;
 }
 
@@ -491,7 +526,7 @@ async function ensureThread(userId: string, id: string, firstText: string): Prom
 }
 
 async function respond(userId: string, thread: Thread, userMsg: Message) {
-  const reply = await withEducation(await withMemory(userId, userMsg, await compose(userId, thread, userMsg)));
+  const reply = await withEducation(userId, await withMemory(userId, userMsg, await compose(userId, thread, userMsg)));
   const offered = reply.parts.some((p) => p.type === "recommendations");
   const context = { lastRoute: reply.route, offered, turns: Math.min(((thread.context as { turns?: number } | null)?.turns ?? 0) + 1, 9999) };
   const assistant = await prisma.$transaction(async (tx) => {

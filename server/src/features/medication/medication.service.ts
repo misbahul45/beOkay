@@ -5,6 +5,7 @@ import { recordAudit } from "../../shared/audit/audit.ts";
 import { conflict, notFound, unprocessable } from "../../shared/errors/app-error.ts";
 import { localRecordTime } from "../../shared/http/record-schema.ts";
 import { consentService } from "../consent/consent.service.ts";
+import { emitRecordEvent } from "../events/record-events.ts";
 import { preferencesService } from "../preferences/preferences.service.ts";
 import { occurrencesFor, summarizeOccurrences, zonedToUtc } from "./medication.model.ts";
 import type { IntakeInput, IntakePatch, RegimenInput, RegimenPatch, ScheduleInput, SchedulePatch } from "./medication.schema.ts";
@@ -151,6 +152,7 @@ export const medicationService = {
         const scheduledAt = input.scheduledAt ? new Date(input.scheduledAt) : null;
         const saved = await tx.medicationIntake.create({ data: { id: input.id, userId, regimenId, scheduleId: input.scheduleId, scheduledAt, takenAt, eventAt: takenAt ?? scheduledAt ?? new Date(), status: input.status, notes: input.notes, medicationSnapshot: snapshotOf(regimen, schedule?.localTime), createHash: hash } });
         await recordAudit(tx, { userId, eventType: "medication_intake_recorded", metadata: { recordId: saved.id } });
+        await emitRecordEvent(tx, { userId, kind: "medication_intake", action: "created", recordId: saved.id, revision: saved.version, occurredAt: saved.eventAt, localDates: [localRecordTime(saved.eventAt, settings.timezone).localDate], timezone: settings.timezone, source: "manual", quality: saved.status });
         return saved;
       });
       return intakeView(row, settings.timezone);
@@ -199,7 +201,9 @@ export const medicationService = {
       if (changed.count !== 1) throw conflict("VERSION_CONFLICT", "Catatan berubah. Muat ulang sebelum mengoreksi.");
       await tx.recordRevision.create({ data: { userId, intakeId: id, version: old.version, reason: input.reason, snapshot: JSON.parse(JSON.stringify(intakeView(old, settings.timezone))) } });
       await recordAudit(tx, { userId, eventType: input.archived ? "medication_intake_archived" : "medication_intake_corrected", metadata: { recordId: id, version: old.version + 1 } });
-      return (await repo.intake(userId, regimenId, id, tx))!;
+      const after = (await repo.intake(userId, regimenId, id, tx))!;
+      await emitRecordEvent(tx, { userId, kind: "medication_intake", action: input.archived ? "archived" : "corrected", recordId: id, revision: after.version, occurredAt: after.eventAt, localDates: [localRecordTime(old.eventAt, settings.timezone).localDate, localRecordTime(after.eventAt, settings.timezone).localDate], timezone: settings.timezone, source: "manual", quality: after.status });
+      return after;
     });
     return intakeView(row, settings.timezone);
   },

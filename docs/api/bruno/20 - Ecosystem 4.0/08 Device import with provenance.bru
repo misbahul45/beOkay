@@ -1,0 +1,30 @@
+meta {
+  name: Device import with provenance
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/me/device-import
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {"source":"health_connect","sleep":[{"externalId":"bru-w-1","startedAt":"2026-11-11T15:00:00.000Z","endedAt":"2026-11-11T22:00:00.000Z","dataOrigin":"com.watch.app"},{"externalId":"bru-p-1","startedAt":"2026-11-11T15:30:00.000Z","endedAt":"2026-11-11T22:30:00.000Z","dataOrigin":"com.google.android.apps.fitness"}]}
+}
+
+tests {
+  test("Accepted with optional dataOrigin", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.sleep.created + res.body.sleep.duplicate).to.equal(2);
+  });
+}
+
+docs {
+  The runner enables the sleep import preference first. dataOrigin is the Health Connect data origin package name and is optional (backward compatible).
+}

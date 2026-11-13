@@ -188,7 +188,7 @@ test("Isi dan log: tidak ada nilai klinis; keputusan 'tidak' punya alasan; log h
   expect(JSON.stringify(card)).not.toMatch(/glukosa|obat|dosis|diabetes|mg\/dL/i);
   await ev(a.id, "GOAL_WINDOW_APPROACHING", WIB23, g.id);
   const rows = await prisma.interventionDecision.findMany({ where: { userId: a.id } });
-  expect(rows.every((r) => r.policyVersion === "jitai-policy-v2")).toBe(true);
+  expect(rows.every((r) => r.policyVersion === "jitai-policy-v3")).toBe(true);
   for (const r of rows.filter((x) => x.option === "NO_INTERVENTION")) expect(r.reason).toBeTruthy();
   // DB menolak 'tidak mengintervensi' tanpa alasan.
   const bad = await prisma.interventionDecision.create({ data: { userId: a.id, triggerType: "USER_REQUESTS_SUPPORT", localDate: "2026-11-10", timezone: "Asia/Jakarta", policyVersion: "x", eligibilityStatus: "BLOCKED", dataCoverage: "NONE", option: "NO_INTERVENTION", approvalStatus: "NOT_REQUIRED", deliveryStatus: "NOT_APPLICABLE" } }).then(() => false, () => true);

@@ -10,9 +10,9 @@ import { buildFhirBundle, labMapping } from "../../src/features/export/fhir.mode
 import { composeDish, methodText, totalGrams, type IngredientRef } from "../../src/features/food-reference/curated.model.ts";
 
 describe("K-4 modul edukasi", () => {
-  test("10 modul, kunci unik, tiap modul punya beberapa bagian dan sumber", () => {
+  test("modul edukasi: kunci unik, tiap modul punya beberapa bagian dan sumber", () => {
     expect(EDUCATION_MODULES.length).toBeGreaterThanOrEqual(8);
-    expect(EDUCATION_MODULES.length).toBeLessThanOrEqual(12);
+    expect(EDUCATION_MODULES.length).toBeLessThanOrEqual(16);
     expect(new Set(EDUCATION_MODULES.map((m) => m.key)).size).toBe(EDUCATION_MODULES.length);
     for (const m of EDUCATION_MODULES) {
       expect(m.key).toMatch(/^[a-z0-9][a-z0-9-]{2,59}$/);

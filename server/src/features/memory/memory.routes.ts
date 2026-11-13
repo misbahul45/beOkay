@@ -25,6 +25,15 @@ export const memoryRoutes = {
   "/api/me/memories/:id/confirm": {
     POST: authenticated(async ({ req, session }) => ({ body: await memoryService.confirm(session.userId, seg(req, 4)) })),
   },
+  "/api/me/memories/:id/pause": {
+    POST: authenticated(async ({ req, session }) => ({ body: await memoryService.pause(session.userId, seg(req, 4)) })),
+  },
+  "/api/me/memories/:id/resume": {
+    POST: authenticated(async ({ req, session }) => ({ body: await memoryService.resume(session.userId, seg(req, 4)) })),
+  },
+  "/api/me/memories/:id/history": {
+    GET: authenticated(async ({ req, session }) => ({ body: await memoryService.history(session.userId, seg(req, 4)) })),
+  },
   "/api/me/memories/:id/dismiss": {
     POST: authenticated(async ({ req, session }) => ({ body: await memoryService.dismiss(session.userId, seg(req, 4)) })),
   },

@@ -1,0 +1,25 @@
+meta {
+  name: Pause unknown memory
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/api/me/memories/00000000-0000-4000-8000-000000000000/pause
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {}
+}
+
+tests {
+  test("404 for a memory that is not yours", function () {
+    expect(res.status).to.equal(404);
+  });
+}

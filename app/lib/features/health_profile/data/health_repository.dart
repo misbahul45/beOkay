@@ -14,12 +14,14 @@ class HealthRepository {
     required DiabetesType? type,
     required int? year,
     required List<Treatment> treatments,
+    RiskStatement? risk,
   }) async {
     final body = {
       'diagnosisStatus': status.wire,
       'diabetesType': status == DiagnosisStatus.diagnosed ? type?.wire : null,
       'diagnosedYear': status == DiagnosisStatus.diagnosed ? year : null,
       'treatmentContext': treatments.map((item) => item.wire).toList(),
+      'riskStatement': status == DiagnosisStatus.diagnosed ? null : risk?.wire,
     };
     return HealthProfile.fromJson(
       (await _api.put('/api/me/health-profile', body: body)).object,

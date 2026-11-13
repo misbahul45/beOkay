@@ -36,7 +36,8 @@ test("K-4: daftar modul, isi modul, label draf, dan validasi kunci", async () =>
   expect((await call("/api/education/modules")).status).toBe(401);
   const list = await J(await call("/api/education/modules", a.token));
   expect(list.includesDrafts).toBe(true);
-  expect(list.items.length).toBe(10);
+  expect(list.items.length).toBe(11);
+  expect(list.items.map((i: any) => i.key)).not.toContain("cegah-diabetes");
   expect(list.items[0]).toMatchObject({ key: "mengenal-dmt2", reviewStatus: "DRAFT", version: 1 });
   const m = await J(await call("/api/education/modules/hipoglikemia", a.token));
   expect(m.sections.map((s: any) => s.heading)).toContain("Segera cari bantuan bila");

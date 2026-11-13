@@ -33,7 +33,7 @@ test("D-1 analitik: tanpa consent tidak ada baris; dengan consent peristiwa serv
   await glucose(a.token, 112, new Date(Date.now() - 30_000), "fasting", id);
   const rows = await prisma.usageEvent.findMany({ where: { userId: a.id }, orderBy: { occurredAt: "asc" } });
   expect(rows.map((r) => [r.eventType, r.domain, r.platform])).toEqual([["form_saved", "glucose", "android"], ["record_created", "glucose", "server"]]);
-  expect(JSON.stringify(rows)).not.toMatch(/112|110|mg\/dL/);
+  expect(JSON.stringify(rows.map(({ id: _id, userId: _u, ...rest }) => rest))).not.toMatch(/112|110|mg\/dL/);
   const mine = await J(await call("/api/me/usage-events", a.token));
   expect(mine).toMatchObject({ recording: true, count: 2, byType: { form_saved: 1, record_created: 1 } });
 

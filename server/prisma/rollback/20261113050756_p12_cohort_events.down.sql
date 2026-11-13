@@ -1,0 +1,14 @@
+DELETE FROM "feature_flags" WHERE "key" IN ('projection_consumers','skill_registry','react_llm_planner','jitai_v3');
+ALTER TABLE "feature_flags" DROP CONSTRAINT "feature_flags_valid";
+ALTER TABLE "feature_flags" ADD CONSTRAINT "feature_flags_valid" CHECK ("key" IN ('assistant','conversation','coaching','community','ml_inference','food_vision','web_discovery','analytics','push','llm_router','companion','cgm') AND ("note" IS NULL OR length("note") <= 300) AND length("updated_by") BETWEEN 1 AND 120);
+DELETE FROM "consent_records" WHERE "purpose" IN ('device_data_coaching','social_outcomes_memory');
+ALTER TABLE "consent_records" DROP CONSTRAINT "consent_records_purpose_valid";
+ALTER TABLE "consent_records" ADD CONSTRAINT "consent_records_purpose_valid" CHECK ("purpose" IN ('health_data_processing','descriptive_summaries','product_analytics','personalized_ai','community_membership','challenge_participation','leaderboard_visibility','model_inference','ai_text_generation','ai_message_understanding','companion_sharing'));
+ALTER TABLE "daily_steps" DROP COLUMN IF EXISTS "data_origin";
+ALTER TABLE "sleep_sessions" DROP COLUMN IF EXISTS "data_origin";
+ALTER TABLE "activity_sessions" DROP CONSTRAINT IF EXISTS "activity_sessions_recording_method_check", DROP COLUMN IF EXISTS "data_origin", DROP COLUMN IF EXISTS "recording_method", DROP COLUMN IF EXISTS "device_type";
+DROP TABLE IF EXISTS "daily_behavior_facts";
+DROP INDEX IF EXISTS "outbox_events_user_id_type_created_at_idx";
+ALTER TABLE "outbox_events" DROP COLUMN IF EXISTS "consent_scope", DROP COLUMN IF EXISTS "correlation_id", DROP COLUMN IF EXISTS "occurred_at", DROP COLUMN IF EXISTS "provenance", DROP COLUMN IF EXISTS "quality", DROP COLUMN IF EXISTS "received_at", DROP COLUMN IF EXISTS "revision", DROP COLUMN IF EXISTS "schema_version", DROP COLUMN IF EXISTS "source", DROP COLUMN IF EXISTS "source_record_id", DROP COLUMN IF EXISTS "timezone";
+ALTER TABLE "health_profiles" DROP CONSTRAINT IF EXISTS "health_profiles_journey_check", DROP CONSTRAINT IF EXISTS "health_profiles_risk_statement_check", DROP COLUMN IF EXISTS "journey", DROP COLUMN IF EXISTS "journey_set_at", DROP COLUMN IF EXISTS "journey_source", DROP COLUMN IF EXISTS "risk_statement";
+DELETE FROM "_prisma_migrations" WHERE "migration_name" = '20261113050756_p12_cohort_events';

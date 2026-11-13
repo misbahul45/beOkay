@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { RISK_STATEMENTS } from "../cohort/cohort.policy.ts";
 
 export const DIAGNOSIS_STATUSES = ["diagnosed", "not_diagnosed", "unknown", "undisclosed"] as const;
 export const DIABETES_TYPES = ["type_2", "type_1", "other", "unknown"] as const;
@@ -28,6 +29,7 @@ const fields = {
   diabetesType: z.enum(DIABETES_TYPES).nullable(),
   diagnosedYear: diagnosedYear.nullable(),
   treatmentContext,
+  riskStatement: z.enum(RISK_STATEMENTS).nullable(),
 };
 
 export const putHealthProfileSchema = z.object({
@@ -35,6 +37,7 @@ export const putHealthProfileSchema = z.object({
   diabetesType: fields.diabetesType.optional(),
   diagnosedYear: fields.diagnosedYear.optional(),
   treatmentContext: fields.treatmentContext.optional(),
+  riskStatement: fields.riskStatement.optional(),
 });
 
 export const patchHealthProfileSchema = z
@@ -43,6 +46,7 @@ export const patchHealthProfileSchema = z
     diabetesType: fields.diabetesType.optional(),
     diagnosedYear: fields.diagnosedYear.optional(),
     treatmentContext: fields.treatmentContext.optional(),
+    riskStatement: fields.riskStatement.optional(),
   })
   .refine((value) => Object.values(value).some((entry) => entry !== undefined), "at least one field");
 

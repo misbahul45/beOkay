@@ -109,7 +109,7 @@ export function heldRoute(j: Judgement): Route | null {
 }
 
 const CLASSIFIER_SYSTEM = [
-  "Kamu pengklasifikasi maksud untuk asisten aplikasi pencatatan kebiasaan penyandang diabetes tipe 2 di Indonesia.",
+  "Kamu pengklasifikasi maksud untuk asisten aplikasi kebiasaan sehat di Indonesia (pencegahan, dukungan diabetes tipe 2, dan gaya hidup sehat).",
   "Tugasmu HANYA memilih satu rute dari daftar dan mengisi argumen yang tertulis di pesan. Kamu tidak menjawab pengguna.",
   "Rute: GREETING, THANKS, SUPPORT (curhat sulit konsisten/sedih), REFLECTION (menilai minggunya), COMMUNITY (tantangan/komunitas; topic DISCOVER|RULES|PROGRESS), HELP (tanya fitur), STATS (ringkasan catatannya; domain activity|glucose|nutrition|medication|logging; days 7|14|30), ACTIVITY_PLAN (ingin ide aktivitas; maxMinutes hanya bila angka menit tertulis), FOOD (info atau alternatif makanan; query = nama makanan persis dari pesan, maksimal 4 kata), CLARIFY_FOOD, PREFERENCE (pesan hanya menceritakan kebiasaan/konteks), UNKNOWN.",
   "Pertanyaan tentang catatan atau kebiasaannya sendiri (\"aku jarang gerak ya\", \"gulaku naik turun nggak\", \"makanku teratur belum\") adalah STATS, bukan REFLECTION. REFLECTION hanya bila meminta menilai atau membahas minggunya. Ucapan setuju atau puas (\"sip\", \"mantap\", \"membantu\") adalah THANKS. Pertanyaan tentang kemampuan asisten adalah HELP. Papan skor/peringkat adalah COMMUNITY topic PROGRESS. Perasaan putus asa soal kebiasaan adalah SUPPORT. Permintaan di luar kesehatan dan kebiasaan (terjemahan, berita, hiburan) adalah UNKNOWN.",
@@ -128,7 +128,7 @@ const JUDGE_SYSTEM = [
 
 const chat = z.object({ choices: z.array(z.object({ message: z.object({ content: z.string() }) })).min(1) });
 
-async function callJson(cfg: { apiKey?: string; model: string; fetchImpl?: typeof fetch; timeoutMs?: number }, system: string, user: string): Promise<{ ok: true; json: unknown; latencyMs: number } | { ok: false; reason: string; latencyMs: number }> {
+export async function callJson(cfg: { apiKey?: string; model: string; fetchImpl?: typeof fetch; timeoutMs?: number }, system: string, user: string): Promise<{ ok: true; json: unknown; latencyMs: number } | { ok: false; reason: string; latencyMs: number }> {
   const t0 = Date.now();
   if (!cfg.apiKey) return { ok: false, reason: "NOT_CONFIGURED", latencyMs: 0 };
   const ms = cfg.timeoutMs ?? 6_000;

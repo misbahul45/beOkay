@@ -103,6 +103,19 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
               done: v ? 'Ingatan diaktifkan.' : 'Ingatan dijeda.',
             ),
             onEdit: _edit,
+            onPause: (m) =>
+                _run(() => _repo.pause(m.id), done: 'Ingatan dijeda.'),
+            onResume: (m) =>
+                _run(() => _repo.resume(m.id), done: 'Ingatan dipakai lagi.'),
+            onAccept: (m) =>
+                _run(() => _repo.confirm(m.id), done: 'Ingatan disimpan.'),
+            onReject: (m) =>
+                _run(() => _repo.dismiss(m.id), done: 'Usulan ditolak.'),
+            onHistory: (m) => showModalBottomSheet<void>(
+              context: context,
+              showDragHandle: true,
+              builder: (_) => _HistorySheet(item: m),
+            ),
             onDelete: (m) async {
               if (await _confirm(
                 'Hapus ingatan ini?',
@@ -151,12 +164,23 @@ class _Body extends ConsumerWidget {
     required this.onDelete,
     required this.onDeleteAll,
     required this.onResetPersonalization,
+    required this.onPause,
+    required this.onResume,
+    required this.onAccept,
+    required this.onReject,
+    required this.onHistory,
   });
 
   final MemoryOverview overview;
   final bool busy;
   final ValueChanged<bool> onToggle;
-  final ValueChanged<MemoryItem> onEdit, onDelete;
+  final ValueChanged<MemoryItem> onEdit,
+      onDelete,
+      onPause,
+      onResume,
+      onAccept,
+      onReject,
+      onHistory;
   final VoidCallback onDeleteAll, onResetPersonalization;
 
   @override
@@ -200,6 +224,57 @@ class _Body extends ConsumerWidget {
                 'Ingatan dijeda: tidak ada yang ditambah atau dipakai. Yang tersimpan tetap bisa kamu lihat dan hapus.',
           ),
         ],
+        for (final c in o.conflicts) ...[
+          const SizedBox(height: AppSpacing.sm),
+          _ConflictCard(
+            proposal: c,
+            current: o.activeFor(c),
+            busy: busy,
+            onAccept: () => onAccept(c),
+            onReject: () => onReject(c),
+          ),
+        ],
+        if (o.proposals.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.lg),
+          Semantics(
+            header: true,
+            child: Text('Usulan dari catatanmu', style: AppTypography.heading),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          for (final p in o.proposals)
+            _Section(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(p.content, style: AppTypography.bodyStrong),
+                    Text(
+                      'Dihitung dari sesi aktivitas yang kamu catat. Baru dipakai setelah kamu menyimpannya.',
+                      style: AppTypography.caption,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Wrap(
+                      spacing: AppSpacing.xs,
+                      children: [
+                        PillButton(
+                          label: 'Simpan',
+                          expand: false,
+                          onPressed: busy ? null : () => onAccept(p),
+                        ),
+                        PillButton(
+                          label: 'Tolak',
+                          kind: PillButtonKind.secondary,
+                          expand: false,
+                          onPressed: busy ? null : () => onReject(p),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
         const SizedBox(height: AppSpacing.lg),
         Semantics(
           header: true,
@@ -222,6 +297,8 @@ class _Body extends ConsumerWidget {
                     busy: busy,
                     onEdit: () => onEdit(o.items[i]),
                     onDelete: () => onDelete(o.items[i]),
+                    onPause: () => onPause(o.items[i]),
+                    onHistory: () => onHistory(o.items[i]),
                   ),
                   if (i < o.items.length - 1)
                     Divider(height: 1, color: AppColors.border, indent: 16),
@@ -229,6 +306,41 @@ class _Body extends ConsumerWidget {
               ],
             ),
           ),
+        if (o.paused.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.lg),
+          Semantics(
+            header: true,
+            child: Text('Dijeda, tidak dipakai', style: AppTypography.heading),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          _Section(
+            padding: 0,
+            child: Column(
+              children: [
+                for (final m in o.paused)
+                  ListTile(
+                    title: Text(
+                      m.content,
+                      style: AppTypography.body.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    subtitle: Text(
+                      m.pauseReason == 'CONSENT_WITHDRAWN'
+                          ? 'Dijeda karena persetujuan saran personal dicabut'
+                          : 'Dijeda olehmu',
+                      style: AppTypography.caption,
+                    ),
+                    trailing: TextButton(
+                      onPressed: busy ? null : () => onResume(m),
+                      child: const Text('Lanjutkan'),
+                    ),
+                    onTap: () => onHistory(m),
+                  ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: AppSpacing.lg),
         Semantics(
           header: true,
@@ -319,10 +431,12 @@ class _MemoryTile extends StatelessWidget {
     required this.busy,
     required this.onEdit,
     required this.onDelete,
+    required this.onPause,
+    required this.onHistory,
   });
   final MemoryItem item;
   final bool busy;
-  final VoidCallback onEdit, onDelete;
+  final VoidCallback onEdit, onDelete, onPause, onHistory;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -330,18 +444,33 @@ class _MemoryTile extends StatelessWidget {
     child: Row(
       children: [
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(item.kindLabel, style: AppTypography.caption),
-              Text(item.content, style: AppTypography.body),
-              if (item.expiresAt case final e?)
+          child: InkWell(
+            onTap: onHistory,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  '${item.temporary ? 'Berakhir otomatis' : 'Diperiksa ulang'} ${DateFormat('d MMM yyyy', 'id_ID').format(e.toLocal())}',
+                  [
+                    item.typeLabel,
+                    if (item.confirmedAt case final c?)
+                      'dikonfirmasi ${DateFormat('d MMM', 'id_ID').format(c.toLocal())}',
+                  ].join(' · '),
                   style: AppTypography.caption,
                 ),
-            ],
+                Text(item.content, style: AppTypography.body),
+                if (item.expiresAt case final e?)
+                  Text(
+                    '${item.temporary ? 'Berakhir otomatis' : 'Diperiksa ulang'} ${DateFormat('d MMM yyyy', 'id_ID').format(e.toLocal())}',
+                    style: AppTypography.caption,
+                  ),
+              ],
+            ),
           ),
+        ),
+        IconButton(
+          tooltip: 'Jeda ingatan',
+          onPressed: busy ? null : onPause,
+          icon: const Icon(Icons.pause_circle_outline_rounded),
         ),
         IconButton(
           tooltip: 'Ubah ingatan',
@@ -394,5 +523,112 @@ class _EditMemoryDialogState extends State<_EditMemoryDialog> {
         child: const Text('Simpan'),
       ),
     ],
+  );
+}
+
+class _ConflictCard extends StatelessWidget {
+  const _ConflictCard({
+    required this.proposal,
+    required this.current,
+    required this.busy,
+    required this.onAccept,
+    required this.onReject,
+  });
+
+  final MemoryItem proposal;
+  final MemoryItem? current;
+  final bool busy;
+  final VoidCallback onAccept, onReject;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: AppColors.warningBackground,
+      borderRadius: BorderRadius.circular(AppRadius.lg - 2),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'DUA INGATAN BERTENTANGAN',
+          style: AppTypography.overline.copyWith(
+            color: AppColors.warningForeground,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          current == null
+              ? 'Baru: "${proposal.content}". Simpan untuk mengganti yang lama?'
+              : 'Tersimpan: "${current!.content}". Baru: "${proposal.content}". Mana yang benar sekarang?',
+          style: AppTypography.body,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Wrap(
+          spacing: AppSpacing.xs,
+          runSpacing: AppSpacing.xs,
+          children: [
+            PillButton(
+              label: 'Pakai yang baru',
+              expand: false,
+              onPressed: busy ? null : onAccept,
+            ),
+            PillButton(
+              label: 'Tetap yang lama',
+              kind: PillButtonKind.secondary,
+              expand: false,
+              onPressed: busy ? null : onReject,
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+class _HistorySheet extends ConsumerWidget {
+  const _HistorySheet({required this.item});
+
+  final MemoryItem item;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => FutureBuilder(
+    future: ref.read(memoryRepositoryProvider).history(item.id),
+    builder: (context, snap) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Semantics(
+              header: true,
+              child: Text('Riwayat', style: AppTypography.heading),
+            ),
+            Text(item.content, style: AppTypography.secondary),
+            const SizedBox(height: AppSpacing.sm),
+            if (snap.hasError)
+              Text('Riwayat belum bisa dimuat.', style: AppTypography.body)
+            else if (!snap.hasData)
+              const LinearProgressIndicator()
+            else
+              for (final e in snap.data!.reversed)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Text(
+                    [
+                      DateFormat('d MMM', 'id_ID').format(e.at.toLocal()),
+                      e.label,
+                      if (e.change == 'SUPERSEDED') '(dulu: ${e.content})',
+                      if (e.reason case final r? when e.change == 'PROPOSED') r,
+                    ].join(' · '),
+                    style: AppTypography.body,
+                  ),
+                ),
+          ],
+        ),
+      ),
+    ),
   );
 }

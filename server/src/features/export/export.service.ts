@@ -49,6 +49,8 @@ export const EXPORTED_TABLES = [
   "conversation_messages",
   "meal_drafts",
   "memory_items",
+  "memory_revisions",
+  "daily_checkins",
   "coaching_actions",
   "coaching_outcomes",
   "coaching_events",
@@ -77,6 +79,7 @@ export const EXCLUDED_TABLES: Record<string, string> = {
   sessions: "Sesi login adalah data keamanan, bukan data pribadimu.",
   accounts: "Berisi hash kata sandi.",
   outbox_events: "Antrean pemrosesan internal.",
+  daily_behavior_facts: "Ringkasan turunan yang dihitung ulang dari catatanmu; catatan aslinya sudah diekspor.",
   summary_projections: "Ringkasan turunan yang dihitung ulang dari catatanmu.",
   sync_operations: "Kuitansi teknis sinkronisasi; isinya sudah ada di catatan yang diekspor.",
 };
@@ -102,7 +105,7 @@ export const exportService = {
       user, profile, healthProfile, settings, onboarding, consents, foods, portionMeasures, meals, glucose, activities, regimens, goals, revisions,
       foodPreferences, reminders, pushDevices, pushDeliveries, agentRuns, recommendations, plannedMeals, activityPlans, personalization,
       personalizationEvents, communityMemberships, challengeParticipants, challengeCheckins, scoreEvents, interventionPreference, interventionDecisions,
-      mlInferenceRuns, conversationThreads, mealDrafts, memoryItems, coachingActions, coachingEvents, weeklyCheckins, recognitions, notifications, notificationPreference, usageEvents, vitals, labs, incidentReports, dailySteps, sleepSessions, devicePrefs, shareLinks, routerProposals, weeklyEpisodes, companionLinks, cgmImports, communityReports, audit,
+      mlInferenceRuns, conversationThreads, mealDrafts, memoryItems, memoryRevisions, dailyCheckins, coachingActions, coachingEvents, weeklyCheckins, recognitions, notifications, notificationPreference, usageEvents, vitals, labs, incidentReports, dailySteps, sleepSessions, devicePrefs, shareLinks, routerProposals, weeklyEpisodes, companionLinks, cgmImports, communityReports, audit,
     ] = await prisma.$transaction(
       [
         prisma.users.findUniqueOrThrow({ where: { id: userId }, select: { id: true, name: true, email: true, emailVerified: true, createdAt: true } }),
@@ -143,6 +146,8 @@ export const exportService = {
         }),
         prisma.mealDraft.findMany({ where: own, orderBy: asc }),
         prisma.memoryItem.findMany({ where: own, orderBy: asc }),
+        prisma.memoryRevision.findMany({ where: own, orderBy: asc }),
+        prisma.dailyCheckin.findMany({ where: own, orderBy: asc }),
         prisma.coachingAction.findMany({ where: own, include: { outcomes: { orderBy: { localDate: "asc" } } }, orderBy: asc }),
         prisma.coachingEvent.findMany({ where: own, orderBy: asc }),
         prisma.weeklyCheckin.findMany({ where: own, orderBy: { weekStart: "asc" } }),
@@ -202,6 +207,8 @@ export const exportService = {
       conversations: conversationThreads,
       mealDrafts,
       memories: memoryItems,
+      memoryRevisions,
+      dailyCheckins,
       coachingActions,
       coachingEvents,
       weeklyCheckins,

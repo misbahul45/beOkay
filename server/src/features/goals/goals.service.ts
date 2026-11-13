@@ -5,6 +5,7 @@ import { recordAudit } from "../../shared/audit/audit.ts";
 import { conflict, notFound, unprocessable } from "../../shared/errors/app-error.ts";
 import { localRecordTime } from "../../shared/http/record-schema.ts";
 import { consentService } from "../consent/consent.service.ts";
+import { emitRecordEvent } from "../events/record-events.ts";
 import { zonedToUtc } from "../medication/medication.model.ts";
 import { ACTIVITY_COUNTED_QUALITY } from "../activity/activity.model.ts";
 import { preferencesService } from "../preferences/preferences.service.ts";
@@ -136,6 +137,7 @@ export const goalsService = {
         if (goal.goalType !== "manual_checkins") throw unprocessable("CHECKIN_NOT_SUPPORTED", "Tujuan ini dihitung otomatis dari catatan, bukan check-in manual.");
         const saved = await tx.goalCheckin.create({ data: { ...input, eventAt: new Date(input.eventAt), goalId, userId, createHash: hash } });
         await recordAudit(tx, { userId, eventType: "goal_checkin_recorded", metadata: { recordId: saved.id } });
+        await emitRecordEvent(tx, { userId, kind: "goal_checkin", action: "created", recordId: saved.id, revision: saved.version, occurredAt: saved.eventAt, localDates: [localRecordTime(saved.eventAt, settings.timezone).localDate], timezone: settings.timezone, source: "manual", quality: "user_reported" });
         return saved;
       });
       return checkinView(row, settings.timezone);
@@ -166,7 +168,9 @@ export const goalsService = {
       if (changed.count !== 1) throw conflict("VERSION_CONFLICT", "Check-in berubah. Muat ulang sebelum mengoreksi.");
       await tx.recordRevision.create({ data: { userId, checkinId: id, version: old.version, reason, snapshot: JSON.parse(JSON.stringify(checkinView(old, settings.timezone))) } });
       await recordAudit(tx, { userId, eventType: archived ? "goal_checkin_archived" : "goal_checkin_corrected", metadata: { recordId: id, version: old.version + 1 } });
-      return (await repo.checkin(userId, goalId, id, tx))!;
+      const after = (await repo.checkin(userId, goalId, id, tx))!;
+      await emitRecordEvent(tx, { userId, kind: "goal_checkin", action: archived ? "archived" : "corrected", recordId: id, revision: after.version, occurredAt: after.eventAt, localDates: [localRecordTime(old.eventAt, settings.timezone).localDate, localRecordTime(after.eventAt, settings.timezone).localDate], timezone: settings.timezone, source: "manual", quality: "user_reported" });
+      return after;
     });
     return checkinView(row, settings.timezone);
   },

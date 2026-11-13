@@ -87,6 +87,7 @@ class _HealthFormState extends ConsumerState<_HealthForm> {
     text: widget.profile.diagnosedYear?.toString() ?? '',
   );
   late final Set<Treatment> _treatments = {...widget.profile.treatments};
+  late RiskStatement? _risk = widget.profile.riskStatement;
   bool _loading = false;
   bool _saved = false;
   String? _error;
@@ -97,6 +98,7 @@ class _HealthFormState extends ConsumerState<_HealthForm> {
     return _status != original.diagnosisStatus ||
         _type != original.diabetesType ||
         _year.text.trim() != (original.diagnosedYear?.toString() ?? '') ||
+        _risk != original.riskStatement ||
         _treatments.length != original.treatments.length ||
         !_treatments.containsAll(original.treatments);
   }
@@ -148,6 +150,7 @@ class _HealthFormState extends ConsumerState<_HealthForm> {
             treatments: _status == DiagnosisStatus.undisclosed
                 ? const []
                 : _treatments.toList(),
+            risk: _status == DiagnosisStatus.diagnosed ? null : _risk,
           );
       if (!mounted) return;
       setState(() => _saved = true);
@@ -232,6 +235,8 @@ class _HealthFormState extends ConsumerState<_HealthForm> {
                 if (option != DiagnosisStatus.diagnosed) {
                   _type = null;
                   _year.clear();
+                } else {
+                  _risk = null;
                 }
                 if (option == DiagnosisStatus.undisclosed) _treatments.clear();
               }),
@@ -275,6 +280,32 @@ class _HealthFormState extends ConsumerState<_HealthForm> {
             ),
           ] else
             Form(key: _form, child: const SizedBox.shrink()),
+          if (_status != null && !diagnosed) ...[
+            const SizedBox(height: AppSpacing.lg),
+            Semantics(
+              header: true,
+              child: Text(
+                'Apakah tenaga kesehatan pernah bilang…',
+                style: AppTypography.title,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            for (final option in RiskStatement.values) ...[
+              SelectionCard(
+                title: option.label,
+                description: option.description,
+                selected: _risk == option,
+                onTap: () => setState(() => _risk = option),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+            ],
+            Text(
+              'Kami tidak menilai risiko dari catatanmu. Jawaban ini hanya menentukan bacaan dan saran yang cocok.',
+              style: AppTypography.secondary.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
           if (askTreatment) ...[
             const SizedBox(height: AppSpacing.lg),
             Semantics(

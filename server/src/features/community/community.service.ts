@@ -13,6 +13,10 @@ import { COMPLETION_LABEL, daysLeft, participantsLabel, statusLabel, statusOn, t
 import { ensureFreshLifecycle } from "./lifecycle.service.ts";
 import { recognitionService } from "./recognition.service.ts";
 import { moderationService, throttleCommunity } from "./moderation.service.ts";
+import { featureFlags } from "../feature-flags/feature-flags.service.ts";
+import { emitDomainEvent } from "../../infrastructure/queue/events.ts";
+import { dailyFacts } from "../projections/daily-facts.service.ts";
+import { isActiveDay } from "../projections/daily-facts.model.ts";
 import { MAX_BACKFILL_DAYS, MIN_ACTIVITY_MINUTES, MIN_COHORT, SCORING_VERSION, aliasKey, aliasProblem, desiredEvents, rank, reconcile, round4, totalScore } from "./scoring.model.ts";
 
 const need = async (userId: string, ...purposes: ConsentPurpose[]) => {
@@ -41,12 +45,17 @@ const periodDays = (c: Chal) => Math.round((c.endsOn.getTime() - c.startsOn.getT
 async function eligibleDays(userId: string, c: Chal, tz: string, today: string) {
   const from = new Date(c.startsOn.getTime() - DAY_MS);
   const to = new Date(Math.min(c.endsOn.getTime(), Date.parse(today + "T00:00:00Z")) + 2 * DAY_MS);
-  const sessions = await prisma.activitySession.findMany({
-    where: { userId, archivedAt: null, qualityStatus: { in: [...ACTIVITY_COUNTED_QUALITY] }, durationMinutes: { gte: MIN_ACTIVITY_MINUTES }, startedAt: { gte: from, lt: to } },
-    select: { startedAt: true },
-  });
   const lo = day(c.startsOn), hi = day(c.endsOn) < today ? day(c.endsOn) : today;
-  const activityDays = [...new Set(sessions.map((s) => localRecordTime(s.startedAt, tz).localDate))].filter((d) => d >= lo && d <= hi);
+  let activityDays: string[];
+  if (await featureFlags.isEnabled("projection_consumers")) {
+    activityDays = lo > hi ? [] : (await dailyFacts.list(userId, lo, hi, tz)).filter((f) => isActiveDay(f, MIN_ACTIVITY_MINUTES)).map((f) => f.localDate);
+  } else {
+    const sessions = await prisma.activitySession.findMany({
+      where: { userId, archivedAt: null, qualityStatus: { in: [...ACTIVITY_COUNTED_QUALITY] }, durationMinutes: { gte: MIN_ACTIVITY_MINUTES }, startedAt: { gte: from, lt: to } },
+      select: { startedAt: true },
+    });
+    activityDays = [...new Set(sessions.map((s) => localRecordTime(s.startedAt, tz).localDate))].filter((d) => d >= lo && d <= hi);
+  }
   const checks = await prisma.challengeCheckin.findMany({ where: { challengeId: c.id, userId }, select: { localDate: true } });
   const checkinDays = checks.map((k) => day(k.localDate)).filter((d) => d >= lo && d <= hi);
   return { activityDays, checkinDays };
@@ -62,6 +71,7 @@ export async function syncScores(userId: string, c: Chal, tz?: string) {
     const rows = await tx.scoreEvent.findMany({ where: { challengeId: c.id, userId } });
     const existing = rows.map((r) => ({ id: r.id, eventType: r.eventType, sourceKey: r.sourceKey, points: r.points.toNumber(), reversalOf: r.reversalOf }));
     const { toAdd, toReverse } = reconcile(existing, desired);
+    if (toAdd.length || toReverse.length) await emitDomainEvent(tx, { userId, type: "challenge.scored", dedupeKey: `challenge-scored:${c.id}:${userId}:${[...toAdd.map((a) => a.sourceKey), ...toReverse.map((r) => `-${r.id}`)].sort().join(",").slice(0, 300)}`, payload: { challengeId: c.id, added: toAdd.length, reversed: toReverse.length, scoringVersion: SCORING_VERSION }, consentScope: "challenge_participation" });
     for (const a of toAdd) {
       try {
         await tx.scoreEvent.create({ data: { challengeId: c.id, userId, eventType: a.eventType, sourceKey: a.sourceKey, localDate: a.localDate ? new Date(a.localDate + "T00:00:00Z") : null, points: a.points, scoringVersion: SCORING_VERSION, reason: a.reason } });
@@ -84,7 +94,7 @@ export async function syncScores(userId: string, c: Chal, tz?: string) {
 const publicChallenge = (c: Chal, today = day(new Date())) => {
   const p = { startsOn: day(c.startsOn), endsOn: day(c.endsOn) };
   const status = c.status === "CLOSED" ? "CLOSED" : statusOn(p, today);
-  return { id: c.id, communityId: c.communityId, title: c.title, description: c.description, kind: c.kind, startsOn: p.startsOn, endsOn: p.endsOn, targetDays: c.targetDays, scoringVersion: c.scoringVersion, status, statusLabel: status === "CLOSED" ? "Selesai" : statusLabel(p, today), daysLeft: status === "OPEN" ? daysLeft(p, today) : null };
+  return { id: c.id, communityId: c.communityId, title: c.title, description: c.description, kind: c.kind, startsOn: p.startsOn, endsOn: p.endsOn, targetDays: c.targetDays, teamTargetDays: c.teamTargetDays, scoringVersion: c.scoringVersion, status, statusLabel: status === "CLOSED" ? "Selesai" : statusLabel(p, today), daysLeft: status === "OPEN" ? daysLeft(p, today) : null };
 };
 
 const RULES = [
@@ -217,6 +227,28 @@ export const communityService = {
     };
   },
 
+  async team(userId: string, challengeId: string) {
+    await need(userId, "community_membership", "challenge_participation");
+    const c = await prisma.challenge.findUnique({ where: { id: challengeId } });
+    if (!c) throw notFound("CHALLENGE_NOT_FOUND", "Tantangan tidak ditemukan.");
+    if (!(await activeMembership(userId, c.communityId))) throw forbidden("NOT_A_MEMBER", "Hanya anggota yang dapat melihat tantangan komunitas.");
+    if (c.kind !== "TEAM_ACTIVE_DAYS") throw notFound("NOT_A_TEAM_MISSION", "Tantangan ini bukan misi tim.");
+    const today = await todayOf(userId);
+    const lo = day(c.startsOn), hi = day(c.endsOn) < today ? day(c.endsOn) : today;
+    const parts = await prisma.challengeParticipant.findMany({ where: { challengeId, leftAt: null }, select: { userId: true } });
+    const members: string[] = [];
+    for (const p of parts) if (await has(p.userId, "challenge_participation")) members.push(p.userId);
+    const base = { challengeId, kind: c.kind, teamTargetDays: c.teamTargetDays, participants: members.length, minParticipants: MIN_COHORT, scoringVersion: SCORING_VERSION };
+    if (members.length < MIN_COHORT || lo > hi) return { ...base, visible: false, teamActiveDays: null, contributors: null, note: "Progres tim tampil setelah ada minimal 5 anggota, tanpa nama dan tanpa nilai kesehatan." };
+    let total = 0, contributors = 0;
+    for (const m of members) {
+      const days = (await dailyFacts.list(m, lo, hi)).filter((f) => isActiveDay(f, MIN_ACTIVITY_MINUTES)).length;
+      total += days;
+      if (days > 0) contributors++;
+    }
+    return { ...base, visible: true, teamActiveDays: total, contributors, reached: c.teamTargetDays !== null && total >= c.teamTargetDays, note: "Jumlah hari aktif seluruh tim. Kontribusi per orang tidak ditampilkan." };
+  },
+
   async challenge(userId: string, challengeId: string) {
     await need(userId, "community_membership");
     await ensureFreshLifecycle();
@@ -256,6 +288,7 @@ export const communityService = {
     if (c.status === "CLOSED" || day(c.endsOn) < (await todayOf(userId))) throw conflict("CHALLENGE_CLOSED", "Tantangan ini sudah ditutup.");
     await prisma.challengeParticipant.upsert({ where: { challengeId_userId: { challengeId, userId } }, create: { challengeId, userId, leaderboardVisible }, update: { leftAt: null, leaderboardVisible } });
     await recordAudit(prisma, { userId, eventType: "challenge_joined", metadata: { challengeId } });
+    await emitDomainEvent(prisma, { userId, type: "challenge.joined", dedupeKey: `challenge-joined:${challengeId}:${userId}:${Date.now()}`, payload: { challengeId }, consentScope: "challenge_participation" });
     const progress = await syncScores(userId, c);
     await recognitionService.refresh(userId);
     realtime.toUser(userId, { type: "challenge.progress", challengeId, score: progress.score, activeDays: progress.activeDays });
@@ -265,7 +298,8 @@ export const communityService = {
 
   async leaveChallenge(userId: string, challengeId: string) {
     throttleCommunity(userId);
-    await prisma.challengeParticipant.updateMany({ where: { challengeId, userId, leftAt: null }, data: { leftAt: new Date(), leaderboardVisible: false } });
+    const left = await prisma.challengeParticipant.updateMany({ where: { challengeId, userId, leftAt: null }, data: { leftAt: new Date(), leaderboardVisible: false } });
+    if (left.count) await emitDomainEvent(prisma, { userId, type: "challenge.left", dedupeKey: `challenge-left:${challengeId}:${userId}:${Date.now()}`, payload: { challengeId }, consentScope: "challenge_participation" });
     return { left: true };
   },
 

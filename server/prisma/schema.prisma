@@ -83,6 +83,9 @@ model Users {
   cgmImports CgmImport[]
   cgmReadings CgmReading[]
   communityReports CommunityReport[]
+  dailyBehaviorFacts DailyBehaviorFact[]
+  memoryRevisions MemoryRevision[]
+  dailyCheckins DailyCheckin[]
 
   @@unique([email])
   @@map("users")
@@ -156,6 +159,10 @@ model HealthProfile {
   treatmentContext  String[] @default([]) @map("treatment_context")
   dataSource        String   @default("user_reported") @map("data_source")
   eligibilityStatus String   @default("unknown") @map("eligibility_status")
+  riskStatement     String?  @map("risk_statement")
+  journey           String   @default("UNDETERMINED")
+  journeySource     String?  @map("journey_source")
+  journeySetAt      DateTime? @map("journey_set_at") @db.Timestamptz(6)
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
   user              Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -363,6 +370,9 @@ model ActivitySession {
   qualityStatus     String @default("user_reported") @map("quality_status")
   notes             String?
   externalId        String? @map("external_id")
+  dataOrigin        String? @map("data_origin")
+  recordingMethod   String? @map("recording_method")
+  deviceType        String? @map("device_type")
   version           Int @default(1)
   createHash        String @map("create_hash")
   archivedAt        DateTime? @map("archived_at") @db.Timestamptz(6)
@@ -652,6 +662,11 @@ model AgentRun {
   state          Json     @default("{}")
   safetyDecision String?  @map("safety_decision")
   toolCallsUsed  Int      @default(0) @map("tool_calls_used")
+  skillId        String?  @map("skill_id")
+  skillVersion   String?  @map("skill_version")
+  journey        String?
+  iterations     Int      @default(0)
+  fsmState       String?  @map("fsm_state")
   version        Int      @default(1)
   parentRunId    String?  @map("parent_run_id") @db.Uuid
   turn           Int      @default(1)
@@ -694,6 +709,8 @@ model AgentToolCall {
   errorCode  String?  @map("error_code")
   durationMs Int      @map("duration_ms")
   resultSize Int      @default(0) @map("result_size")
+  tier       String?
+  iteration  Int?
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   run        AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
   @@index([runId])
@@ -842,6 +859,7 @@ model Challenge {
   startsOn      DateTime @map("starts_on") @db.Date
   endsOn        DateTime @map("ends_on") @db.Date
   targetDays    Int      @map("target_days")
+  teamTargetDays Int?    @map("team_target_days")
   scoringVersion String  @map("scoring_version")
   status        String
   templateId    String?  @map("template_id") @db.Uuid
@@ -973,9 +991,21 @@ model OutboxEvent {
   availableAt DateTime  @default(now()) @map("available_at") @db.Timestamptz(6)
   processedAt DateTime? @map("processed_at") @db.Timestamptz(6)
   lastError   String?   @map("last_error")
+  source         String?
+  sourceRecordId String?   @map("source_record_id")
+  occurredAt     DateTime? @map("occurred_at") @db.Timestamptz(6)
+  receivedAt     DateTime  @default(now()) @map("received_at") @db.Timestamptz(6)
+  timezone       String?
+  revision       Int?
+  consentScope   String?   @map("consent_scope")
+  quality        String?
+  provenance     Json?
+  correlationId  String?   @map("correlation_id")
+  schemaVersion  Int       @default(1) @map("schema_version")
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   user        Users?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([status, availableAt])
+  @@index([userId, type, createdAt(sort: Desc)])
   @@map("outbox_events")
 }
 
@@ -1122,9 +1152,19 @@ model MemoryItem {
   version     Int       @default(1)
   confirmedAt DateTime? @map("confirmed_at") @db.Timestamptz(6)
   expiresAt   DateTime? @map("expires_at") @db.Timestamptz(6)
+  memoryType     String    @default("FACT") @map("memory_type")
+  sourceIds      String[]  @default([]) @map("source_ids")
+  validFrom      DateTime? @map("valid_from") @db.Timestamptz(6)
+  lastVerifiedAt DateTime? @map("last_verified_at") @db.Timestamptz(6)
+  privacyScope   String    @default("PRIVATE") @map("privacy_scope")
+  conflictState  String    @default("NONE") @map("conflict_state")
+  supersededBy   String?   @map("superseded_by") @db.Uuid
+  pausedAt       DateTime? @map("paused_at") @db.Timestamptz(6)
+  pauseReason    String?   @map("pause_reason")
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   user        Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  revisions   MemoryRevision[]
   @@index([userId, status])
   @@map("memory_items")
 }
@@ -1224,6 +1264,7 @@ model ChallengeTemplate {
   kind         String
   durationDays Int      @map("duration_days")
   targetDays   Int      @map("target_days")
+  teamTargetDays Int?   @map("team_target_days")
   cadenceDays  Int      @map("cadence_days")
   anchorDate   DateTime @map("anchor_date") @db.Date
   enabled      Boolean  @default(true)
@@ -1368,6 +1409,7 @@ model DailySteps {
   localDate DateTime @map("local_date") @db.Date
   steps     Int
   source    String   @default("health_connect")
+  dataOrigin String? @map("data_origin")
   syncedAt  DateTime @default(now()) @map("synced_at") @db.Timestamptz(6)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   user      Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1384,6 +1426,7 @@ model SleepSession {
   durationMinutes Int      @map("duration_minutes")
   source          String   @default("health_connect")
   externalId      String   @map("external_id")
+  dataOrigin      String?  @map("data_origin")
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   user            Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@unique([userId, source, externalId])
@@ -1574,4 +1617,101 @@ model JobRun {
   lastResult     Json?     @map("last_result") @db.JsonB
   updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
   @@map("job_runs")
+}
+
+model DailyBehaviorFact {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                String   @map("user_id") @db.Uuid
+  localDate             DateTime @map("local_date") @db.Date
+  timezone              String
+  activeMinutes         Int      @default(0) @map("active_minutes")
+  activeMinutesManual   Int      @default(0) @map("active_minutes_manual")
+  activeMinutesDevice   Int      @default(0) @map("active_minutes_device")
+  sessionCount          Int      @default(0) @map("session_count")
+  longestSessionMinutes Int?     @map("longest_session_minutes")
+  steps                 Int?
+  stepsSources          String[] @default([]) @map("steps_sources")
+  sleepMinutes          Int?     @map("sleep_minutes")
+  mealsLogged           Int      @default(0) @map("meals_logged")
+  mealCategories        String[] @default([]) @map("meal_categories")
+  glucoseChecks         Int      @default(0) @map("glucose_checks")
+  medicationConfirmed   Int      @default(0) @map("medication_confirmed")
+  goalCheckins          Int      @default(0) @map("goal_checkins")
+  sources               String[] @default([])
+  dirty                 Boolean  @default(false)
+  computationVersion    String   @map("computation_version")
+  computedAt            DateTime @default(now()) @map("computed_at") @db.Timestamptz(6)
+  user                  Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, localDate])
+  @@map("daily_behavior_facts")
+}
+
+model MemoryRevision {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  memoryId  String   @map("memory_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  version   Int
+  content   String
+  status    String
+  change    String
+  reason    String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  memory    MemoryItem @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+  user      Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([memoryId, version, change])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("memory_revisions")
+}
+
+model KnowledgeDocument {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lane            String
+  slug            String    @unique
+  title           String
+  language        String    @default("id")
+  sourceName      String    @map("source_name")
+  sourceUrl       String?   @map("source_url")
+  publisher       String
+  publishedAt     DateTime? @map("published_at") @db.Date
+  reviewStatus    String    @default("DRAFT") @map("review_status")
+  reviewedAt      DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  reviewer        String?
+  evidenceLevel   String    @default("UNGRADED") @map("evidence_level")
+  allowedJourneys String[]  @default([]) @map("allowed_journeys")
+  topics          String[]  @default([])
+  expiresAt       DateTime? @map("expires_at") @db.Date
+  version         Int       @default(1)
+  contentHash     String    @map("content_hash")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  chunks          KnowledgeChunk[]
+  @@index([lane, reviewStatus])
+  @@map("knowledge_documents")
+}
+
+model KnowledgeChunk {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentId     String   @map("document_id") @db.Uuid
+  ordinal        Int
+  text           String
+  textNormalized String   @map("text_normalized")
+  embedding      Unsupported("vector(1024)")?
+  embeddingModel String?  @map("embedding_model")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  document       KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  @@unique([documentId, ordinal])
+  @@map("knowledge_chunks")
+}
+
+model DailyCheckin {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  localDate DateTime @map("local_date") @db.Date
+  energy    String
+  version   Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user      Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, localDate])
+  @@map("daily_checkins")
 }

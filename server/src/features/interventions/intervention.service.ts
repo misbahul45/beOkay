@@ -6,6 +6,12 @@ import { conflict, forbidden, notFound, unprocessable } from "../../shared/error
 import { consentService } from "../consent/consent.service.ts";
 import { preferencesService } from "../preferences/preferences.service.ts";
 import { coachingService } from "../coaching/coaching.service.ts";
+import { classifyStored, decideV3, INTERVENTION_POLICY_V3 } from "./intervention.policy.v3.ts";
+import { featureFlags } from "../feature-flags/feature-flags.service.ts";
+import { checkinsService } from "../checkins/checkins.service.ts";
+import { baselineService } from "../ml/behavior/baseline.service.ts";
+import { background } from "../../shared/runtime/background.ts";
+import { deviceQualityService } from "../devices/quality.service.ts";
 import { CLARIFICATION_CONTENT, EXPIRY_MS, INTERVENTION_POLICY_VERSION, REPEAT_SUPPRESS_DAYS, USER_INITIATED, classify, contentFor, decide, type Trigger } from "./intervention.policy.ts";
 import type { EvaluateInput, PreferencesInput, ResponseInput } from "./intervention.schema.ts";
 
@@ -39,6 +45,7 @@ const view = (r: Row, replayed = false) => ({
   trigger: r.triggerType,
   option: r.option,
   decision: classify({ option: r.option as Parameters<typeof classify>[0]["option"], reason: r.reason }),
+  decisionV3: classifyStored(r.option, r.reason),
   reason: r.reason,
   deliveryStatus: r.deliveryStatus,
   content: r.content,
@@ -59,12 +66,12 @@ export const interventionService = {
     const clock = localClock(now, tz);
     const prefs = await prefsOf(userId);
 
-    let goal: { id: string; title: string } | null = null;
+    let goal: { id: string; title: string; goalType: string } | null = null;
     const needsGoal = trigger === "GOAL_WINDOW_APPROACHING" || trigger === "USER_SELECTED_ROUTINE_REMINDER";
     if (consent && needsGoal) {
       goal = input.goalId
-        ? await prisma.behaviorGoal.findFirst({ where: { id: input.goalId, userId, status: "active" }, select: { id: true, title: true } })
-        : await prisma.behaviorGoal.findFirst({ where: { userId, status: "active" }, orderBy: { createdAt: "desc" }, select: { id: true, title: true } });
+        ? await prisma.behaviorGoal.findFirst({ where: { id: input.goalId, userId, status: "active" }, select: { id: true, title: true, goalType: true } })
+        : await prisma.behaviorGoal.findFirst({ where: { userId, status: "active" }, orderBy: { createdAt: "desc" }, select: { id: true, title: true, goalType: true } });
       if (input.goalId && !goal) throw notFound("GOAL_NOT_FOUND", "Tujuan tidak ditemukan.");
     }
     const due = consent && trigger === "COACHING_ACTION_DUE" ? await coachingService.dueToday(userId, now) : null;
@@ -80,7 +87,7 @@ export const interventionService = {
     const sameKey = delivered.filter((d) => d.triggerType === trigger && d.subjectRef === subject);
     const repeatSince = now.getTime() - REPEAT_SUPPRESS_DAYS * 86_400_000;
     const lastRating = delivered.find((d) => d.triggerType === trigger && (d.response === "NOT_USEFUL" || d.response === "USEFUL"));
-    const result = decide({
+    const policyInput: Parameters<typeof decide>[0] = {
       trigger,
       nowMs: now.getTime(),
       localMinute: clock.minute,
@@ -99,12 +106,24 @@ export const interventionService = {
       coaching: trigger === "COACHING_ACTION_DUE" ? { due: Boolean(due), slotStarted: due?.slotStarted ?? false, safe: due?.safe ?? true } : undefined,
       review: trigger === "WEEKLY_REVIEW_AVAILABLE" ? { done: reviewDone } : undefined,
       recentNotUseful: lastRating?.response === "NOT_USEFUL",
-    });
+    };
+    const v3 = consent && (await featureFlags.isEnabled("jitai_v3"));
+    let result: ReturnType<typeof decide> = decide(policyInput);
+    if (v3) {
+      const [safety, unwell] = await Promise.all([
+        prisma.conversationMessage.findFirst({ where: { userId, role: "ASSISTANT", route: "SAFETY", createdAt: { gte: new Date(now.getTime() - 86_400_000) } }, select: { id: true } }),
+        prisma.memoryItem.findFirst({ where: { userId, status: "ACTIVE", kind: "HEALTH_EVENT", pausedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] }, select: { id: true } }),
+      ]);
+      const dataDependent = goal?.goalType === "daily_steps";
+      const reliable = dataDependent ? ((await deviceQualityService.assess(userId, 14, now)).summary.find((x) => x.signal === "steps")?.reliable ?? false) : null;
+      background(baselineService.shadowScore(userId, now), "baseline_shadow");
+      result = decideV3(policyInput, { safetyHold: Boolean(safety) && !USER_INITIATED.has(trigger), unwell: Boolean(unwell), energy: await checkinsService.energyToday(userId, now), dataDependent, dataReliable: reliable });
+    }
 
     // Permintaan berulang yang sama: kembalikan keputusan yang sudah ada, jangan buat baris baru.
     if (result.reason === "DUPLICATE" && sameKey[0]) return view(sameKey[0], true);
 
-    const base = { userId, triggerType: trigger, subjectRef: subject, decidedAt: now, localDate: clock.localDate, timezone: tz, policyVersion: INTERVENTION_POLICY_VERSION, eligibilityStatus: result.option === "NO_INTERVENTION" ? "BLOCKED" : "ELIGIBLE", dataCoverage: result.coverage, option: result.option };
+    const base = { userId, triggerType: trigger, subjectRef: subject, decidedAt: now, localDate: clock.localDate, timezone: tz, policyVersion: v3 ? INTERVENTION_POLICY_V3 : INTERVENTION_POLICY_VERSION, eligibilityStatus: result.option === "NO_INTERVENTION" ? "BLOCKED" : "ELIGIBLE", dataCoverage: result.coverage, option: result.option };
     try {
       const row = await prisma.interventionDecision.create({
         data:

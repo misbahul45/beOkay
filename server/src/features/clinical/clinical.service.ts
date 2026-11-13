@@ -5,6 +5,7 @@ import { recordAudit } from "../../shared/audit/audit.ts";
 import { conflict, notFound, unprocessable } from "../../shared/errors/app-error.ts";
 import { localRecordTime } from "../../shared/http/record-schema.ts";
 import { consentService } from "../consent/consent.service.ts";
+import { emitRecordEvent } from "../events/record-events.ts";
 import { notificationService } from "../notifications/notification.service.ts";
 import { preferencesService } from "../preferences/preferences.service.ts";
 import { CLINICAL_SUMMARY_VERSION, LAB_RULES, LAB_TESTS, VITAL_KINDS, VITAL_RULES, change, hba1cStatus, labProblem, vitalProblem, type LabTest, type VitalKind } from "./clinical.model.ts";
@@ -85,6 +86,7 @@ export const clinicalService = {
         }
         const saved = await tx.vitalMeasurement.create({ data: { ...input, userId, measuredAt: new Date(input.measuredAt), createHash: hash } });
         await recordAudit(tx, { userId, eventType: "vital_recorded", metadata: { recordId: saved.id, kind: saved.kind } });
+        await emitRecordEvent(tx, { userId, kind: "vital", action: "created", recordId: saved.id, revision: saved.version, occurredAt: saved.measuredAt, localDates: [localRecordTime(saved.measuredAt, timezone).localDate], timezone, source: saved.source, quality: "user_reported" });
         return saved;
       });
       return vitalView(row, timezone);
@@ -124,7 +126,9 @@ export const clinicalService = {
       if (changed.count !== 1) throw conflict("VERSION_CONFLICT", "Pengukuran berubah. Muat ulang sebelum mengoreksi.");
       await tx.recordRevision.create({ data: { userId, vitalId: id, version: old.version, reason, snapshot: JSON.parse(JSON.stringify(vitalView(old, timezone))) } });
       await recordAudit(tx, { userId, eventType: archived ? "vital_archived" : "vital_corrected", metadata: { recordId: id, version: old.version + 1 } });
-      return (await findVital(userId, id, tx))!;
+      const after = (await findVital(userId, id, tx))!;
+      await emitRecordEvent(tx, { userId, kind: "vital", action: archived ? "archived" : "corrected", recordId: id, revision: after.version, occurredAt: after.measuredAt, localDates: [localRecordTime(after.measuredAt, timezone).localDate], timezone, source: after.source, quality: "user_reported" });
+      return after;
     });
     return vitalView(row, timezone);
   },

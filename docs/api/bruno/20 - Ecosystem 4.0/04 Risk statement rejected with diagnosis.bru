@@ -1,0 +1,26 @@
+meta {
+  name: Risk statement rejected with diagnosis
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/api/me/health-profile
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{otherSessionToken}}
+}
+
+body:json {
+  {"diagnosisStatus":"diagnosed","diabetesType":"type_2","riskStatement":"prediabetes_told"}
+}
+
+tests {
+  test("422 RISK_STATEMENT_REQUIRES_NO_DIAGNOSIS", function () {
+    expect(res.status).to.equal(422);
+    expect(res.body.error.code).to.equal("RISK_STATEMENT_REQUIRES_NO_DIAGNOSIS");
+  });
+}

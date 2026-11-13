@@ -18,7 +18,7 @@ export async function runChallengeLifecycle(now = new Date()) {
   const [templates, communities] = await Promise.all([prisma.challengeTemplate.findMany({ where: { enabled: true } }), prisma.community.findMany({ select: { id: true } })]);
   const rows = templates.flatMap((t) =>
     periodsToEnsure({ durationDays: t.durationDays, targetDays: t.targetDays, cadenceDays: t.cadenceDays, anchorDate: iso(t.anchorDate) }, today).flatMap((p) =>
-      communities.map((c) => ({ communityId: c.id, templateId: t.id, title: t.title, description: t.description, kind: t.kind, startsOn: asDate(p.startsOn), endsOn: asDate(p.endsOn), targetDays: t.targetDays, scoringVersion: SCORING_VERSION, status: statusOn(p, today) === "CLOSED" ? "OPEN" : statusOn(p, today) })),
+      communities.map((c) => ({ communityId: c.id, templateId: t.id, title: t.title, description: t.description, kind: t.kind, startsOn: asDate(p.startsOn), endsOn: asDate(p.endsOn), targetDays: t.targetDays, teamTargetDays: t.teamTargetDays, scoringVersion: SCORING_VERSION, status: statusOn(p, today) === "CLOSED" ? "OPEN" : statusOn(p, today) })),
     ),
   );
   const created = rows.length ? (await prisma.challenge.createMany({ data: rows, skipDuplicates: true })).count : 0;

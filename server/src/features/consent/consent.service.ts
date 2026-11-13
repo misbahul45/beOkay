@@ -1,6 +1,7 @@
 import { Prisma } from "../../generated/prisma/client.ts";
 import { prisma } from "../../infrastructure/database/prisma.ts";
 import { forbidden, unprocessable } from "../../shared/errors/app-error.ts";
+import { emitDomainEvent } from "../../infrastructure/queue/events.ts";
 import { recordAudit } from "../../shared/audit/audit.ts";
 import { currentPolicy, requiredPurposes, type ConsentPurpose } from "./consent.policy.ts";
 import { consentRepository, type ConsentRow } from "./consent.repository.ts";
@@ -51,6 +52,21 @@ export function summarize(rows: ConsentRow[]): PurposeConsentView[] {
   });
 }
 
+type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+const CASCADE_REASON = "CONSENT_WITHDRAWN";
+
+export async function withdrawalCascade(tx: Tx, userId: string, purpose: string, now: Date) {
+  if (purpose === "personalized_ai") {
+    await tx.memoryItem.updateMany({ where: { userId, status: "PROPOSED" }, data: { status: "DISMISSED", version: { increment: 1 } } });
+    await tx.memoryItem.updateMany({ where: { userId, status: "ACTIVE", pausedAt: null }, data: { pausedAt: now, pauseReason: CASCADE_REASON, version: { increment: 1 } } });
+    await tx.coachingAction.updateMany({ where: { userId, status: "PROPOSED" }, data: { status: "EXPIRED", closeReason: CASCADE_REASON, decidedAt: now, version: { increment: 1 } } });
+    await tx.recommendation.updateMany({ where: { userId, status: "OFFERED" }, data: { status: "INVALIDATED", version: { increment: 1 } } });
+  }
+  if (purpose === "social_outcomes_memory") {
+    await tx.memoryItem.updateMany({ where: { userId, sourceType: "CHALLENGE", pausedAt: null }, data: { pausedAt: now, pauseReason: CASCADE_REASON } });
+  }
+}
+
 export const consentService = {
   currentPolicy: () => currentPolicy,
 
@@ -81,6 +97,7 @@ export const consentService = {
           }
           await consentRepository.create(tx, { userId, purpose, policyVersion: currentPolicy.version, source: input.source, grantedAt: now });
           await recordAudit(tx, { userId, eventType: "consent_granted", metadata: { purpose, policyVersion: currentPolicy.version, source: input.source } });
+          await emitDomainEvent(tx, { userId, type: "consent.granted", dedupeKey: `consent-granted:${userId}:${purpose}:${currentPolicy.version}:${now.getTime()}`, payload: { purpose, policyVersion: currentPolicy.version }, consentScope: purpose, occurredAt: now });
         }
       });
     } catch (error) {
@@ -97,6 +114,8 @@ export const consentService = {
         if (!active) continue;
         await consentRepository.withdraw(tx, active.id, now);
         await recordAudit(tx, { userId, eventType: "consent_withdrawn", metadata: { purpose, policyVersion: active.policyVersion } });
+        await emitDomainEvent(tx, { userId, type: "consent.withdrawn", dedupeKey: `consent-withdrawn:${active.id}`, payload: { purpose, policyVersion: active.policyVersion }, consentScope: purpose, occurredAt: now });
+        await withdrawalCascade(tx, userId, purpose, now);
         if (purpose === "product_analytics") await tx.usageEvent.deleteMany({ where: { userId } });
       }
     });
@@ -108,6 +127,16 @@ export const consentService = {
     return requiredPurposes.every((purpose) =>
       rows.some((row) => row.purpose === purpose && row.policyVersion === currentPolicy.version),
     );
+  },
+
+  async hasConsent(userId: string, purpose: ConsentPurpose): Promise<boolean> {
+    const rows = await consentRepository.listActive(userId);
+    return rows.some((row) => row.purpose === purpose && row.policyVersion === currentPolicy.version);
+  },
+
+  async activePurposes(userId: string): Promise<Set<string>> {
+    const rows = await consentRepository.listActive(userId);
+    return new Set(rows.filter((row) => row.policyVersion === currentPolicy.version).map((row) => row.purpose));
   },
 
   async requireConsent(userId: string, purpose: ConsentPurpose) {

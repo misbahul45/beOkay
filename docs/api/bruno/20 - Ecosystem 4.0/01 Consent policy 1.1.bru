@@ -1,0 +1,30 @@
+meta {
+  name: Consent policy 1.1
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/consent-policies/current
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+tests {
+  test("Policy 1.1 adds two optional purposes", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.version).to.equal("1.1");
+    const p = res.body.purposes.map((x) => x.purpose);
+    expect(p).to.include("device_data_coaching");
+    expect(p).to.include("social_outcomes_memory");
+    expect(res.body.purposes.find((x) => x.purpose === "device_data_coaching").required).to.equal(false);
+  });
+}
+
+docs {
+  Version change makes older grants reconsent_required. Runtime variable sessionToken is supplied by the runner.
+}

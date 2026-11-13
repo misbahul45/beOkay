@@ -35,6 +35,16 @@ export const STRATEGIES: Record<Barrier, Strategy[]> = {
   ],
 };
 
+export const STRATEGY_JOURNEYS: Record<string, readonly ("PREVENTION" | "T2DM_SUPPORT" | "WELLNESS" | "UNDETERMINED")[]> = {
+  FORGOT_VISIBLE: ["T2DM_SUPPORT", "UNDETERMINED"],
+};
+const ALL_JOURNEYS = ["PREVENTION", "T2DM_SUPPORT", "WELLNESS", "UNDETERMINED"] as const;
+export const strategyJourneys = (key: string) => STRATEGY_JOURNEYS[key] ?? ALL_JOURNEYS;
+
+export function strategiesFor(journey: string): Record<Barrier, Strategy[]> {
+  return Object.fromEntries(BARRIERS.map((b) => [b, STRATEGIES[b].filter((s) => (strategyJourneys(s.key) as readonly string[]).includes(journey))])) as Record<Barrier, Strategy[]>;
+}
+
 export function findStrategy(barrier: Barrier, key: string): Strategy | null {
   return STRATEGIES[barrier]?.find((s) => s.key === key) ?? null;
 }

@@ -1,0 +1,32 @@
+meta {
+  name: Set prevention journey
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{baseUrl}}/api/me/health-profile
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {"diagnosisStatus":"not_diagnosed","riskStatement":"prediabetes_told"}
+}
+
+tests {
+  test("Journey from user statement only", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.journey.value).to.equal("PREVENTION");
+    expect(res.body.journey.source).to.equal("user_statement");
+    expect(res.body.provenance.clinicallyVerified).to.equal(false);
+  });
+}
+
+docs {
+  Requires birthYear (adult) on the profile; the runner sets it before this request. No risk calculator; type 1, under 18 or unknown age map to UNDETERMINED (logging only).
+}

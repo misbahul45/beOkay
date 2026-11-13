@@ -1,6 +1,6 @@
 # beOkay — Agent Instructions
 
-Personal Metabolic Performance Platform (T2DM, adult, personal). Mobile client + modular API + PostgreSQL.
+Ekosistem kebiasaan sehat untuk orang dewasa dengan tiga jalur: pencegahan, dukungan T2DM, dan gaya hidup sehat (4.0). Mobile client + modular API + PostgreSQL.
 Sumber spesifikasi: *Database & UI/UX Master Blueprint v0.1* (proposed design, bukan skema final).
 
 ## ATURAN KERAS — GIT
@@ -12,14 +12,17 @@ Sumber spesifikasi: *Database & UI/UX Master Blueprint v0.1* (proposed design, b
 ## Struktur
 - `server/` — Bun + TypeScript API. ORM: **Prisma 7** (driver adapter `@prisma/adapter-pg`). Ikuti `server/CLAUDE.md` (Bun-first) **kecuali** untuk database: pakai Prisma, bukan `Bun.sql` (keputusan pengguna).
 - `server/src/` — **feature-based**: `features/{auth,consent,onboarding,profile,health-profile,preferences}/` (masing-masing: routes, service, repository, schema Zod), `shared/` (error, HTTP wrapper, audit), `infrastructure/` (database, email), `config/env.ts`. Modul tidak boleh saling bergantung melingkar.
-- `app/` — Flutter (scaffold bawaan, belum dikerjakan).
+- `app/` — Flutter Android (Riverpod, go_router, Health Connect). UI 4.0 belum dibuat; menunggu desain FigCraft.
 - `design/` — desain FigCraft + token Dart. `docs/` — audit, arsitektur, database, API.
 - `compose.yaml` (dev), `compose.test.yaml` (uji terisolasi), `compose.prod.yaml` (prod), `.env.example`, `.env.prod.example`.
 
 ## Cakupan saat ini (jangan melebar)
-- Sudah: koneksi DB + Prisma + `/health`; stack Docker dev, uji, prod; **Better Auth** dengan verifikasi email wajib, reset kata sandi, rate limit, plugin `bearer` (sesi mobile), email via SMTP (Mailpit di dev); tabel domain identitas `user_profiles`, `health_profiles`, `user_settings`, `consent_records`, `onboarding_progress`, `audit_events`; API `/api/me/*` dan `/api/consent-policies/current`.
-- **Belum, dan jangan dibuat tanpa diminta**: tabel/modul domain pencatatan (meal, glucose, activity, medication, dst.), UI Flutter, ringkasan/insight.
-  Skema P0 penuh masih menunggu: Data Dictionary, Physical ERD, Screen Specification, UI–API Contract Matrix.
+- Selesai sampai 4.0 (lihat `docs/reports/beokay-4.0-report.md`): pencatatan domain, agen dan percakapan, coaching, komunitas, perangkat Health Connect, aplikasi Flutter Android, deploy Vercel + Neon.
+- 4.0 menambah: jalur (`features/cohort`), peristiwa beramplop + proyeksi `daily_behavior_facts`, registri skill + FSM, pengetahuan jalur A/C, mesin memori, mesin kualitas perangkat, JITAI v3, baseline perilaku mode bayangan, `score-v2`, langkah berikutnya. Arsitektur: `docs/architecture/beokay-4.0-ecosystem.md`.
+- **Jangan dibuat tanpa diminta**: model perilaku terlatih, bandit/uplift, perencana LLM yang menjalankan langkah (`react_llm_planner` tetap mati), aplikasi Wear OS, iOS, layanan infrastruktur baru, klaim efektivitas klinis.
+- Jalur hanya dari pernyataan pengguna. `UNDETERMINED` (tipe 1, < 18, usia tidak diketahui) = pencatatan saja. Konten T2DM tidak boleh sampai ke jalur lain (peta `MODULE_JOURNEYS`/`STRATEGY_JOURNEYS`).
+- Setiap tulis catatan domain wajib memanggil `emitRecordEvent(tx, …)` di transaksi yang sama. Agregasi hari aktif dibaca dari `dailyFacts`, bukan kueri baru.
+- Konten medis/edukasi tetap draf sampai ditinjau klinisi; produksi hanya menyajikan `REVIEWED` (paket: `docs/reports/beokay-4.0-clinical-review-packet.md`).
 - Desain UI dikerjakan di Figma (figcraft) lebih dulu, baru implementasi.
 
 ## ATURAN KERAS — EKSEKUSI LEWAT DOCKER
@@ -37,7 +40,7 @@ Sumber spesifikasi: *Database & UI/UX Master Blueprint v0.1* (proposed design, b
 - Dev stack (root): `docker compose up --build` — API `127.0.0.1:3000`, Postgres `127.0.0.1:5433`, Mailpit UI `127.0.0.1:8025`. Container dev menjalankan `db:generate` dan `db:migrate:deploy` saat start.
 - Perintah satu kali di dev: `docker compose exec api bun run typecheck` (atau `docker compose run --rm api ...`).
 - Stack uji terisolasi (root): `docker compose -f compose.test.yaml up -d --wait api-test`, lalu `docker compose -f compose.test.yaml run --rm tester bun test`; bersihkan dengan `docker compose -f compose.test.yaml down -v`. Setelah mengubah dependensi, rebuild image dan hapus volume `node_modules` (`down -v`), karena Docker hanya mengisi volume saat pertama dibuat.
-- Membuat migrasi baru: jalankan `bun run db:migrate:dev -- --create-only --name <nama>` di container uji (DB kosong), lalu tambahkan CHECK/partial index lewat SQL dan verifikasi `prisma migrate diff` (hanya noise `gen_random_uuid` pada 4 tabel auth dan indeks HNSW `food_reference_embedding_idx` yang boleh tersisa; HNSW pgvector tidak dapat diekspresikan di skema Prisma).
+- Membuat migrasi baru: jalankan `bun run db:migrate:dev -- --create-only --name <nama>` di container uji (DB kosong), lalu tambahkan CHECK/partial index lewat SQL dan verifikasi `prisma migrate diff` (noise yang boleh tersisa: `gen_random_uuid` pada 4 tabel auth, FK `activity_plans_linked_session_id_fkey` dan `score_events_reversal_of_fkey`, indeks `communities_region_code_name_key`, serta indeks SQL mentah `food_reference_embedding_idx`, `knowledge_chunks_embedding_idx` (HNSW) dan `knowledge_chunks_text_trgm_idx` (trigram); semuanya ditulis di SQL migrasi karena tidak dapat diekspresikan di skema Prisma). Buang noise itu dari migrasi baru hasil `--create-only`. Setiap migrasi baru disertai skrip turun di `server/prisma/rollback/<nama>.down.sql`. CHECK `consent_records_purpose_valid` dan `feature_flags_valid` harus diperbarui setiap kali tujuan consent atau kunci sakelar ditambah.
 - Prod stack (root): `docker compose -f compose.prod.yaml --env-file .env.prod up -d --build` (wajib: password DB, `BETTER_AUTH_*`, `EMAIL_FROM`, `SMTP_HOST`).
 - `bun run typecheck` · `bun run db:generate` · `bun run db:migrate:dev` · `bun run db:migrate:deploy` · `bun run db:studio`.
 - **Pakai script `db:*`, bukan `bunx prisma ...`**: `bunx`/`bun run prisma` tidak memuat `.env` untuk `prisma.config.ts` (DATABASE_URL tidak ter-resolve). Script memanggil `bun --bun ./node_modules/.bin/prisma`.
@@ -62,4 +65,5 @@ Sumber spesifikasi: *Database & UI/UX Master Blueprint v0.1* (proposed design, b
 - Port host 5432/3000 dipakai proyek lain di mesin ini; beOkay memakai 5433 (DB) dan 3000 (API, bisa diubah via `API_HOST_PORT`).
 - `src/generated/` (Prisma Client) di-generate, jangan diedit/commit.
 - Rahasia hanya di `.env*` (gitignored). Jangan menaruh kredensial di file yang di-track.
-- Image Postgres `pgvector/pgvector:pg17` dipilih untuk kebutuhan P2 (RAG); extension belum diaktifkan.
+- Image Postgres `pgvector/pgvector:pg17`; extension `vector` dan `pg_trgm` aktif (referensi pangan dan pengetahuan).
+- Peran pesan percakapan tersimpan huruf besar (`USER`, `ASSISTANT`).

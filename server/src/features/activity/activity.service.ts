@@ -9,6 +9,7 @@ import {
 } from "../../shared/errors/app-error.ts";
 import { localRecordTime } from "../../shared/http/record-schema.ts";
 import { consentService } from "../consent/consent.service.ts";
+import { emitRecordEvent } from "../events/record-events.ts";
 import { preferencesService } from "../preferences/preferences.service.ts";
 import {
   activityEnd,
@@ -99,6 +100,7 @@ export const activityService = {
           eventType: "activity_recorded",
           metadata: { recordId: saved.id },
         });
+        await emitRecordEvent(tx, { userId, kind: "activity", action: "created", recordId: saved.id, revision: saved.version, occurredAt: saved.startedAt, localDates: [localRecordTime(saved.startedAt, settings.timezone).localDate], timezone: settings.timezone, source: saved.source, quality: saved.qualityStatus });
         return saved;
       });
       return view(row, settings);
@@ -171,7 +173,9 @@ export const activityService = {
         eventType: archived ? "activity_archived" : "activity_corrected",
         metadata: { recordId: id, version: old.version + 1 },
       });
-      return (await activityRepository.find(userId, id, tx))!;
+      const current = (await activityRepository.find(userId, id, tx))!;
+      await emitRecordEvent(tx, { userId, kind: "activity", action: archived ? "archived" : "corrected", recordId: id, revision: current.version, occurredAt: current.startedAt, localDates: [localRecordTime(old.startedAt, settings.timezone).localDate, localRecordTime(current.startedAt, settings.timezone).localDate], timezone: settings.timezone, source: current.source, quality: current.qualityStatus });
+      return current;
     });
     return view(row, settings);
   },

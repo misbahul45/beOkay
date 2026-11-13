@@ -6,6 +6,7 @@ import { onboardingRoutes } from "./features/onboarding/onboarding.routes.ts";
 import { preferencesRoutes } from "./features/preferences/preferences.routes.ts";
 import { profileRoutes } from "./features/profile/profile.routes.ts";
 import { todayRoutes } from "./features/today/today.routes.ts";
+import { checkinsRoutes } from "./features/checkins/checkins.routes.ts";
 import { nutritionRoutes } from "./features/nutrition/nutrition.routes.ts";
 import { glucoseRoutes } from "./features/glucose/glucose.routes.ts";
 import { timelineRoutes } from "./features/timeline/timeline.routes.ts";
@@ -55,6 +56,7 @@ export const appRoutes = {
   ...healthProfileRoutes,
   ...preferencesRoutes,
   ...todayRoutes,
+  ...checkinsRoutes,
   ...foodDiscoveryRoutes,
   ...gated("food_vision", foodVisionRoutes),
   ...foodPreferencesRoutes,

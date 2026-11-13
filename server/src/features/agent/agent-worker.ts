@@ -1,5 +1,6 @@
 import { prisma } from "../../infrastructure/database/prisma.ts";
 import { outbox } from "../../infrastructure/queue/outbox.ts";
+import { eventHandlers } from "../events/handlers.ts";
 import { logEvent } from "../../shared/http/logger.ts";
 import { OUTCOME_WINDOW_DAYS, outcomes } from "./outcomes.ts";
 
@@ -34,7 +35,7 @@ export function startAgentWorker() {
     if (busy) return;
     busy = true;
     try {
-      const r = await outbox.drain(outcomes.handlers);
+      const r = await outbox.drain(eventHandlers());
       if (r.done + r.failed + r.dead > 0) logEvent("info", "outbox_drained", r);
     } catch (e) {
       logEvent("error", "outbox_drain_failed", { name: e instanceof Error ? e.name : "unknown" });

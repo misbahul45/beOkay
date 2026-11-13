@@ -27,10 +27,17 @@ class HealthController extends AsyncNotifier<HealthProfile?> {
     required DiabetesType? type,
     required int? year,
     required List<Treatment> treatments,
+    RiskStatement? risk,
   }) async {
     final profile = await ref
         .read(healthRepositoryProvider)
-        .save(status: status, type: type, year: year, treatments: treatments);
+        .save(
+          status: status,
+          type: type,
+          year: year,
+          treatments: treatments,
+          risk: risk,
+        );
     state = AsyncData(profile);
     await ref.read(onboardingControllerProvider.notifier).refresh();
   }

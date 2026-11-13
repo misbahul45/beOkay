@@ -1,0 +1,24 @@
+meta {
+  name: Next action
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/me/today/next-action
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+tests {
+  test("One next action with flow, spark state and score-v2 progress", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.flow).to.deep.equal(["TODAY","NEXT_ACTION","CONFIRM","PROGRESS","REFLECTION","INSIGHTS","CHALLENGES"]);
+    expect(["NEUTRAL","THINKING","ENCOURAGING","CELEBRATING","AWAITING_CONFIRMATION","SAFETY_WARNING"]).to.include(res.body.action.spark);
+    expect(res.body.progress.scoreVersion).to.equal("score-v2");
+  });
+}

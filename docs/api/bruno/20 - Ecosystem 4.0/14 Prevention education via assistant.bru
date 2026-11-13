@@ -1,0 +1,32 @@
+meta {
+  name: Prevention education via assistant
+  type: http
+  seq: 14
+}
+
+post {
+  url: {{baseUrl}}/api/me/conversations/{{threadId}}/messages
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+body:json {
+  {"clientMessageId":"{{clientMessageId}}","text":"gimana cara mencegah diabetes"}
+}
+
+tests {
+  test("Skill prevention.education answers with certainty label and draft notice", function () {
+    expect(res.status).to.be.oneOf([200, 201]);
+    expect(res.body.assistantMessage.route).to.equal("EDUCATION");
+    const ev = res.body.assistantMessage.parts.find((p) => p.type === "evidence");
+    expect(ev.certainty).to.be.oneOf(["verified", "insufficient"]);
+  });
+}
+
+docs {
+  Runtime variables threadId and clientMessageId are fresh UUIDs from the runner.
+}

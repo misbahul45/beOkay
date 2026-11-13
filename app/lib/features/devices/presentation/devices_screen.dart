@@ -14,6 +14,7 @@ import '../../clinical/application/clinical_controller.dart';
 import '../../today/application/today_controller.dart';
 import '../application/devices_controller.dart';
 import '../data/health_signals.dart';
+import 'device_status_section.dart';
 
 class DevicesScreen extends ConsumerStatefulWidget {
   const DevicesScreen({super.key});
@@ -84,6 +85,7 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
         prefs,
       );
       ref.invalidate(stepsSummaryProvider);
+      ref.invalidate(deviceStatusProvider);
       ref.invalidate(todayProvider);
       ref.invalidate(clinicalSummaryProvider);
       final text = r.total == 0
@@ -116,6 +118,7 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
               'Setiap jenis data hanya dibaca bila kamu menyalakannya di sini dan memberi izin di Health Connect. beOkay tidak menulis apa pun ke Health Connect. Data perangkat ditandai "dari perangkat" dan bisa diarsipkan.',
         ),
         const SizedBox(height: AppSpacing.md),
+        const DeviceStatusSection(),
         if (source == null)
           const InfoCard(
             text:

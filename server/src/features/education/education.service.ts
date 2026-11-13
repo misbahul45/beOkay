@@ -3,7 +3,8 @@ import { env } from "../../config/env.ts";
 import { prisma } from "../../infrastructure/database/prisma.ts";
 import { notFound, unprocessable } from "../../shared/errors/app-error.ts";
 import { logEvent } from "../../shared/http/logger.ts";
-import { EDUCATION_MODULES, type EducationContent } from "../../content/education/modules.ts";
+import { EDUCATION_MODULES, MODULE_JOURNEYS, type EducationContent } from "../../content/education/modules.ts";
+import type { Journey } from "../cohort/cohort.policy.ts";
 
 export const EDUCATION_VERSION = "education-v1";
 
@@ -14,10 +15,13 @@ export const SAFETY_MODULES: Record<string, string[]> = {
   INJURY_OR_PAIN: ["aktivitas-aman"],
   INTENSITY_ESCALATION: ["aktivitas-aman"],
   MEDICATION_ADVICE: ["obat-bertanya-dokter"],
-  DIAGNOSIS_REQUEST: ["mengenal-dmt2", "cek-gula-mandiri"],
+  DIAGNOSIS_REQUEST: ["mengenal-dmt2", "cek-gula-mandiri", "pemeriksaan-rutin", "cegah-diabetes"],
   HEALTH_CLAIM_REQUEST: ["karbohidrat-porsi", "label-gizi"],
   EXTREME_RESTRICTION: ["karbohidrat-porsi", "puasa-ramadan"],
 };
+
+export const journeysOf = (key: string): readonly Journey[] => MODULE_JOURNEYS[key] ?? ["T2DM_SUPPORT", "UNDETERMINED"];
+export const allowedForJourney = (key: string, journey?: Journey) => !journey || journeysOf(key).includes(journey);
 
 export function contentHash(m: Pick<EducationContent, "title" | "summary" | "topics" | "readMinutes" | "body">) {
   return createHash("sha256").update(JSON.stringify([m.title, m.summary, [...m.topics].sort(), m.readMinutes, m.body])).digest("hex");
@@ -103,21 +107,21 @@ export function createEducationService(opts: { includeDrafts: () => boolean; mod
       return result;
     },
 
-    async list() {
-      const rows = [...(await servable()).values()];
+    async list(journey?: Journey) {
+      const rows = [...(await servable()).values()].filter((r) => allowedForJourney(r.key, journey));
       const pos = order();
       rows.sort((a, b) => (pos.get(a.key) ?? 99) - (pos.get(b.key) ?? 99));
-      return { version: EDUCATION_VERSION, items: rows.map(listView), includesDrafts: opts.includeDrafts() };
+      return { version: EDUCATION_VERSION, items: rows.map((r) => ({ ...listView(r), journeys: journeysOf(r.key) })), includesDrafts: opts.includeDrafts(), journey: journey ?? null };
     },
 
-    async get(key: string) {
+    async get(key: string, journey?: Journey) {
       const row = (await servable([key])).get(key);
-      if (!row) throw notFound("EDUCATION_MODULE_NOT_FOUND", "Modul tidak ditemukan.");
+      if (!row || !allowedForJourney(key, journey)) throw notFound("EDUCATION_MODULE_NOT_FOUND", "Modul tidak ditemukan.");
       return detailView(row);
     },
 
-    async forSafety(code: string) {
-      const keys = SAFETY_MODULES[code];
+    async forSafety(code: string, journey?: Journey) {
+      const keys = SAFETY_MODULES[code]?.filter((k) => allowedForJourney(k, journey));
       if (!keys?.length) return [];
       const found = await servable(keys);
       return keys.map((k) => found.get(k)).filter((r): r is Row => Boolean(r)).map((r) => ({ key: r.key, title: r.title, readMinutes: r.readMinutes, reviewStatus: r.reviewStatus as "DRAFT" | "REVIEWED" }));

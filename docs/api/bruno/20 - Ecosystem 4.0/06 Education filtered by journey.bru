@@ -1,0 +1,26 @@
+meta {
+  name: Education filtered by journey
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/education/modules
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+tests {
+  test("Prevention sees prevention modules, never T2DM-only ones", function () {
+    expect(res.status).to.equal(200);
+    const keys = res.body.items.map((i) => i.key);
+    expect(keys).to.include("cegah-diabetes");
+    expect(keys).to.not.include("hipoglikemia");
+    expect(keys).to.not.include("obat-bertanya-dokter");
+    expect(res.body.journey).to.equal("PREVENTION");
+  });
+}

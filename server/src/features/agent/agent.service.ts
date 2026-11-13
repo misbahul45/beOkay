@@ -13,6 +13,7 @@ import { buildActivityRecommendation, runActivityGraph, type ActivityConstraints
 import { localRecordTime } from "../../shared/http/record-schema.ts";
 import { preferencesService } from "../preferences/preferences.service.ts";
 import type { ToolContext } from "./agent.tools.ts";
+import { createMachine, FSM_VERSION, pathFor, RUN_STATUS_TO_FSM } from "./agent.fsm.ts";
 import { personalization } from "./personalization.ts";
 import { outbox } from "../../infrastructure/queue/outbox.ts";
 import { env } from "../../config/env.ts";
@@ -87,8 +88,22 @@ async function emit(runId: string, type: string, payload: Record<string, unknown
   }
 }
 
+const SKILL_OF_INTENT: Record<string, string> = { NUTRITION_ALTERNATIVES: "nutrition.coach", MEAL_DRAFT_ENRICHMENT: "nutrition.coach", ACTIVITY_PLAN: "activity.planner" };
+const FSM_SETTLED = new Set(["WAITING_FOR_USER", "COMPLETED", "BLOCKED", "FAILED"]);
+
 async function setStatus(runId: string, status: string, extra: Prisma.AgentRunUpdateInput = {}) {
-  await prisma.agentRun.update({ where: { id: runId }, data: { status, version: { increment: 1 }, ...extra } });
+  const row = await prisma.agentRun.update({ where: { id: runId }, data: { status, fsmState: RUN_STATUS_TO_FSM[status] ?? null, version: { increment: 1 }, ...extra } });
+  if (!FSM_SETTLED.has(status)) return;
+  if (await prisma.agentRunEvent.findFirst({ where: { runId, type: "FSM_PATH" }, select: { id: true } })) return;
+  const usedTools = row.toolCallsUsed > 0;
+  const path = pathFor(status, { usedTools, offered: status === "WAITING_FOR_USER" });
+  const m = createMachine();
+  for (const st of path.slice(1)) {
+    if (st === "PLAN") m.beginIteration();
+    m.to(st);
+  }
+  await prisma.agentRun.update({ where: { id: runId }, data: { fsmState: m.state, iterations: m.iterations, skillId: SKILL_OF_INTENT[row.intent] ?? null, skillVersion: SKILL_OF_INTENT[row.intent] ? "1" : null } });
+  await emit(runId, "FSM_PATH", { version: FSM_VERSION, path, iterations: m.iterations, toolCalls: row.toolCallsUsed });
 }
 
 async function runView(userId: string, id: string) {
@@ -297,7 +312,15 @@ export const agentService = {
         await recordAudit(tx, { userId, eventType: "agent_recommendation_decided", metadata: { recommendationId: rec.id, decision: input.decision } });
         await outbox.enqueue(tx, { userId, type: "recommendation.decided", payload: { recommendationId: rec.id, decision: input.decision, recType: rec.recType }, dedupeKey: `decided:${userId}:${input.operationId}` });
         const open = await tx.recommendation.count({ where: { runId: rec.runId, status: "OFFERED" } });
-        if (open === 0) await tx.agentRun.update({ where: { id: rec.runId }, data: { status: "COMPLETED", version: { increment: 1 } } });
+        const m = createMachine({}, Date.now, "AWAIT_CONFIRMATION");
+        if (input.decision === "ACCEPT") {
+          m.authorize({ operationId: input.operationId, decision: "ACCEPT" });
+          m.to("OBSERVE_OUTCOME", rec.recType === "ACTIVITY" ? "activity_plan" : "planned_meal");
+        }
+        if (open === 0) m.to("COMPLETED");
+        const seq = (await tx.agentRunEvent.aggregate({ where: { runId: rec.runId }, _max: { seq: true } }))._max.seq ?? 0;
+        await tx.agentRunEvent.create({ data: { runId: rec.runId, seq: seq + 1, type: "FSM_DECISION", payload: { version: FSM_VERSION, recommendationId: rec.id, decision: input.decision, receipt: input.operationId, path: m.history.map((h) => h.to) } } });
+        await tx.agentRun.update({ where: { id: rec.runId }, data: { ...(open === 0 ? { status: "COMPLETED" } : {}), fsmState: m.state, version: { increment: 1 } } });
         const fresh = await tx.recommendation.findUniqueOrThrow({ where: { id: rec.id } });
         return { replayed: false, recommendation: recView(fresh), plannedMealId, activityPlanId, personalizationVersion: profileVersion };
       });

@@ -18,7 +18,20 @@ enum SparkState {
   error,
 
   paused,
+
+  awaitingConfirmation,
+
+  safetyWarning,
 }
+
+SparkState sparkStateFromWire(String? wire) => switch (wire) {
+  'THINKING' => SparkState.thinking,
+  'ENCOURAGING' => SparkState.encouraging,
+  'CELEBRATING' => SparkState.celebrating,
+  'AWAITING_CONFIRMATION' => SparkState.awaitingConfirmation,
+  'SAFETY_WARNING' => SparkState.safetyWarning,
+  _ => SparkState.neutral,
+};
 
 class BeOkaySpark extends StatefulWidget {
   const BeOkaySpark({
@@ -54,7 +67,8 @@ class _BeOkaySparkState extends State<BeOkaySpark>
   bool get _moves =>
       !_still &&
       widget.state != SparkState.error &&
-      widget.state != SparkState.paused;
+      widget.state != SparkState.paused &&
+      widget.state != SparkState.safetyWarning;
 
   static const ambientCycles = 3;
 
@@ -198,7 +212,10 @@ class SparkPainter extends CustomPainter {
       );
     }
 
-    final calm = state == SparkState.thinking || state == SparkState.neutral;
+    final calm =
+        state == SparkState.thinking ||
+        state == SparkState.neutral ||
+        state == SparkState.awaitingConfirmation;
     var sway = (calm ? 0.6 : 2.0) * math.pi / 180 * _wave;
     var stretch = 1 + (calm ? 0.01 : 0.02) * _wave;
     var lift = 0.0;
@@ -211,6 +228,7 @@ class SparkPainter extends CustomPainter {
         stretch = 1.03 + 0.03 * (0.5 + 0.5 * _wave);
       case SparkState.error:
       case SparkState.paused:
+      case SparkState.safetyWarning:
         sway = 0;
         stretch = 1;
       default:
@@ -263,6 +281,7 @@ class SparkPainter extends CustomPainter {
       case SparkState.neutral:
       case SparkState.error:
       case SparkState.thinking:
+      case SparkState.safetyWarning:
         canvas.drawLine(const Offset(47, 79.5), const Offset(53, 79.5), stroke);
       case SparkState.responding:
       case SparkState.celebrating:
@@ -283,7 +302,39 @@ class SparkPainter extends CustomPainter {
     }
   }
 
+  void _badge(Canvas canvas, Color color, String glyph) {
+    const center = Offset(80, 84);
+    canvas.drawCircle(center, 13, Paint()..color = const Color(0xFFFFFFFF));
+    canvas.drawCircle(center, 10.5, Paint()..color = color);
+    final mark = Paint()
+      ..color = const Color(0xFFFFFFFF)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.6
+      ..strokeCap = StrokeCap.round;
+    if (glyph == '!') {
+      canvas.drawLine(const Offset(80, 78), const Offset(80, 85.5), mark);
+      canvas.drawCircle(const Offset(80, 90), 1.6, Paint()..color = const Color(0xFFFFFFFF));
+    } else {
+      canvas.drawPath(
+        Path()
+          ..moveTo(76.5, 80.5)
+          ..quadraticBezierTo(76.5, 76.5, 80, 76.5)
+          ..quadraticBezierTo(83.5, 76.5, 83.5, 80)
+          ..quadraticBezierTo(83.5, 82.5, 80, 84)
+          ..lineTo(80, 85.5),
+        mark,
+      );
+      canvas.drawCircle(const Offset(80, 90), 1.6, Paint()..color = const Color(0xFFFFFFFF));
+    }
+  }
+
   void _extras(Canvas canvas) {
+    if (state == SparkState.awaitingConfirmation) {
+      _badge(canvas, AppColors.brand, '?');
+    }
+    if (state == SparkState.safetyWarning) {
+      _badge(canvas, const Color(0xFF3E5560), '!');
+    }
     if (state == SparkState.thinking) {
       final ember = Paint()..color = AppColors.sparkAmber;
       const base = [(70.0, 20.0, 3.2), (78.0, 12.0, 2.4), (84.0, 6.0, 1.6)];

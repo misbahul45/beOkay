@@ -36,6 +36,7 @@ export const communityRoutes = {
   "/api/me/challenges/:id/leave": { POST: authenticated(async ({ req, session }) => ({ body: await communityService.leaveChallenge(session.userId, id(req, 4)) })) },
   "/api/me/challenges/:id/visibility": { PATCH: authenticated(async ({ req, session }) => ({ body: await communityService.setVisibility(session.userId, id(req, 4), (await readJson(req, vis)).visible) })) },
   "/api/me/challenges/:id/checkins": { POST: authenticated(async ({ req, session }) => ({ status: 201, body: await communityService.checkin(session.userId, id(req, 4), (await readJson(req, checkin)).localDate) })) },
+  "/api/me/challenges/:id/team": { GET: authenticated(async ({ req, session }) => ({ body: await communityService.team(session.userId, id(req, 4)) })) },
   "/api/me/challenges/:id/progress": { GET: authenticated(async ({ req, session }) => ({ body: await communityService.progress(session.userId, id(req, 4)) })) },
   "/api/me/challenges/:id/reports": { POST: authenticated(async ({ req, session }) => ({ status: 201, body: await moderationService.report(session.userId, id(req, 4), await readJson(req, reportSchema)) })) },
   "/api/me/challenges/:id/leaderboard": { GET: authenticated(async ({ req, session }) => ({ body: await communityService.leaderboard(session.userId, id(req, 4), page.parse(Object.fromEntries(new URL(req.url).searchParams))) })) },

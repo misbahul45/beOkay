@@ -10,6 +10,9 @@ export type EducationContent = {
 };
 
 const SOURCE_ADA = "American Diabetes Association. Standards of Care in Diabetes—2026.";
+const SOURCE_ADA_PREVENTION = "American Diabetes Association. Standards of Care in Diabetes—2026, bagian Prevention or Delay of Diabetes.";
+const SOURCE_WHO_ACTIVITY = "World Health Organization. WHO guidelines on physical activity and sedentary behaviour, 2020.";
+const SOURCE_SLEEP = "Watson NF, dkk. Recommended Amount of Sleep for a Healthy Adult. Sleep 2015 (konsensus AASM dan SRS).";
 
 export const EDUCATION_MODULES: EducationContent[] = [
   {
@@ -258,4 +261,88 @@ Ringkasan sensor di beOkay bersifat deskriptif. beOkay tidak memberi saran dosis
 ## Sumber
 ${SOURCE_ADA} Battelino T, dkk. International Consensus on Time in Range. Diabetes Care 2019.`,
   },
+  {
+    key: "cegah-diabetes",
+    version: 1,
+    title: "Mencegah atau menunda diabetes tipe 2",
+    summary: "Bila tenaga kesehatan menyebut kamu prediabetes atau berisiko: apa artinya dan kebiasaan yang biasa dianjurkan.",
+    topics: ["pencegahan", "prediabetes", "kebiasaan"],
+    readMinutes: 4,
+    authoredOn: "2026-11-13",
+    body: `## Apa artinya berisiko
+Prediabetes berarti kadar gula darah lebih tinggi dari biasa, tetapi belum masuk kriteria diabetes. Hanya tenaga kesehatan yang dapat menetapkannya dari hasil pemeriksaan. beOkay tidak menilai risikomu dari catatan.
+
+## Kebiasaan yang biasa dianjurkan
+- Bergerak lebih sering. Langkah kecil yang rutin lebih mudah dipertahankan daripada target besar.
+- Mengatur porsi dan memilih makanan berserat lebih sering.
+- Tidur yang cukup dan teratur.
+- Bila tenaga kesehatanmu menyarankan menurunkan berat badan, target dan caranya ditentukan bersama mereka.
+
+## Yang tidak dilakukan beOkay
+beOkay tidak mendiagnosis, tidak memberi target berat badan, dan tidak menggantikan pemeriksaan rutin.
+
+## Sumber
+${SOURCE_ADA_PREVENTION}`,
+  },
+  {
+    key: "pemeriksaan-rutin",
+    version: 1,
+    title: "Pemeriksaan rutin",
+    summary: "Mengapa pemeriksaan berkala penting dan siapa yang menentukan jadwalnya.",
+    topics: ["pemeriksaan", "pencegahan"],
+    readMinutes: 3,
+    authoredOn: "2026-11-13",
+    body: `## Mengapa penting
+Banyak perubahan gula darah tidak terasa. Pemeriksaan berkala membantu tenaga kesehatan melihatnya lebih awal.
+
+## Siapa yang menentukan jadwal
+Seberapa sering kamu perlu diperiksa ditentukan tenaga kesehatanmu sesuai usia, riwayat keluarga, dan hasil sebelumnya. beOkay hanya dapat mengingatkan jadwal yang kamu masukkan sendiri.
+
+## Bila ada keluhan
+Bila kamu sering haus, sering buang air kecil, mudah lelah, atau luka sulit sembuh, periksakan diri ke fasilitas kesehatan.
+
+## Sumber
+${SOURCE_ADA_PREVENTION}`,
+  },
+  {
+    key: "tidur-dan-pulih",
+    version: 1,
+    title: "Tidur dan pemulihan",
+    summary: "Kebiasaan tidur yang mendukung energi harian, dan cara membaca data tidur dari perangkat.",
+    topics: ["tidur", "pemulihan", "perangkat"],
+    readMinutes: 3,
+    authoredOn: "2026-11-13",
+    body: `## Tidur yang cukup
+Konsensus untuk orang dewasa menyebut tidur 7 jam atau lebih per malam secara teratur. Kebutuhan tiap orang berbeda.
+
+## Kebiasaan yang membantu
+- Jam tidur dan bangun yang mirip setiap hari.
+- Mengurangi layar dan kafein menjelang tidur.
+- Bergerak di siang hari.
+
+## Data tidur dari perangkat
+Jam tangan dan ponsel memperkirakan tidur dari gerakan dan detak jantung. Angkanya perkiraan, bisa terlewat bila perangkat tidak dipakai, dan tidak dipakai beOkay untuk menilai kesehatanmu.
+
+## Bila tidur terus terganggu
+Mendengkur keras, terbangun sesak, atau kantuk berat di siang hari perlu dibicarakan dengan tenaga kesehatan.
+
+## Sumber
+${SOURCE_SLEEP} ${SOURCE_WHO_ACTIVITY}`,
+  },
 ];
+
+export const MODULE_JOURNEYS: Record<string, readonly ("PREVENTION" | "T2DM_SUPPORT" | "WELLNESS" | "UNDETERMINED")[]> = {
+  "mengenal-dmt2": ["T2DM_SUPPORT", "UNDETERMINED"],
+  "karbohidrat-porsi": ["PREVENTION", "T2DM_SUPPORT", "WELLNESS", "UNDETERMINED"],
+  "label-gizi": ["PREVENTION", "T2DM_SUPPORT", "WELLNESS", "UNDETERMINED"],
+  hipoglikemia: ["T2DM_SUPPORT", "UNDETERMINED"],
+  "perawatan-kaki": ["T2DM_SUPPORT", "UNDETERMINED"],
+  "saat-sakit": ["T2DM_SUPPORT", "UNDETERMINED"],
+  "puasa-ramadan": ["T2DM_SUPPORT", "UNDETERMINED"],
+  "obat-bertanya-dokter": ["T2DM_SUPPORT", "UNDETERMINED"],
+  "aktivitas-aman": ["PREVENTION", "T2DM_SUPPORT", "WELLNESS", "UNDETERMINED"],
+  "cek-gula-mandiri": ["T2DM_SUPPORT", "UNDETERMINED"],
+  "cegah-diabetes": ["PREVENTION"],
+  "pemeriksaan-rutin": ["PREVENTION", "WELLNESS"],
+  "tidur-dan-pulih": ["PREVENTION", "T2DM_SUPPORT", "WELLNESS", "UNDETERMINED"],
+};

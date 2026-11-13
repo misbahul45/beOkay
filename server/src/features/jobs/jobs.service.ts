@@ -1,7 +1,9 @@
+import { knowledgeService } from "../knowledge/knowledge.service.ts";
 import { Prisma } from "../../generated/prisma/client.ts";
 import { env } from "../../config/env.ts";
 import { prisma } from "../../infrastructure/database/prisma.ts";
 import { outbox } from "../../infrastructure/queue/outbox.ts";
+import { eventHandlers } from "../events/handlers.ts";
 import { logEvent } from "../../shared/http/logger.ts";
 import { sweepOutcomes } from "../agent/agent-worker.ts";
 import { outcomes } from "../agent/outcomes.ts";
@@ -30,7 +32,7 @@ export const JOBS: Job[] = [
     run: async () => {
       const total = { done: 0, failed: 0, dead: 0, batches: 0 };
       for (let i = 0; i < 20; i++) {
-        const r = await outbox.drain(outcomes.handlers);
+        const r = await outbox.drain(eventHandlers());
         total.done += r.done;
         total.failed += r.failed;
         total.dead += r.dead;
@@ -62,7 +64,7 @@ export const JOBS: Job[] = [
       return { coaching, labs };
     },
   },
-  { name: "education_sync", everyMs: 6 * 60 * MIN, run: async () => educationService.sync() },
+  { name: "education_sync", everyMs: 6 * 60 * MIN, run: async () => ({ ...(await educationService.sync()), knowledge: await knowledgeService.sync() }) },
   { name: "retention", everyMs: 23 * 60 * MIN, run: async (now) => (await retentionService.run(undefined, now)) as unknown as Result },
 ];
 

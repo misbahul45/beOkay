@@ -1,0 +1,13 @@
+DELETE FROM "challenges" WHERE "kind" = 'TEAM_ACTIVE_DAYS';
+DELETE FROM "challenge_templates" WHERE "kind" = 'TEAM_ACTIVE_DAYS';
+DELETE FROM "memory_items" WHERE "source_type" IN ('DERIVED','CHALLENGE');
+ALTER TABLE "memory_items" DROP CONSTRAINT "memory_items_valid";
+ALTER TABLE "memory_items" ADD CONSTRAINT "memory_items_valid" CHECK ("category" IN ('PREFERENCE','EPISODIC') AND "kind" IN ('ACTIVITY_TIME','SCHEDULE','ACTIVITY_LIKE','ACTIVITY_DISLIKE','AVAILABLE_MINUTES','FOOD_CONTEXT','BARRIER','HEALTH_EVENT') AND "status" IN ('PROPOSED','ACTIVE','DISMISSED') AND "source_type" IN ('CONVERSATION','USER','LANGUAGE_MODEL') AND "confidence" IN ('STATED','INFERRED') AND "sensitivity" IN ('LOW','MEDIUM') AND "retention" IN ('UNTIL_DELETED','EXPIRES') AND length("content") BETWEEN 1 AND 160 AND length("key") BETWEEN 1 AND 120 AND "version" >= 1 AND ("status" <> 'ACTIVE' OR "confirmed_at" IS NOT NULL) AND (("retention" = 'EXPIRES') = ("expires_at" IS NOT NULL)));
+ALTER TABLE "challenge_templates" DROP CONSTRAINT "challenge_templates_valid";
+ALTER TABLE "challenge_templates" ADD CONSTRAINT "challenge_templates_valid" CHECK ("kind" IN ('ACTIVE_DAYS') AND "duration_days" BETWEEN 2 AND 90 AND "target_days" BETWEEN 1 AND "duration_days" AND "cadence_days" BETWEEN "duration_days" AND 365 AND length("key") BETWEEN 1 AND 60 AND length("title") BETWEEN 1 AND 80 AND length("description") BETWEEN 1 AND 400);
+ALTER TABLE "challenges" DROP CONSTRAINT "challenges_valid";
+ALTER TABLE "challenges" ADD CONSTRAINT "challenges_valid" CHECK ("kind" IN ('ACTIVE_DAYS') AND "status" IN ('SCHEDULED','OPEN','CLOSED') AND "ends_on" > "starts_on" AND "target_days" BETWEEN 1 AND 90 AND "target_days" <= ("ends_on" - "starts_on" + 1) AND ("status" <> 'CLOSED' OR "closed_at" IS NOT NULL OR "template_id" IS NULL) AND ("results_at" IS NULL OR "status" = 'CLOSED'));
+ALTER TABLE "challenges" DROP COLUMN IF EXISTS "team_target_days";
+ALTER TABLE "challenge_templates" DROP COLUMN IF EXISTS "team_target_days";
+DROP TABLE IF EXISTS "daily_checkins";
+DELETE FROM "_prisma_migrations" WHERE "migration_name" = '20261113081139_p14_checkins_team_derived';

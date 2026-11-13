@@ -53,6 +53,13 @@ class ProfileScreen extends ConsumerWidget {
           health: health,
           onTap: () => context.push(Routes.editHealth),
         ),
+        if (health.value?.journey.label case final journey?) ...[
+          const SizedBox(height: AppSpacing.sm),
+          _JourneyTile(
+            label: journey,
+            onTap: () => context.push(Routes.journey),
+          ),
+        ],
         const SizedBox(height: AppSpacing.lg),
         const _SectionTitle('Rutinitas'),
         _RoutineGrid(
@@ -309,6 +316,51 @@ class _Tag extends StatelessWidget {
               fontWeight: FontWeight.w600,
             )
           : AppTypography.caption.copyWith(color: AppColors.textPrimary),
+    ),
+  );
+}
+
+class _JourneyTile extends StatelessWidget {
+  const _JourneyTile({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: 'Jalurmu: $label',
+    excludeSemantics: true,
+    onTap: onTap,
+    child: Material(
+      color: AppColors.surface,
+      borderRadius: AppRadius.cardRadius,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.cardPadding),
+          child: Row(
+            children: [
+              Icon(Icons.alt_route_rounded, color: AppColors.brand),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Jalurmu', style: AppTypography.bodyStrong),
+                    Text(label, style: AppTypography.secondary),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textSecondary,
+              ),
+            ],
+          ),
+        ),
+      ),
     ),
   );
 }

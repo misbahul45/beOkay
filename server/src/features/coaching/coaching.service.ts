@@ -11,6 +11,10 @@ import { consentService } from "../consent/consent.service.ts";
 import { goalsService } from "../goals/goals.service.ts";
 import { weeklyService } from "../insights/weekly.service.ts";
 import { zonedToUtc } from "../medication/medication.model.ts";
+import { featureFlags } from "../feature-flags/feature-flags.service.ts";
+import { cohortService } from "../cohort/cohort.service.ts";
+import { dailyFacts } from "../projections/daily-facts.service.ts";
+import { isRecordedDay } from "../projections/daily-facts.model.ts";
 import { memoryService } from "../memory/memory.service.ts";
 import { preferencesService } from "../preferences/preferences.service.ts";
 import { MAX_ACTIVE_REMINDERS } from "../reminders/reminders.service.ts";
@@ -18,7 +22,7 @@ import { realtime } from "../../infrastructure/realtime/realtime.ts";
 import { recognitionService } from "../community/recognition.service.ts";
 import { notificationService } from "../notifications/notification.service.ts";
 import * as M from "./coaching.model.ts";
-import { BARRIER_LABEL, STRATEGIES, STRATEGY_CATALOG_VERSION, STRATEGY_DAYS, STRATEGY_REVIEW_STATUS, findStrategy, type Barrier } from "./coaching.strategies.ts";
+import { BARRIER_LABEL, STRATEGIES, STRATEGY_CATALOG_VERSION, STRATEGY_DAYS, STRATEGY_REVIEW_STATUS, findStrategy, type Barrier, strategiesFor } from "./coaching.strategies.ts";
 import { usageService } from "../usage/usage.service.ts";
 import { episodesService } from "../episodes/episodes.service.ts";
 import { isUnwell } from "../memory/memory.extract.ts";
@@ -75,27 +79,40 @@ const slotOfMemory = (content: string) => {
   return w ? M.SLOT_FROM_WORD[w[1]!]! : null;
 };
 
-async function gatherFacts(userId: string, tz: string, today: string, now: Date): Promise<M.Facts> {
+export async function gatherFacts(userId: string, tz: string, today: string, now: Date): Promise<M.Facts> {
   const start = (d: string) => zonedToUtc(d, "00:00", tz);
   const tomorrow = start(M.addDays(today, 1));
   const day = (d: Date) => localRecordTime(d, tz).localDate;
   const since7 = M.addDays(today, -6);
-  const [user, meals, sessions, glucose, plans, coachingPlans, goalRows, memories] = await Promise.all([
+  const useProjection = await featureFlags.isEnabled("projection_consumers");
+  const [user, meals, sessions, glucose, plans, coachingPlans, goalRows, memories, facts] = await Promise.all([
     prisma.users.findUnique({ where: { id: userId }, select: { createdAt: true } }),
-    prisma.mealLog.findMany({ where: { userId, archivedAt: null, consumedAt: { gte: start(M.addDays(today, -M.WINDOW_DAYS)), lt: tomorrow } }, select: { consumedAt: true, category: true } }),
-    prisma.activitySession.findMany({ where: { userId, archivedAt: null, qualityStatus: { in: [...ACTIVITY_COUNTED_QUALITY] }, startedAt: { gte: start(M.addDays(today, -28)), lt: tomorrow } }, select: { startedAt: true, durationMinutes: true } }),
-    prisma.glucoseObservation.findMany({ where: { userId, archivedAt: null, measuredAt: { gte: start(since7), lt: tomorrow } }, select: { measuredAt: true } }),
+    useProjection ? Promise.resolve([]) : prisma.mealLog.findMany({ where: { userId, archivedAt: null, consumedAt: { gte: start(M.addDays(today, -M.WINDOW_DAYS)), lt: tomorrow } }, select: { consumedAt: true, category: true } }),
+    useProjection ? Promise.resolve([]) : prisma.activitySession.findMany({ where: { userId, archivedAt: null, qualityStatus: { in: [...ACTIVITY_COUNTED_QUALITY] }, startedAt: { gte: start(M.addDays(today, -28)), lt: tomorrow } }, select: { startedAt: true, durationMinutes: true } }),
+    useProjection ? Promise.resolve([]) : prisma.glucoseObservation.findMany({ where: { userId, archivedAt: null, measuredAt: { gte: start(since7), lt: tomorrow } }, select: { measuredAt: true } }),
     prisma.activityPlan.findMany({ where: { userId, plannedFor: { gte: asDate(M.addDays(today, -M.WINDOW_DAYS)), lt: asDate(today) } }, select: { status: true, durationMinutes: true, recommendation: { select: { outcome: { select: { id: true } } } } } }),
     prisma.coachingAction.findMany({ where: { userId, kind: "ACTIVITY_SESSION", status: { in: ["ACCEPTED", "WITHDRAWN"] }, startDate: { gte: asDate(M.addDays(today, -M.WINDOW_DAYS - 7)) } }, include: { outcomes: true } }),
     prisma.behaviorGoal.findMany({ where: { userId, status: "active" }, orderBy: { createdAt: "desc" }, take: 10 }),
     memoryService.activeFor(userId),
+    useProjection ? dailyFacts.list(userId, M.addDays(today, -28), today, tz) : Promise.resolve(null),
   ]);
   const mealsByDay: Record<string, string[]> = {};
-  for (const m of meals) (mealsByDay[day(m.consumedAt)] ??= []).push(m.category);
   const recorded = new Set<string>();
-  for (const d of Object.keys(mealsByDay)) if (d >= since7) recorded.add(d);
-  for (const s of sessions) if (day(s.startedAt) >= since7) recorded.add(day(s.startedAt));
-  for (const g of glucose) recorded.add(day(g.measuredAt));
+  let longestSessionMinutes: number | null = null;
+  if (facts) {
+    const mealSince = M.addDays(today, -M.WINDOW_DAYS);
+    for (const f of facts) {
+      if (f.localDate >= mealSince && f.mealsLogged > 0) mealsByDay[f.localDate] = [...f.mealCategories];
+      if (f.localDate >= since7 && isRecordedDay(f)) recorded.add(f.localDate);
+      if (f.longestSessionMinutes !== null) longestSessionMinutes = Math.max(longestSessionMinutes ?? 0, f.longestSessionMinutes);
+    }
+  } else {
+    for (const m of meals) (mealsByDay[day(m.consumedAt)] ??= []).push(m.category);
+    for (const d of Object.keys(mealsByDay)) if (d >= since7) recorded.add(d);
+    for (const s of sessions) if (day(s.startedAt) >= since7) recorded.add(day(s.startedAt));
+    for (const g of glucose) recorded.add(day(g.measuredAt));
+    longestSessionMinutes = sessions.length ? Math.max(...sessions.map((s) => s.durationMinutes)) : null;
+  }
 
   let planned = 0, done = 0, notObserved = 0;
   const minutes: number[] = [];
@@ -140,7 +157,7 @@ async function gatherFacts(userId: string, tz: string, today: string, now: Date)
     recordedDays7: recorded.size,
     pastPlans: { planned, done, notObserved, avgMinutes: minutes.length ? minutes.reduce((s, v) => s + v, 0) / minutes.length : null },
     goals,
-    longestSessionMinutes: sessions.length ? Math.max(...sessions.map((s) => s.durationMinutes)) : null,
+    longestSessionMinutes,
     memory: { availableMinutes, preferredSlot, dislikedTypes, used: memories.filter((m) => ["AVAILABLE_MINUTES", "ACTIVITY_TIME", "ACTIVITY_DISLIKE", "HEALTH_EVENT"].includes(m.kind)).map((m) => ({ id: m.id, content: m.content, kind: m.kind })), unwell: isUnwell(memories), avoidSlots: await episodesService.avoidSlots(userId, today) },
   };
 }
@@ -602,7 +619,7 @@ export const coachingService = {
       actions: { ...tally, fromAssistant: agentOutcomes, items },
       positives,
       adjustments: [...M.goalAdjustments(goals), ...stepAdjustments],
-      strategies: { catalogVersion: STRATEGY_CATALOG_VERSION, reviewStatus: STRATEGY_REVIEW_STATUS, byBarrier: STRATEGIES, labels: BARRIER_LABEL },
+      strategies: { catalogVersion: STRATEGY_CATALOG_VERSION, reviewStatus: STRATEGY_REVIEW_STATUS, byBarrier: strategiesFor(await cohortService.journeyOf(userId)), labels: BARRIER_LABEL },
       learned: await episodesService.build(userId, target),
       memoryBarriers: memories.filter((m) => m.kind === "BARRIER").map((m) => m.key.split(":")[1]).filter((b): b is string => ["TIME", "FORGOT", "ENERGY", "MOTIVATION", "OTHER"].includes(b ?? "")),
       previousStrategy,

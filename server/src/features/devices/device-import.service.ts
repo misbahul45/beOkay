@@ -4,6 +4,8 @@ import { prisma } from "../../infrastructure/database/prisma.ts";
 import { recordAudit } from "../../shared/audit/audit.ts";
 import { localRecordTime } from "../../shared/http/record-schema.ts";
 import { consentService } from "../consent/consent.service.ts";
+import { emitRecordEvent } from "../events/record-events.ts";
+import { emitDomainEvent } from "../../infrastructure/queue/events.ts";
 import { canonicalGlucose } from "../glucose/glucose.model.ts";
 import { preferencesService } from "../preferences/preferences.service.ts";
 import { median } from "../usage/usage.model.ts";
@@ -57,7 +59,10 @@ export const deviceImportService = {
           steps.unchanged++;
           continue;
         }
-        await prisma.dailySteps.upsert({ where: key, create: { userId, source, localDate: new Date(s.localDate + "T00:00:00Z"), steps: s.steps }, update: { steps: s.steps, syncedAt: now } });
+        await prisma.$transaction(async (tx) => {
+          const row = await tx.dailySteps.upsert({ where: key, create: { userId, source, localDate: new Date(s.localDate + "T00:00:00Z"), steps: s.steps, dataOrigin: s.dataOrigin ?? null }, update: { steps: s.steps, syncedAt: now, dataOrigin: s.dataOrigin ?? null } });
+          await emitRecordEvent(tx, { userId, kind: "steps", action: old ? "corrected" : "created", recordId: row.id, revision: Math.floor(now.getTime() / 1000), occurredAt: new Date(s.localDate + "T12:00:00Z"), localDates: [s.localDate], timezone, source, quality: "device_reported", provenance: { dataOrigin: s.dataOrigin ?? null } });
+        });
         steps.upserted++;
       }
       if (steps.upserted) await recordAudit(prisma, { userId, eventType: "activity_steps_imported", metadata: { source, days: steps.upserted } });
@@ -75,6 +80,7 @@ export const deviceImportService = {
           const saved = await prisma.$transaction(async (tx) => {
             const row = await tx.vitalMeasurement.create({ data: { userId, kind: "weight", value: Math.round(w.kg * 1000) / 1000, unit: "kg", measuredAt: new Date(w.measuredAt), source, externalId: w.externalId, createHash: sha({ source, ...w }) } });
             await recordAudit(tx, { userId, eventType: "vital_recorded", metadata: { recordId: row.id, kind: "weight", source } });
+            await emitRecordEvent(tx, { userId, kind: "vital", action: "created", recordId: row.id, revision: 1, occurredAt: row.measuredAt, localDates: [localRecordTime(row.measuredAt, timezone).localDate], timezone, source, quality: "device_reported", provenance: { externalId: w.externalId, dataOrigin: w.dataOrigin ?? null } });
             return row;
           });
           weights.push({ externalId: w.externalId, status: "CREATED", id: saved.id });
@@ -101,6 +107,7 @@ export const deviceImportService = {
           const saved = await prisma.$transaction(async (tx) => {
             const row = await tx.glucoseObservation.create({ data: { userId, originalValue: g.value, originalUnit: g.unit, valueMgDl: mgdl, measuredAt: new Date(g.measuredAt), mealContext: g.mealContext, source, sourceRecordId: g.externalId, measurementType: g.specimen, qualityStatus: "device_reported", qualityFlags: [], createHash: sha({ source, ...g }) } });
             await recordAudit(tx, { userId, eventType: "glucose_recorded", metadata: { recordId: row.id, source } });
+            await emitRecordEvent(tx, { userId, kind: "glucose", action: "created", recordId: row.id, revision: 1, occurredAt: row.measuredAt, localDates: [localRecordTime(row.measuredAt, timezone).localDate], timezone, source, quality: "device_reported", provenance: { externalId: g.externalId, dataOrigin: g.dataOrigin ?? null } });
             return row;
           });
           glucose.push({ externalId: g.externalId, status: "CREATED", id: saved.id });
@@ -120,7 +127,11 @@ export const deviceImportService = {
           continue;
         }
         try {
-          const row = await prisma.sleepSession.create({ data: { userId, startedAt: start, endedAt: end, durationMinutes: minutes, source, externalId: s.externalId } });
+          const row = await prisma.$transaction(async (tx) => {
+            const saved = await tx.sleepSession.create({ data: { userId, startedAt: start, endedAt: end, durationMinutes: minutes, source, externalId: s.externalId, dataOrigin: s.dataOrigin ?? null } });
+            await emitRecordEvent(tx, { userId, kind: "sleep", action: "created", recordId: saved.id, revision: 1, occurredAt: end, localDates: [localRecordTime(end, timezone).localDate], timezone, source, quality: "device_reported", provenance: { externalId: s.externalId, dataOrigin: s.dataOrigin ?? null } });
+            return saved;
+          });
           sleep.push({ externalId: s.externalId, status: "CREATED", id: row.id });
         } catch (e) {
           if (!isUnique(e)) throw e;
@@ -130,6 +141,8 @@ export const deviceImportService = {
     if (sleep.some((s) => s.status === "CREATED")) await recordAudit(prisma, { userId, eventType: "sleep_imported", metadata: { source, sessions: sleep.filter((s) => s.status === "CREATED").length } });
 
     const count = (list: Outcome[], st: Outcome["status"]) => list.filter((o) => o.status === st).length;
+    const created = steps.upserted + count(weights, "CREATED") + count(glucose, "CREATED") + count(sleep, "CREATED");
+    if (created) await emitDomainEvent(prisma, { userId, type: "device.imported", dedupeKey: `device-import:${userId}:${now.getTime()}:${sha({ steps, w: weights.length, g: glucose.length, s: sleep.length })}`, payload: { source, steps: steps.upserted, weights: count(weights, "CREATED"), glucose: count(glucose, "CREATED"), sleep: count(sleep, "CREATED") }, source, occurredAt: now, timezone, quality: "device_reported" });
     return {
       source,
       preferences: prefs,

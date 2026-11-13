@@ -15,6 +15,8 @@ import '../../community/application/community_controller.dart';
 import '../../community/presentation/community_highlight_card.dart';
 import '../../../core/widgets/tab_root_header.dart';
 import '../../interventions/presentation/intervention_card.dart';
+import '../../next_action/application/next_action_controller.dart';
+import '../../next_action/presentation/next_action_section.dart';
 import '../../medication/application/medication_controller.dart';
 import '../../../core/widgets/info_card.dart';
 import '../../../core/widgets/page_scaffold.dart';
@@ -46,6 +48,7 @@ class HomeScreen extends ConsumerWidget {
       showBack: false,
       onRefresh: () async {
         ref.invalidate(todayProvider);
+        ref.invalidate(nextActionProvider);
         ref.invalidate(homeHighlightProvider);
         ref.invalidate(quickSuggestionsProvider);
         ref.invalidate(featuresProvider);
@@ -108,6 +111,7 @@ class HomeScreen extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.md),
         ],
+        if (!consentBlocked) const NextActionSection(),
         if (!consentBlocked) const InterventionCard(),
         if (profile != null && !profile.isComplete) ...[
           InfoCard(

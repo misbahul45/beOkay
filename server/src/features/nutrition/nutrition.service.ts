@@ -4,6 +4,8 @@ import { prisma } from "../../infrastructure/database/prisma.ts";
 import { conflict, notFound } from "../../shared/errors/app-error.ts";
 import { recordAudit } from "../../shared/audit/audit.ts";
 import { consentService } from "../consent/consent.service.ts";
+import { emitRecordEvent } from "../events/record-events.ts";
+import { localRecordTime } from "../../shared/http/record-schema.ts";
 import { preferencesService } from "../preferences/preferences.service.ts";
 import {
   calculateNutrition,
@@ -233,6 +235,7 @@ export const nutritionService = {
           eventType: "meal_created",
           metadata: { recordId: saved.id },
         });
+        await emitRecordEvent(tx, { userId, kind: "meal", action: "created", recordId: saved.id, revision: saved.version, occurredAt: saved.consumedAt, localDates: [localRecordTime(saved.consumedAt, settings.timezone).localDate], timezone: settings.timezone, source: "manual", quality: "user_reported" });
         return saved;
       });
       return mealView(row, settings.timezone);
@@ -314,7 +317,9 @@ export const nutritionService = {
         eventType: input.archived ? "meal_archived" : "meal_corrected",
         metadata: { recordId: id, version: current.version + 1 },
       });
-      return (await nutritionRepository.meal(userId, id, tx))!;
+      const after = (await nutritionRepository.meal(userId, id, tx))!;
+      await emitRecordEvent(tx, { userId, kind: "meal", action: input.archived ? "archived" : "corrected", recordId: id, revision: after.version, occurredAt: after.consumedAt, localDates: [localRecordTime(current.consumedAt, settings.timezone).localDate, localRecordTime(after.consumedAt, settings.timezone).localDate], timezone: settings.timezone, source: "manual", quality: "user_reported" });
+      return after;
     });
     return mealView(row, settings.timezone);
   },

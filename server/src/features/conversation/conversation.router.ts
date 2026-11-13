@@ -24,6 +24,8 @@ export type Route =
   | { kind: "APPROVAL_HINT" }
   | { kind: "FOOD"; query: string }
   | { kind: "CLARIFY_FOOD" }
+  | { kind: "SLEEP" }
+  | { kind: "EDUCATION" }
   | { kind: "UNKNOWN"; probe: string | null };
 
 export type RouteKind = Route["kind"];
@@ -47,6 +49,8 @@ const REFLECT = /\brefleksi\b/;
 const COMMUNITY = /\b(tantangan|challenge|komunitas)/;
 const COMMUNITY_PROGRESS = /(progres|progress|skor|peringkat|sejauh mana|sudah berapa)/;
 const COMMUNITY_RULES = /(aturan|cara kerja|dihitung|poin|syarat|bagaimana cara)/;
+const SLEEP = /(tidurku|pola tidur|kualitas tidur|jam tidur|susah tidur|sulit tidur|kurang tidur|begadang|insomnia|tidur (saya|aku|ku)\b|cukup tidur|data tidur|tidurnya (cukup|kurang))/;
+const EDUCATION = /(cara mencegah|mencegah diabetes|cegah diabetes|pencegahan|prediabetes|pra-?diabetes|pemeriksaan rutin|skrining|cek rutin|berisiko (kena )?diabetes|risiko diabetes)/;
 const HELP = /(bisa apa|bisa bantu apa|kamu siapa|siapa kamu|apa itu beokay|bantuan|cara pakai|cara menggunakan|^help$|^tolong$|^menu$)/;
 
 const DOMAINS: [StatsDomain, RegExp][] = [
@@ -134,6 +138,8 @@ export function routeMessage(text: string, ctx: RouteContext): Route {
   if (HELP.test(body)) return { kind: "HELP" };
   const follow = classifyFollowUp(body);
   if (follow) return ctx.hasPreviousRun ? { kind: "FOLLOW_UP", follow } : { kind: "NO_CONTEXT" };
+  if (SLEEP.test(body)) return { kind: "SLEEP" };
+  if (EDUCATION.test(body)) return { kind: "EDUCATION" };
   const stats = statsRoute(body);
   if (stats) return stats;
   if (MORE_ACTIVE.test(body) || classifyIntent(body) === "ACTIVITY_PLAN") {

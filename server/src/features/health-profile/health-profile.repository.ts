@@ -11,6 +11,10 @@ const select = {
   treatmentContext: true,
   dataSource: true,
   eligibilityStatus: true,
+  riskStatement: true,
+  journey: true,
+  journeySource: true,
+  journeySetAt: true,
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -22,6 +26,10 @@ export type HealthProfileRow = {
   treatmentContext: string[];
   dataSource: string;
   eligibilityStatus: string;
+  riskStatement: string | null;
+  journey: string;
+  journeySource: string | null;
+  journeySetAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -32,6 +40,10 @@ export type HealthProfileData = {
   diagnosedYear: number | null;
   treatmentContext: string[];
   eligibilityStatus: EligibilityStatus;
+  riskStatement: string | null;
+  journey: string;
+  journeySource: string;
+  journeySetAt: Date;
 };
 
 export const healthProfileRepository = {

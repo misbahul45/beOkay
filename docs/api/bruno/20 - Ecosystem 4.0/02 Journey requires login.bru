@@ -1,0 +1,17 @@
+meta {
+  name: Journey requires login
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/me/journey
+  body: none
+  auth: none
+}
+
+tests {
+  test("401 without session", function () {
+    expect(res.status).to.equal(401);
+  });
+}

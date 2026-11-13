@@ -1,4 +1,4 @@
-export const CONSENT_PURPOSES = ["health_data_processing", "descriptive_summaries", "product_analytics", "personalized_ai", "community_membership", "challenge_participation", "leaderboard_visibility", "model_inference", "ai_text_generation", "ai_message_understanding", "companion_sharing"] as const;
+export const CONSENT_PURPOSES = ["health_data_processing", "descriptive_summaries", "product_analytics", "personalized_ai", "community_membership", "challenge_participation", "leaderboard_visibility", "model_inference", "ai_text_generation", "ai_message_understanding", "companion_sharing", "device_data_coaching", "social_outcomes_memory"] as const;
 export type ConsentPurpose = (typeof CONSENT_PURPOSES)[number];
 
 export const CONSENT_SOURCES = ["onboarding", "settings", "api"] as const;
@@ -21,17 +21,17 @@ export type ConsentPolicy = {
 };
 
 export const currentPolicy: ConsentPolicy = {
-  version: "1.0",
-  effectiveDate: "2026-11-08",
+  version: "1.1",
+  effectiveDate: "2026-11-13",
   summary:
-    "beOkay hanya memproses informasi yang kamu masukkan sendiri untuk membantu kamu mencatat dan memahami kebiasaan harian. beOkay bukan alat diagnosis dan tidak memberi saran medis. Teks ini adalah draf dan wajib ditinjau pihak yang berwenang sebelum dipakai di produksi.",
+    "beOkay memproses informasi yang kamu masukkan sendiri, dan data perangkat yang kamu izinkan, untuk membantu kamu mencatat dan menjaga kebiasaan harian: pencegahan, dukungan diabetes tipe 2, atau gaya hidup sehat. beOkay bukan alat diagnosis dan tidak memberi saran medis. Teks ini adalah draf dan wajib ditinjau pihak yang berwenang sebelum dipakai di produksi.",
   purposes: [
     {
       purpose: "health_data_processing",
       required: true,
       title: "Mencatat data kesehatan yang kamu masukkan",
       description:
-        "Menyimpan profil kesehatan, makanan, aktivitas, glukosa, dan obat yang kamu catat agar bisa ditampilkan kembali kepadamu.",
+        "Menyimpan profil kesehatan, jalur yang kamu pilih, serta makanan, aktivitas, tidur, dan bila kamu mencatatnya glukosa dan obat, agar bisa ditampilkan kembali kepadamu.",
       dataCategories: ["Profil kesehatan yang kamu laporkan", "Catatan harian yang kamu masukkan"],
       withdrawalEffect:
         "Fitur yang memproses data kesehatan dihentikan. Akunmu tetap bisa dibuka. Data yang sudah tersimpan tidak otomatis dihapus; kamu bisa meminta penghapusan di Privasi & data.",
@@ -117,6 +117,22 @@ export const currentPolicy: ConsentPolicy = {
       description: "Orang yang kamu beri tautan pendamping (misalnya anggota keluarga) bisa melihat ringkasan mingguan: jumlah hari tercatat, menit aktivitas, jumlah konfirmasi obat, dan jam pengingat obat yang belum dikonfirmasi. Catatan mentah, nama makanan, nama obat, dan angka glukosa tidak ditampilkan.",
       dataCategories: ["Ringkasan mingguan yang dihitung dari catatanmu", "Jam pengingat obat yang belum dikonfirmasi"],
       withdrawalEffect: "Semua tautan pendamping berhenti berfungsi. Tautan bisa dibuat lagi bila kamu menyetujui kembali.",
+    },
+    {
+      purpose: "device_data_coaching",
+      required: false,
+      title: "Memakai data perangkat untuk rencana kecil",
+      description: "Memakai langkah, tidur, dan sesi latihan dari Health Connect (termasuk jam tangan yang tersambung) untuk menilai apakah rencana kecil terlaksana dan untuk memilih waktu saran. Data perangkat yang tidak lengkap atau ganda tidak pernah dianggap sebagai tidak aktif.",
+      dataCategories: ["Langkah, tidur, dan sesi latihan dari perangkat"],
+      withdrawalEffect: "Rencana dan saran hanya memakai catatan yang kamu masukkan sendiri. Data perangkat tetap tersimpan dan tampil di riwayatmu.",
+    },
+    {
+      purpose: "social_outcomes_memory",
+      required: false,
+      title: "Memakai hasil tantangan untuk saran",
+      description: "Memakai hasil tantangan dan misi tim yang kamu ikuti (hari aktif dan check-in, bukan nilai kesehatan) sebagai bahan refleksi mingguan dan ingatan asisten.",
+      dataCategories: ["Hari aktif dan check-in tantangan"],
+      withdrawalEffect: "Hasil tantangan tidak lagi dipakai untuk saran. Ingatan yang berasal darinya dijeda.",
     },
   ],
 };

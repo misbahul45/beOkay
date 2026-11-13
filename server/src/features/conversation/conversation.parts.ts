@@ -22,8 +22,8 @@ export type Part =
 
 export type ChallengeItem = { id: string; title: string; communityName: string; startsOn: string; endsOn: string; status: string; statusLabel: string; participating: boolean; progress: { activeDays: number; targetDays: number } | null };
 
-export type BasisSource = { kind: "STATISTICS" | "FOOD_REFERENCE" | "USER_CATALOG" | "FOOD_PREFERENCES" | "ACTIVITY_HISTORY" | "GOALS" | "SAFETY_POLICY" | "MESSAGE" | "PHOTO" | "PORTION_MEASURES" | "LANGUAGE_MODEL"; label: string };
-export type Basis = { sources: BasisSource[]; memories: { id: string; content: string }[] };
+export type BasisSource = { kind: "KNOWLEDGE" | "STATISTICS" | "FOOD_REFERENCE" | "USER_CATALOG" | "FOOD_PREFERENCES" | "ACTIVITY_HISTORY" | "GOALS" | "SAFETY_POLICY" | "MESSAGE" | "PHOTO" | "PORTION_MEASURES" | "LANGUAGE_MODEL"; label: string };
+export type Basis = { sources: BasisSource[]; memories: { id: string; content: string }[]; certainty?: string; skill?: unknown; secondarySkills?: unknown[]; denial?: unknown };
 
 export type LinkTarget = "INSIGHTS" | "LOG" | "LOG_MEAL" | "CONSENT" | "COMMUNITY" | "GOALS";
 

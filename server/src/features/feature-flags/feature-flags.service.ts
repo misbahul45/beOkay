@@ -4,7 +4,7 @@ import { prisma } from "../../infrastructure/database/prisma.ts";
 import { AppError } from "../../shared/errors/app-error.ts";
 import { route } from "../../shared/http/handler.ts";
 
-export const FEATURE_KEYS = ["assistant", "conversation", "coaching", "community", "ml_inference", "food_vision", "web_discovery", "analytics", "push", "llm_router", "companion", "cgm"] as const;
+export const FEATURE_KEYS = ["assistant", "conversation", "coaching", "community", "ml_inference", "food_vision", "web_discovery", "analytics", "push", "llm_router", "companion", "cgm", "projection_consumers", "skill_registry", "react_llm_planner", "jitai_v3"] as const;
 export type FeatureKey = (typeof FEATURE_KEYS)[number];
 
 export const FEATURE_LABELS: Record<FeatureKey, string> = {
@@ -20,14 +20,20 @@ export const FEATURE_LABELS: Record<FeatureKey, string> = {
   llm_router: "Pemahaman pesan dengan model bahasa",
   companion: "Tautan pendamping",
   cgm: "Impor sensor glukosa (CGM)",
+  projection_consumers: "Ringkasan harian dari proyeksi tunggal",
+  skill_registry: "Registri skill asisten",
+  react_llm_planner: "Perencana langkah dari model bahasa (mode bayangan)",
+  jitai_v3: "Kebijakan intervensi v3 (kualitas data dan kelelahan)",
 };
+
+export const DEFAULT_OFF: readonly FeatureKey[] = ["react_llm_planner"];
 
 export const CACHE_MS = env.FEATURE_FLAG_CACHE_MS;
 
 type Snapshot = { at: number; values: Map<string, boolean> };
 let cache: Snapshot | null = null;
 
-const envDefault = (key: FeatureKey) => !env.FEATURES_DISABLED.includes(key);
+const envDefault = (key: FeatureKey) => !env.FEATURES_DISABLED.includes(key) && !DEFAULT_OFF.includes(key);
 
 async function load(now: number): Promise<Map<string, boolean>> {
   if (cache && now - cache.at < CACHE_MS) return cache.values;

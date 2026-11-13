@@ -69,6 +69,37 @@ enum Treatment {
   }
 }
 
+enum RiskStatement {
+  prediabetes('prediabetes_told', 'Saya prediabetes', 'Dari hasil pemeriksaan'),
+  atRisk('at_risk_told', 'Saya berisiko diabetes', 'Misalnya karena riwayat keluarga'),
+  none('none', 'Tidak pernah', null),
+  undisclosed('undisclosed', 'Tidak ingin menjawab', null);
+
+  const RiskStatement(this.wire, this.label, this.description);
+  final String wire;
+  final String label;
+  final String? description;
+
+  static RiskStatement? parse(String? value) {
+    for (final item in RiskStatement.values) {
+      if (item.wire == value) return item;
+    }
+    return null;
+  }
+}
+
+class JourneyInfo {
+  const JourneyInfo({required this.value, required this.label});
+
+  final String? value;
+  final String? label;
+
+  factory JourneyInfo.fromJson(Map<String, dynamic>? json) => JourneyInfo(
+    value: json?['value'] as String?,
+    label: json?['label'] as String?,
+  );
+}
+
 class HealthProfile {
   const HealthProfile({
     required this.exists,
@@ -76,6 +107,8 @@ class HealthProfile {
     required this.diabetesType,
     required this.diagnosedYear,
     required this.treatments,
+    this.riskStatement,
+    this.journey = const JourneyInfo(value: null, label: null),
   });
 
   final bool exists;
@@ -83,6 +116,8 @@ class HealthProfile {
   final DiabetesType? diabetesType;
   final int? diagnosedYear;
   final List<Treatment> treatments;
+  final RiskStatement? riskStatement;
+  final JourneyInfo journey;
 
   factory HealthProfile.fromJson(Map<String, dynamic> json) => HealthProfile(
     exists: json['exists'] as bool,
@@ -93,5 +128,7 @@ class HealthProfile {
         .map((item) => Treatment.parse(item as String))
         .whereType<Treatment>()
         .toList(),
+    riskStatement: RiskStatement.parse(json['riskStatement'] as String?),
+    journey: JourneyInfo.fromJson(json['journey'] as Map<String, dynamic>?),
   );
 }

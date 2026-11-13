@@ -11,6 +11,9 @@ export const importSessionSchema = z
     durationMinutes: z.number().int().min(1).max(1440),
     distanceKm: z.number().finite().min(0).max(1000).multipleOf(0.001).nullable().optional(),
     steps: z.number().int().min(0).max(1_000_000).nullable().optional(),
+    dataOrigin: z.string().trim().regex(/^[A-Za-z0-9_.]{1,200}$/).optional(),
+    recordingMethod: z.enum(["automatic", "active", "manual", "unknown"]).optional(),
+    device: z.enum(["watch", "phone", "ring", "scale", "chest_strap", "fitness_band", "head_mounted", "unknown"]).optional(),
   })
   .strict();
 

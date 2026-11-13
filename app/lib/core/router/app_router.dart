@@ -49,6 +49,7 @@ import '../../features/food_preferences/presentation/food_preferences_screen.dar
 import '../../features/reminders/presentation/reminders_screen.dart';
 import '../../features/coach/presentation/coach_screen.dart';
 import '../../features/memory/presentation/memory_screen.dart';
+import '../../features/journey/presentation/journey_screen.dart';
 import '../../features/coaching/presentation/coaching_screen.dart';
 import '../../features/coaching/presentation/reflection_screen.dart';
 import '../../features/community/presentation/challenge_screen.dart';
@@ -290,6 +291,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: Routes.report, builder: (_, _) => const ReportScreen()),
       GoRoute(path: Routes.quick, redirect: (_, _) => '${Routes.home}?quick=1'),
       GoRoute(path: Routes.devices, builder: (_, _) => const DevicesScreen()),
+      GoRoute(path: Routes.journey, builder: (_, _) => const JourneyScreen()),
       GoRoute(
         path: Routes.summaryReport,
         builder: (_, _) => const SummaryReportScreen(),

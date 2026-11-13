@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { prisma } from "../../src/infrastructure/database/prisma.ts";
+import { eventHandlers } from "../../src/features/events/handlers.ts";
 import { outbox, MAX_ATTEMPTS } from "../../src/infrastructure/queue/outbox.ts";
 import { outcomes } from "../../src/features/agent/outcomes.ts";
 import { sweepOutcomes } from "../../src/features/agent/agent-worker.ts";
@@ -38,7 +39,7 @@ afterAll(async () => {
   await prisma.$executeRawUnsafe(`DELETE FROM food_reference WHERE code LIKE 'ZZCL%'`);
   await prisma.users.deleteMany({ where: { id: { in: users } } });
 });
-const drain = () => outbox.drain(outcomes.handlers, 100);
+const drain = () => outbox.drain(eventHandlers(), 100);
 
 async function acceptFirst(token: string, query = "zelkap") {
   const r = await J(await run(token, `alternatif ${query}`, { query }));
@@ -56,7 +57,7 @@ test("Outbox: peristiwa ditulis bersama keputusan, dedupe mencegah ganda, penang
   if (!api || process.env.NODE_ENV !== "test") throw new Error("Isolated API required");
   const a = await actor();
   const { rec } = await acceptFirst(a.token);
-  const ev = await prisma.outboxEvent.findMany({ where: { userId: a.id } });
+  const ev = await prisma.outboxEvent.findMany({ where: { userId: a.id, NOT: { type: { startsWith: "consent." } } } });
   expect(ev.map((e) => e.type)).toEqual(["recommendation.decided"]);
   expect(ev[0]).toMatchObject({ status: "PENDING", attempts: 0 });
   // Ulangan keputusan dengan operationId sama tidak menambah peristiwa.

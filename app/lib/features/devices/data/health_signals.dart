@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:health/health.dart';
 
 import '../../../core/network/account_scoped_repository.dart';
+import '../../activity/data/device_activity_source.dart' show validOrigin;
 
 enum SignalType { workouts, steps, weight, glucose, sleep }
 
@@ -32,10 +33,17 @@ class StepsDay {
 }
 
 class DevicePoint {
-  const DevicePoint(this.externalId, this.from, this.to, this.value);
+  const DevicePoint(
+    this.externalId,
+    this.from,
+    this.to,
+    this.value, [
+    this.origin,
+  ]);
   final String externalId;
   final DateTime from, to;
   final num value;
+  final String? origin;
 }
 
 abstract interface class HealthSignalsSource {
@@ -134,6 +142,7 @@ class HealthConnectSignals implements HealthSignalsSource {
             p.dateFrom,
             p.dateTo,
             (p.value as NumericHealthValue).numericValue,
+            p.sourceId,
           ),
     ];
   }
@@ -190,6 +199,7 @@ class DeviceImportRepository extends AccountScopedRepository {
               'externalId': x.externalId,
               'measuredAt': x.from.toUtc().toIso8601String(),
               'kg': x.value,
+              'dataOrigin': ?validOrigin(x.origin),
             },
         ],
         'glucose': [
@@ -200,6 +210,7 @@ class DeviceImportRepository extends AccountScopedRepository {
               'value': x.value,
               'unit': 'mg/dL',
               'specimen': 'unknown',
+              'dataOrigin': ?validOrigin(x.origin),
             },
         ],
         'sleep': [
@@ -208,6 +219,7 @@ class DeviceImportRepository extends AccountScopedRepository {
               'externalId': x.externalId,
               'startedAt': x.from.toUtc().toIso8601String(),
               'endedAt': x.to.toUtc().toIso8601String(),
+              'dataOrigin': ?validOrigin(x.origin),
             },
         ],
       };
