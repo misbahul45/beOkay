@@ -1,413 +1,1368 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
+
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import type {
+  PointerEvent as ReactPointerEvent,
+  ReactNode,
+} from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
-import { ArrowRight, ChevronRight, Download, Menu } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { cn } from "@/lib/utils";
+import {
+  Activity,
+  ArrowDown,
+  ArrowRight,
+  ArrowUpRight,
+  BrainCircuit,
+  Check,
+  ChevronDown,
+  CircleCheck,
+  Download,
+  Footprints,
+  Heart,
+  HeartHandshake,
+  HeartPulse,
+  LockKeyhole,
+  Menu,
+  MoonStar,
+  ShieldCheck,
+  Sparkles,
+  Target,
+  Utensils,
+  Watch,
+  X,
+} from "lucide-react";
+import "./App.css";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
-const Phone3D = lazy(() => import("@/components/phone-3d"));
+const Phone3D = lazy(
+  () => import("./components/phone-3d")
+);
 
-function canUseWebGL() {
+const APK = {
+  href: "https://beokay-api.vercel.app/beokay.apk",
+  version: "1.1.2",
+  size: "34,1 MB",
+  sha256:
+    "ac05625bc0ad84039dea563fb6dd98e2e2125a2be0e46568a97603c7edf405c4",
+};
+
+const NAV = [
+  { label: "Cara kerja", href: "#cara-kerja" },
+  { label: "Fitur", href: "#fitur" },
+  { label: "Tiga jalur", href: "#jalur" },
+  { label: "Privasi", href: "#privasi" },
+  { label: "FAQ", href: "#tanya-jawab" },
+];
+
+const STEPS = [
+  {
+    title: "Ceritakan harimu",
+    description:
+      "Catat makan, aktivitas, tidur, atau glukosa bila relevan. Mulai dari yang paling mudah.",
+    Icon: Utensils,
+  },
+  {
+    title: "Hubungkan perangkat",
+    description:
+      "Sinkronkan langkah, tidur, dan latihan melalui Health Connect dengan izinmu.",
+    Icon: Watch,
+  },
+  {
+    title: "Lihat gambaran utuh",
+    description:
+      "Pahami pola harian dan mingguan, termasuk data yang masih berupa perkiraan.",
+    Icon: Activity,
+  },
+  {
+    title: "Dapatkan saran kecil",
+    description:
+      "Asisten menawarkan satu langkah realistis yang berangkat dari catatanmu.",
+    Icon: Sparkles,
+  },
+  {
+    title: "Kamu pegang kendali",
+    description:
+      "Setujui, ubah, atau tolak sarannya. Tidak otomatis disimpan tanpa persetujuan.",
+    Icon: CircleCheck,
+  },
+];
+
+const FEATURES = [
+  {
+    number: "01",
+    kicker: "DAILY COACH",
+    title: "Langkah kecil yang terasa mungkin.",
+    description:
+      "Saran mengikuti catatanmu, bukan target sempurna. Setiap tindakan menunggu keputusanmu.",
+    image: "/img/screen-home.webp",
+    imageAlt:
+      "Tampilan beranda aplikasi beOkay dengan ringkasan dan langkah berikutnya",
+    tone: "mint",
+    Icon: Target,
+  },
+  {
+    number: "02",
+    kicker: "CONNECTED WELLNESS",
+    title: "Lebih paham, tanpa menebak-nebak.",
+    description:
+      "Perangkat yang terhubung membantu merangkum gerak dan tidur; data yang tumpang tindih dihitung sekali.",
+    image: "/img/screen-devices.webp",
+    imageAlt:
+      "Tampilan integrasi dan status data perangkat di beOkay",
+    tone: "blue",
+    Icon: Watch,
+  },
+  {
+    number: "03",
+    kicker: "THOUGHTFUL AI",
+    title: "Asisten yang tahu kapan harus berhenti.",
+    description:
+      "Penjelasan menyertakan batas kepastian. Pertanyaan medis berisiko dialihkan ke tenaga kesehatan.",
+    image: "/img/screen-assistant.webp",
+    imageAlt:
+      "Tampilan asisten beOkay dengan informasi dan label kepastian",
+    tone: "violet",
+    Icon: BrainCircuit,
+  },
+  {
+    number: "04",
+    kicker: "BETTER TOGETHER",
+    title: "Sehat bareng, tanpa adu angka kesehatan.",
+    description:
+      "Misi tim merayakan konsistensi bersama dengan menampilkan progres agregat, bukan data kesehatan pribadi.",
+    image: "/img/screen-team.webp",
+    imageAlt:
+      "Tampilan progres misi tim di aplikasi beOkay",
+    tone: "peach",
+    Icon: HeartHandshake,
+  },
+] as const;
+
+const JOURNEYS = [
+  {
+    title: "Pencegahan",
+    badge: "Build healthy habits",
+    description:
+      "Untuk kamu yang pernah diberi tahu tenaga kesehatan bahwa kamu berisiko atau mengalami prediabetes. Mulai dari kebiasaan kecil dan pengingat pemeriksaan rutin.",
+    bullets: [
+      "Rutinitas yang realistis",
+      "Materi pencegahan sesuai ketersediaan",
+      "Pengingat pemeriksaan",
+    ],
+    Icon: ShieldCheck,
+  },
+  {
+    title: "Dukungan diabetes tipe 2",
+    badge: "Stay informed",
+    description:
+      "Catat asupan, aktivitas, glukosa, dan obat bila relevan. Keputusan diagnosis serta pengobatan tetap bersama tenaga kesehatan.",
+    bullets: [
+      "Catatan harian terhubung",
+      "Konteks yang bisa ditinjau",
+      "Keputusan medis tetap pada klinisi",
+    ],
+    Icon: HeartPulse,
+  },
+  {
+    title: "Gaya hidup sehat",
+    badge: "Feel your best",
+    description:
+      "Beri ruang untuk bergerak, makan, dan istirahat lebih teratur tanpa harus mengejar rutinitas yang sempurna.",
+    bullets: [
+      "Keseimbangan aktivitas dan istirahat",
+      "Check-in yang sederhana",
+      "Target kecil berkelanjutan",
+    ],
+    Icon: Footprints,
+  },
+];
+
+const PRIVACY = [
+  {
+    title: "Izin yang jelas",
+    description:
+      "Persetujuan diberikan per tujuan penggunaan data dan dapat dicabut.",
+    Icon: LockKeyhole,
+  },
+  {
+    title: "Ingatan dalam kendali",
+    description:
+      "Tinjau, koreksi, jeda, atau hapus informasi yang diingat asisten.",
+    Icon: BrainCircuit,
+  },
+  {
+    title: "Batas medis yang aman",
+    description:
+      "Bukan pengganti diagnosis atau keputusan pengobatan oleh klinisi.",
+    Icon: ShieldCheck,
+  },
+  {
+    title: "Data tetap milikmu",
+    description:
+      "Ekspor catatan atau ajukan penghapusan akun dari aplikasi.",
+    Icon: Heart,
+  },
+];
+
+const FAQ = [
+  {
+    question: "Apa sebenarnya beOkay?",
+    answer:
+      "beOkay adalah aplikasi Android untuk memahami kebiasaan sehat sehari-hari, mulai dari makan, aktivitas, dan tidur hingga glukosa atau obat bila relevan. Asistennya dapat menyarankan langkah kecil dari catatanmu.",
+  },
+  {
+    question: "Apakah ini aplikasi diagnosis diabetes?",
+    answer:
+      "Tidak. beOkay bukan alat diagnosis, tidak memberikan dosis obat, dan tidak menggantikan tenaga kesehatan. Untuk keputusan medis, konsultasikan dengan klinisi.",
+  },
+  {
+    question: "Apakah harus mempunyai smartwatch?",
+    answer:
+      "Tidak. Kamu tetap bisa mencatat secara manual. Jika perangkatmu mengirimkan data ke Health Connect, sebagian informasi dapat disinkronkan setelah kamu memberi izin.",
+  },
+  {
+    question: "Bagaimana cara kerja asisten AI-nya?",
+    answer:
+      "Asisten membaca konteks yang kamu izinkan, membantu memahami catatan, dan dapat menawarkan satu langkah kecil. Kamu bisa meninjau sarannya sebelum menyimpan tindakan apa pun.",
+  },
+  {
+    question: "Apakah informasi pribadiku aman?",
+    answer:
+      "beOkay dirancang dengan persetujuan per tujuan serta kontrol untuk memeriksa dan menghapus ingatan asisten. Selalu tinjau izin dan kebijakan privasi aplikasi sebelum menghubungkan data kesehatan.",
+  },
+  {
+    question: "Apakah beOkay gratis?",
+    answer:
+      "Versi pilot beOkay saat ini dapat diunduh tanpa biaya. Ketersediaan fitur dapat berubah seiring pengembangan.",
+  },
+  {
+    question: "Bagaimana memasang file APK?",
+    answer:
+      "Unduh APK melalui tombol resmi pada halaman ini. Android mungkin akan meminta izin pemasangan dari sumber tersebut. Pastikan kamu mengunduh dari tautan resmi beOkay.",
+  },
+];
+
+function supportsWebGL() {
   try {
-    const c = document.createElement("canvas");
-    return !!(c.getContext("webgl2") ?? c.getContext("webgl"));
+    const canvas = document.createElement("canvas");
+    const context =
+      canvas.getContext("webgl2") ??
+      canvas.getContext("webgl");
+
+    const available = Boolean(context);
+
+    context
+      ?.getExtension("WEBGL_lose_context")
+      ?.loseContext();
+
+    return available;
   } catch {
     return false;
   }
 }
 
-const APK_URL = "/beokay.apk";
-const APK = { url: "https://beokay-api.vercel.app/beokay.apk", version: "1.1.2", size: "34,1 MB", sha256: "ac05625bc0ad84039dea563fb6dd98e2e2125a2be0e46568a97603c7edf405c4" };
-const MOTION = "(prefers-reduced-motion: no-preference)";
+function BrandMark({
+  className = "",
+}: {
+  className?: string;
+}) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 64 64"
+      fill="none"
+      aria-hidden="true"
+    >
+      <rect
+        x="2"
+        y="2"
+        width="60"
+        height="60"
+        rx="21"
+        fill="currentColor"
+        fillOpacity="0.10"
+      />
+      <path
+        d="M17 34.5c3.5-10.5 10-16.5 16-16.5 6.8 0 10.6 4.5 10.6 10.3 0 6-4.6 10.2-10.2 10.2-4.1 0-7.2-2.6-7.2-6.4 0-3.2 2.6-5.3 5.2-5.3 2.3 0 4.1 1.5 4.1 3.7"
+        stroke="currentColor"
+        strokeWidth="5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle
+        cx="46.2"
+        cy="43"
+        r="4.2"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
 
-const NAV = [
-  { href: "#cara-kerja", label: "Cara kerja" },
-  { href: "#jalur", label: "Tiga jalur" },
-  { href: "#fitur", label: "Fitur" },
-  { href: "#privasi", label: "Privasi" },
-  { href: "#tanya-jawab", label: "Tanya jawab" },
-];
+function Brand({
+  inverse = false,
+}: {
+  inverse?: boolean;
+}) {
+  return (
+    <a
+      className={`bo-brand${
+        inverse ? " bo-brand--inverse" : ""
+      }`}
+      href="#beranda"
+      aria-label="beOkay, kembali ke beranda"
+    >
+      <BrandMark className="bo-brand__mark" />
+      <span>
+        be
+        <span className="bo-brand__accent">
+          Okay
+        </span>
+        <span className="bo-brand__period">
+          .
+        </span>
+      </span>
+    </a>
+  );
+}
+
+function DownloadButton({
+  light = false,
+  children = "Unduh aplikasi",
+}: {
+  light?: boolean;
+  children?: ReactNode;
+}) {
+  return (
+    <a
+      className={`bo-button bo-button--primary${
+        light ? " bo-button--light" : ""
+      }`}
+      href={APK.href}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <Download
+        size={18}
+        strokeWidth={2.2}
+        aria-hidden="true"
+      />
+      <span>{children}</span>
+      <ArrowUpRight
+        size={17}
+        aria-hidden="true"
+      />
+    </a>
+  );
+}
 
 function Header() {
-  const [solid, setSolid] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+
   useEffect(() => {
-    const onScroll = () => setSolid(window.scrollY > window.innerHeight * 0.6);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    const handleScroll = () =>
+      setScrolled(window.scrollY > 40);
+
+    handleScroll();
+
+    window.addEventListener(
+      "scroll",
+      handleScroll,
+      { passive: true }
+    );
+
+    return () =>
+      window.removeEventListener(
+        "scroll",
+        handleScroll
+      );
   }, []);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+      }
+    };
+
+    window.addEventListener(
+      "keydown",
+      onEscape
+    );
+
+    return () =>
+      window.removeEventListener(
+        "keydown",
+        onEscape
+      );
+  }, [menuOpen]);
+
   return (
-    <header className={cn("fixed inset-x-0 top-0 z-40 transition-colors duration-300", solid ? "bg-cream/90 backdrop-blur-md" : "bg-transparent")}>
-      <div className="mx-auto flex h-20 max-w-[1440px] items-center justify-between px-5 md:px-[60px]">
-        <a href="#beranda" aria-label="beOkay, kembali ke atas" className="rounded-lg focus-visible:ring-2 focus-visible:ring-ring">
-          <img src="/img/logo-full.webp" alt="beOkay" width={152} height={47} className="h-9 w-auto md:h-11" />
-        </a>
-        <div className="flex items-center gap-3 md:gap-4">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="secondary" size="icon" aria-label="Buka menu" className="bg-sand">
-                <Menu />
-              </Button>
-            </SheetTrigger>
-            <SheetContent>
-              <SheetTitle>Menu</SheetTitle>
-              <SheetDescription>Navigasi halaman beOkay</SheetDescription>
-              <nav className="mt-6 flex flex-col">
-                {NAV.map((n) => (
-                  <SheetClose asChild key={n.href}>
-                    <a href={n.href} className="border-b border-line py-4 text-2xl text-ink hover:text-brand">
-                      {n.label}
-                    </a>
-                  </SheetClose>
-                ))}
-              </nav>
-              <Button asChild size="lg" className="mt-8">
-                <a href={APK_URL}>
-                  <Download /> Unduh untuk Android
-                </a>
-              </Button>
-            </SheetContent>
-          </Sheet>
-          <Button asChild size="sm" className="h-11 sm:hidden">
-            <a href={APK_URL} aria-label="Unduh APK Android">
-              <Download /> Unduh APK
+    <header
+      className={`bo-header${
+        scrolled || menuOpen
+          ? " bo-header--scrolled"
+          : ""
+      }`}
+    >
+      <div className="bo-container bo-header__inner">
+        <Brand
+          inverse={!scrolled && !menuOpen}
+        />
+
+        <nav
+          className="bo-nav"
+          aria-label="Navigasi utama"
+        >
+          {NAV.map((item) => (
+            <a
+              key={item.href}
+              href={item.href}
+            >
+              {item.label}
             </a>
-          </Button>
-          <Button asChild className="hidden sm:inline-flex">
-            <a href={APK_URL}>Unduh untuk Android</a>
-          </Button>
+          ))}
+        </nav>
+
+        <div className="bo-header__actions">
+          <a
+            className="bo-header__cta"
+            href={APK.href}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Download APK
+            <ArrowUpRight size={16} />
+          </a>
+
+          <button
+            type="button"
+            className="bo-menu-button"
+            aria-label={
+              menuOpen
+                ? "Tutup menu"
+                : "Buka menu"
+            }
+            aria-expanded={menuOpen}
+            aria-controls="bo-mobile-menu"
+            onClick={() =>
+              setMenuOpen((open) => !open)
+            }
+          >
+            {menuOpen ? (
+              <X size={24} />
+            ) : (
+              <Menu size={24} />
+            )}
+          </button>
         </div>
       </div>
+
+      <nav
+        id="bo-mobile-menu"
+        className={`bo-mobile-nav${
+          menuOpen
+            ? " bo-mobile-nav--open"
+            : ""
+        }`}
+        aria-label="Navigasi seluler"
+        inert={!menuOpen}
+      >
+        {NAV.map((item) => (
+          <a
+            key={item.href}
+            href={item.href}
+            onClick={() =>
+              setMenuOpen(false)
+            }
+          >
+            {item.label}
+            <ArrowUpRight size={19} />
+          </a>
+        ))}
+
+        <a
+          href={APK.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() =>
+            setMenuOpen(false)
+          }
+        >
+          Unduh untuk Android
+          <Download size={19} />
+        </a>
+      </nav>
     </header>
   );
 }
 
-function Hero() {
-  const root = useRef<HTMLElement>(null);
-  useGSAP(
-    () => {
-      const mm = gsap.matchMedia();
-      mm.add(MOTION, () => {
-        gsap.from(".hero-line", { yPercent: 110, opacity: 0, duration: 1.1, stagger: 0.12, ease: "power3.out", delay: 0.15 });
-        gsap.from(".hero-mark", { scale: 0.85, opacity: 0, duration: 1.4, ease: "power2.out" });
-        gsap.to(".hero-sky", { yPercent: 12, ease: "none", scrollTrigger: { trigger: root.current, start: "top top", end: "bottom top", scrub: true } });
-        gsap.to(".hero-mark", { yPercent: -30, rotate: 8, ease: "none", scrollTrigger: { trigger: root.current, start: "top top", end: "bottom top", scrub: true } });
-      });
-    },
-    { scope: root },
-  );
-  const [webgl, setWebgl] = useState(false);
-  useEffect(() => setWebgl(canUseWebGL()), []);
-  const mark = <img src="/img/logo-mark.webp" alt="" aria-hidden width={384} height={384} className="hero-mark absolute top-[20%] right-[10%] w-[26vw] max-w-[300px] drop-shadow-[0_24px_40px_rgba(15,76,92,0.18)]" />;
+function PhoneFallback() {
   return (
-    <section id="beranda" ref={root} className="relative h-[100svh] min-h-[640px] overflow-hidden">
-      <div className="hero-sky absolute inset-0 -top-[6%] h-[112%] bg-[linear-gradient(180deg,#79c3e0_0%,#bfe2ec_38%,#f2d7a1_72%,#e7af67_100%)]" />
-      <div aria-hidden className="absolute top-[14%] right-[6%] size-[42vw] max-h-[460px] max-w-[460px] rounded-full bg-[#fff6de]/60 blur-[2px]" />
-      <div aria-hidden className="absolute inset-x-0 bottom-0 h-[62%] bg-[linear-gradient(0deg,rgba(74,42,14,0.62)_0%,rgba(74,42,14,0.32)_45%,rgba(74,42,14,0)_100%)]" />
-      {webgl ? (
-        <Suspense fallback={mark}>
-          <Phone3D className="absolute top-[9%] right-[-12%] h-[56%] w-[78vw] sm:right-[-4%] md:top-[8%] md:right-[4%] md:h-[80%] md:w-[42vw] md:max-w-[620px]" />
-        </Suspense>
-      ) : (
-        mark
-      )}
-      <div className="relative mx-auto flex h-full max-w-[1440px] flex-col justify-end px-5 pb-14 md:px-[100px] md:pb-16">
-        <h1 className="max-w-[980px] text-[44px] leading-[1.08] text-white sm:text-6xl md:text-[80px] md:leading-[1.18] md:tracking-[-0.8px]">
-          <span className="block overflow-hidden pb-[0.08em]"><span className="hero-line block">Hubungan baru dengan</span></span>
-          <span className="block overflow-hidden pb-[0.08em]"><span className="hero-line block">kebiasaan sehatmu</span></span>
-        </h1>
-        <a href="#unduh" className="mt-8 w-fit text-xl text-white/95 hover:text-white">Gulir</a>
-      </div>
-    </section>
-  );
-}
+    <div
+      className="bo-phone-fallback"
+      aria-label="Pratinjau tampilan aplikasi beOkay"
+    >
+      <div className="bo-phone-fallback__speaker" />
 
-function DownloadStrip() {
-  return (
-    <section id="unduh" className="bg-[#5a3a1c]">
-      <div className="mx-auto flex max-w-[1440px] flex-col gap-5 px-5 py-12 md:px-[100px]">
-        <p className="text-xl text-white">Unduh aplikasinya</p>
-        <div className="flex flex-wrap gap-4">
-          <Button asChild variant="light" size="store">
-            <a href={APK_URL}>
-              <Download /> Android (APK)
-            </a>
-          </Button>
-          <Button asChild variant="light" size="store">
-            <a href="#cara-kerja">
-              Lihat cara kerja <ArrowRight />
-            </a>
-          </Button>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function Intro() {
-  const root = useRef<HTMLElement>(null);
-  useGSAP(
-    () => {
-      gsap.matchMedia().add(MOTION, () => {
-        gsap.from(".intro-reveal", { y: 40, opacity: 0, duration: 0.9, stagger: 0.12, ease: "power2.out", scrollTrigger: { trigger: root.current, start: "top 70%" } });
-      });
-    },
-    { scope: root },
-  );
-  return (
-    <section id="ringkasan" ref={root} className="mx-auto max-w-[1100px] px-5 pt-28 pb-10 text-center md:pt-40">
-      <h2 className="intro-reveal text-4xl leading-[1.15] text-ink md:text-[64px] md:leading-[1.18] md:tracking-[-0.5px]">
-        Semua kebiasaan sehatmu
-        <br className="hidden md:block" /> di satu tempat
-      </h2>
-      <p className="intro-reveal mx-auto mt-10 max-w-[880px] text-xl leading-relaxed text-ink md:text-[30px] md:leading-[1.45]">
-        beOkay menyatukan catatan makan, aktivitas, tidur, dan data dari Health Connect menjadi satu gambaran yang mudah dibaca, lalu menyarankan satu langkah kecil berikutnya.
-      </p>
-      <Button asChild className="intro-reveal mt-12">
-        <a href="#cara-kerja">Lihat cara kerjanya</a>
-      </Button>
-    </section>
-  );
-}
-
-const STEPS = [
-  { title: "Catat", text: "Makan, aktivitas, tidur, dan glukosa bila relevan. Cukup ketik atau pakai suara." },
-  { title: "Sambungkan", text: "Langkah, tidur, dan sesi latihan dari Health Connect, dengan izin per jenis data." },
-  { title: "Pahami pola", text: "Ringkasan harian dan mingguan. Angka dari perangkat ditandai sebagai perkiraan." },
-  { title: "Satu langkah kecil", text: "Asisten mengusulkan satu langkah dari catatanmu sendiri." },
-  { title: "Kamu yang memutuskan", text: "Setujui, ubah, atau tolak. Tanpa persetujuanmu, tidak ada yang disimpan." },
-];
-
-function Flow() {
-  const root = useRef<HTMLElement>(null);
-  useGSAP(
-    () => {
-      gsap.matchMedia().add({ wide: "(min-width: 768px)", motion: MOTION }, (ctx) => {
-        if (!ctx.conditions?.motion) return;
-        const wide = ctx.conditions.wide;
-        const tl = gsap.timeline({ scrollTrigger: { trigger: ".flow-list", start: "top 78%", end: wide ? "bottom 55%" : "bottom 60%", scrub: 0.6 } });
-        tl.from(".flow-fill", wide ? { scaleX: 0, ease: "none", duration: 1 } : { scaleY: 0, ease: "none", duration: 1 }, 0);
-        gsap.utils.toArray<HTMLElement>(".flow-step").forEach((el, i) => {
-          const at = i / (STEPS.length - 1);
-          tl.from(el.querySelector(".flow-dot"), { backgroundColor: "#ffffff", color: "#0f7a6c", scale: 0.86, duration: 0.08, ease: "none" }, Math.max(0, at - 0.04));
-          tl.from(el.querySelectorAll(".flow-copy"), { opacity: 0.25, y: 14, duration: 0.12, ease: "none" }, Math.max(0, at - 0.06));
-        });
-      });
-    },
-    { scope: root },
-  );
-  return (
-    <section id="cara-kerja" ref={root} className="mx-auto max-w-[1440px] px-5 pt-24 pb-10 md:px-[100px] md:pt-36">
-      <p className="text-xl text-ink">Cara kerja</p>
-      <h2 className="mt-3 max-w-[1000px] text-4xl leading-[1.12] text-ink md:text-[56px] md:tracking-[-0.5px]">Dari catatan kecil ke satu langkah yang kamu pilih</h2>
-      <ol className="flow-list relative mt-14 grid gap-10 md:mt-20 md:grid-cols-5 md:gap-6">
-        <span aria-hidden className="absolute top-7 bottom-7 left-[26px] w-1 rounded-full bg-line md:right-[10%] md:bottom-auto md:left-[10%] md:h-1 md:w-auto" />
-        <span aria-hidden className="flow-fill absolute top-7 bottom-7 left-[26px] w-1 origin-top rounded-full bg-brand md:right-[10%] md:bottom-auto md:left-[10%] md:h-1 md:w-auto md:origin-left" />
-        {STEPS.map((step, i) => (
-          <li key={step.title} className="flow-step relative grid grid-cols-[56px_1fr] items-start gap-5 md:flex md:flex-col md:items-center md:gap-0 md:text-center">
-            <span className="flow-dot relative z-10 grid size-14 place-items-center rounded-full border-2 border-brand bg-brand text-xl font-medium text-white">{i + 1}</span>
-            <div>
-              <h3 className="flow-copy text-2xl text-navy md:mt-6">{step.title}</h3>
-              <p className="flow-copy mt-2 max-w-[260px] text-base leading-relaxed text-ink/90">{step.text}</p>
-            </div>
-          </li>
-        ))}
-      </ol>
-    </section>
-  );
-}
-
-const CARDS = [
-  { label: "Langkah", value: "8.532", tone: "bg-[#9ee6d6]", pos: "left-[4%] top-[6%] md:left-[22%] md:top-[4%]", speed: -60 },
-  { label: "Tidur", value: "7 j 12 m", sub: "dari dua perangkat, dihitung sekali", tone: "bg-[#e3d6fb]", pos: "right-[4%] top-[18%] md:right-[18%] md:top-[10%]", speed: 40 },
-  { label: "Hari aktif minggu ini", value: "3 dari 7", tone: "bg-[#cdefb9]", pos: "left-[8%] top-[42%] md:left-[26%] md:top-[40%]", speed: -30 },
-  { label: "Energi hari ini", value: "Biasa", tone: "bg-[#ffedbe]", pos: "right-[6%] top-[52%] md:right-[16%] md:top-[46%]", speed: 70 },
-  { label: "Rencana kecil", value: "Jalan kaki 10 menit", sub: "menunggu persetujuanmu", tone: "bg-white", pos: "left-[6%] bottom-[6%] md:left-[34%] md:bottom-[6%]", speed: -80 },
-  { label: "Kepastian", value: "Perkiraan perangkat", tone: "bg-white", pos: "right-[4%] bottom-[2%] md:right-[26%] md:bottom-[2%]", speed: 30 },
-];
-
-function Collage() {
-  const root = useRef<HTMLElement>(null);
-  useGSAP(
-    () => {
-      gsap.matchMedia().add(MOTION, () => {
-        gsap.utils.toArray<HTMLElement>(".float-card").forEach((el) => {
-          gsap.from(el, { opacity: 0, scale: 0.9, duration: 0.8, ease: "power2.out", scrollTrigger: { trigger: el, start: "top 90%" } });
-          gsap.to(el, { y: Number(el.dataset.speed), ease: "none", scrollTrigger: { trigger: root.current, start: "top bottom", end: "bottom top", scrub: true } });
-        });
-        gsap.to(".collage-mark", { rotate: 360, ease: "none", scrollTrigger: { trigger: root.current, start: "top bottom", end: "bottom top", scrub: true } });
-      });
-    },
-    { scope: root },
-  );
-  return (
-    <section ref={root} aria-label="Contoh ringkasan harian" className="relative mx-auto h-[760px] max-w-[1440px] px-5 md:h-[880px]">
-      <img src="/img/logo-mark.webp" alt="" aria-hidden width={96} height={96} className="collage-mark absolute top-1/2 left-1/2 size-20 -translate-x-1/2 -translate-y-1/2 md:size-24" />
-      {CARDS.map((c) => (
-        <div key={c.label} data-speed={c.speed} className={cn("float-card absolute w-[44vw] max-w-[260px] rounded-3xl p-5 shadow-[0_10px_30px_rgba(24,37,42,0.06)]", c.tone, c.pos)}>
-          <p className="text-sm font-medium text-muted-foreground">{c.label}</p>
-          <p className="mt-1 text-2xl font-semibold text-ink-strong md:text-[26px]">{c.value}</p>
-          {c.sub && <p className="mt-1 text-xs text-muted-foreground">{c.sub}</p>}
-        </div>
-      ))}
-      <p className="absolute inset-x-0 bottom-[-28px] text-center text-xs text-muted-foreground">Angka pada gambar adalah contoh.³</p>
-    </section>
-  );
-}
-
-const JOURNEYS = [
-  { name: "Pencegahan", text: "Bila tenaga kesehatan pernah bilang kamu prediabetes atau berisiko. Kebiasaan kecil, bacaan pencegahan², dan pengingat pemeriksaan rutin." },
-  { name: "Dukungan diabetes tipe 2", text: "Catat makan, aktivitas, glukosa, dan obat. Pengobatan tetap bersama tim kesehatanmu." },
-  { name: "Gaya hidup sehat", text: "Bergerak, makan, dan tidur sehari-hari dengan langkah yang realistis." },
-];
-
-function Journeys() {
-  const root = useRef<HTMLElement>(null);
-  useGSAP(
-    () => {
-      gsap.matchMedia().add(MOTION, () => {
-        gsap.from(".journey-row", { x: -40, opacity: 0, duration: 0.8, stagger: 0.15, ease: "power2.out", scrollTrigger: { trigger: root.current, start: "top 70%" } });
-      });
-    },
-    { scope: root },
-  );
-  return (
-    <section id="jalur" ref={root} className="mx-auto max-w-[1440px] px-5 pt-32 pb-24 md:px-[120px] md:pt-44">
-      <h2 className="text-4xl text-ink md:text-[64px] md:tracking-[-0.5px]">Dirancang untuk tiga jalur</h2>
-      <p className="mt-6 max-w-[760px] text-lg text-ink/90 md:text-xl">Jalurmu ditentukan dari jawabanmu sendiri, bukan ditebak dari data. Konten untuk satu jalur tidak muncul di jalur lain.</p>
-      <ul className="mt-12">
-        {JOURNEYS.map((j) => (
-          <li key={j.name} className="journey-row group grid gap-3 border-b border-line py-8 md:grid-cols-[1.1fr_1fr] md:items-center md:py-10">
-            <h3 className="flex items-center justify-between text-3xl text-navy md:text-5xl">
-              {j.name}
-              <ChevronRight className="size-8 transition-transform duration-300 group-hover:translate-x-1 md:hidden" />
-            </h3>
-            <p className="text-lg text-ink/90">{j.text}</p>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-function Phone({ src, alt, className }: { src: string; alt: string; className?: string }) {
-  return (
-    <div className={cn("rounded-[44px] bg-[#1d2428] p-[10px] shadow-[0_30px_60px_rgba(24,37,42,0.22)]", className)}>
-      <img src={src} alt={alt} width={360} height={780} loading="lazy" className="block w-full rounded-[34px]" />
+      <img
+        src="/img/screen-home.webp"
+        alt="Contoh layar utama beOkay"
+        width={360}
+        height={780}
+        fetchPriority="high"
+      />
     </div>
   );
 }
 
-function Screens() {
-  const root = useRef<HTMLElement>(null);
-  useGSAP(
-    () => {
-      gsap.matchMedia().add(MOTION, () => {
-        const st = { trigger: root.current, start: "top bottom", end: "bottom top", scrub: true };
-        gsap.fromTo(".phone-a", { y: 120, rotate: -6 }, { y: -60, rotate: -2, ease: "none", scrollTrigger: st });
-        gsap.fromTo(".phone-b", { y: 40, rotate: 6 }, { y: -140, rotate: 2, ease: "none", scrollTrigger: st });
-      });
-    },
-    { scope: root },
-  );
+function Hero() {
+  const [webgl, setWebgl] = useState(false);
+
+  useEffect(() => {
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    );
+
+    if (
+      !reducedMotion.matches &&
+      supportsWebGL()
+    ) {
+      setWebgl(true);
+    }
+  }, []);
+
+  const handlePointerMove = (
+    event: ReactPointerEvent<HTMLElement>
+  ) => {
+    if (event.pointerType === "touch") {
+      return;
+    }
+
+    const bounds =
+      event.currentTarget.getBoundingClientRect();
+
+    event.currentTarget.style.setProperty(
+      "--mouse-x",
+      `${event.clientX - bounds.left}px`
+    );
+
+    event.currentTarget.style.setProperty(
+      "--mouse-y",
+      `${event.clientY - bounds.top}px`
+    );
+  };
+
   return (
-    <section ref={root} className="mx-auto max-w-[1440px] overflow-hidden px-5 pt-10 pb-28 md:px-[60px]">
-      <div className="flex justify-center gap-6 md:gap-16">
-        <Phone src="/img/screen-home.webp" alt="Beranda beOkay dengan kartu langkah berikutnya, progres minggu ini, dan check-in energi" className="phone-a w-[44vw] max-w-[300px]" />
-        <Phone src="/img/screen-memory.webp" alt="Layar ingatan asisten dengan konflik, ingatan aktif, dan yang dijeda" className="phone-b mt-16 w-[44vw] max-w-[300px]" />
+    <section
+      className="bo-hero"
+      id="beranda"
+      onPointerMove={handlePointerMove}
+    >
+      <div
+        className="bo-hero__glow bo-hero__glow--one"
+        aria-hidden="true"
+      />
+      <div
+        className="bo-hero__glow bo-hero__glow--two"
+        aria-hidden="true"
+      />
+      <div
+        className="bo-hero__grid-pattern"
+        aria-hidden="true"
+      />
+
+      <div className="bo-container bo-hero__layout">
+        <div className="bo-hero__content">
+          <div className="bo-kicker bo-kicker--hero bo-hero-enter">
+            <span className="bo-live-dot" />
+            YOUR EVERYDAY WELLNESS COMPANION
+          </div>
+
+          <h1 className="bo-hero__title bo-hero-enter">
+            Hidup lebih sehat.
+            <br />
+            <span>Dengan caramu.</span>
+          </h1>
+
+          <p className="bo-hero__description bo-hero-enter">
+            Satu tempat untuk memahami pola
+            makan, gerak, dan tidurmu. Dibantu
+            AI yang mengenal konteks,
+            menghargai pilihan, dan memulai
+            dari satu langkah kecil.
+          </p>
+
+          <div className="bo-hero__buttons bo-hero-enter">
+            <DownloadButton>
+              Unduh untuk Android
+            </DownloadButton>
+
+            <a
+              className="bo-button bo-button--ghost"
+              href="#cara-kerja"
+            >
+              Jelajahi beOkay
+              <ArrowRight size={19} />
+            </a>
+          </div>
+
+          <p className="bo-hero__note bo-hero-enter">
+            <Check size={16} />
+            Gratis selama pilot
+            <span />
+            Tidak memerlukan smartwatch
+          </p>
+        </div>
+
+        <div
+          className="bo-hero__visual"
+          aria-label="Ilustrasi tiga dimensi aplikasi beOkay"
+        >
+          <div
+            className="bo-hero__halo"
+            aria-hidden="true"
+          />
+          <div
+            className="bo-orbit bo-orbit--outer"
+            aria-hidden="true"
+          />
+          <div
+            className="bo-orbit bo-orbit--inner"
+            aria-hidden="true"
+          />
+
+          <div className="bo-hero__phone bo-hero-enter">
+            {webgl ? (
+              <Suspense
+                fallback={<PhoneFallback />}
+              >
+                <Phone3D className="bo-hero__canvas" />
+              </Suspense>
+            ) : (
+              <PhoneFallback />
+            )}
+          </div>
+
+          <div
+            className="bo-floating-pill bo-floating-pill--steps"
+            aria-hidden="true"
+          >
+            <span className="bo-floating-pill__icon bo-floating-pill__icon--mint">
+              <Footprints size={20} />
+            </span>
+
+            <span>
+              <small>Langkah hari ini</small>
+              <strong>
+                8.532 <i>langkah</i>
+              </strong>
+            </span>
+
+            <span className="bo-pill-trend">
+              ↗
+            </span>
+          </div>
+
+          <div
+            className="bo-floating-pill bo-floating-pill--sleep"
+            aria-hidden="true"
+          >
+            <span className="bo-floating-pill__icon bo-floating-pill__icon--violet">
+              <MoonStar size={20} />
+            </span>
+
+            <span>
+              <small>Durasi tidur</small>
+              <strong>7j 12m</strong>
+            </span>
+          </div>
+
+          <div
+            className="bo-floating-advice"
+            aria-hidden="true"
+          >
+            <Sparkles size={16} />
+            <span>
+              Satu langkah kecil setiap hari
+            </span>
+            <CircleCheck size={17} />
+          </div>
+
+          <span className="bo-hero__mock-note">
+            * Visual dan angka merupakan ilustrasi
+          </span>
+        </div>
       </div>
-      <h2 className="mt-24 max-w-[760px] text-3xl leading-[1.2] text-ink md:text-[40px]">Dirancang untuk tempatmu hari ini dan langkahmu berikutnya.</h2>
+
+      <a
+        className="bo-hero__scroll"
+        href="#ringkasan"
+      >
+        <span>SCROLL TO EXPLORE</span>
+        <ArrowDown size={17} />
+      </a>
+
+      <div
+        className="bo-hero__bottom-glow"
+        aria-hidden="true"
+      />
     </section>
   );
 }
 
-const PANELS = [
-  { title: "Rencana kecil yang pas dengan harimu", text: "Asisten mengusulkan satu langkah kecil dari catatanmu sendiri, misalnya jalan kaki sepuluh menit. Tidak ada yang tersimpan sebelum kamu menyetujuinya.", tone: "bg-panel-green", src: "/img/screen-home.webp", alt: "Kartu langkah berikutnya di Beranda" },
-  { title: "Tidur dan pemulihan, tanpa menebak", text: "Langkah, tidur, dan sesi latihan dari Health Connect digabung dengan jujur: waktu yang direkam dua perangkat dihitung sekali, dan hari tanpa data tidak dianggap tidak aktif.", tone: "bg-panel-indigo", src: "/img/screen-devices.webp", alt: "Status data perangkat 14 hari terakhir" },
-  { title: "Asisten yang tahu batasnya", text: "Jawaban bacaan selalu membawa label kepastian dan sumbernya. Pertanyaan tentang dosis atau diagnosis diarahkan ke tenaga kesehatan.¹", tone: "bg-panel-clay", src: "/img/screen-assistant.webp", alt: "Asisten menampilkan label kepastian dan kartu strategi" },
-  { title: "Bergerak bersama, tanpa membandingkan nilai kesehatan", text: "Misi tim menghitung hari aktif seluruh anggota. Yang tampil hanya jumlah tim, tanpa nama dan tanpa angka kesehatan.", tone: "bg-brand-deep", src: "/img/screen-team.webp", alt: "Progres misi tim" },
-];
-
-function Panels() {
-  const root = useRef<HTMLElement>(null);
-  useLayoutEffect(() => {
-    const host = root.current;
-    if (!host) return;
-    const panels = [...host.querySelectorAll<HTMLElement>(".panel")];
-    const pin = () => {
-      for (const p of panels) p.style.top = `${Math.min(0, window.innerHeight - p.offsetHeight)}px`;
-      ScrollTrigger.refresh();
-    };
-    pin();
-    const ro = new ResizeObserver(pin);
-    panels.forEach((p) => ro.observe(p));
-    window.addEventListener("resize", pin);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", pin);
-    };
-  }, []);
-  useGSAP(
-    () => {
-      gsap.matchMedia().add(MOTION, () => {
-        const panels = gsap.utils.toArray<HTMLElement>(".panel");
-        panels.forEach((p, i) => {
-          gsap.from(p.querySelectorAll(".panel-text"), { y: 50, opacity: 0, duration: 0.9, stagger: 0.12, ease: "power2.out", scrollTrigger: { trigger: p, start: "top 65%" } });
-          gsap.fromTo(p.querySelector(".panel-phone"), { y: 90 }, { y: -20, ease: "none", scrollTrigger: { trigger: p, start: "top bottom", end: "top top", scrub: true } });
-          const next = panels[i + 1];
-          if (next) {
-            gsap.to(p.querySelector(".panel-inner"), { scale: 0.93, ease: "none", scrollTrigger: { trigger: next, start: "top bottom", end: "top top", scrub: true } });
-            gsap.to(p.querySelector(".panel-shade"), { opacity: 0.45, ease: "none", scrollTrigger: { trigger: next, start: "top bottom", end: "top top", scrub: true } });
-          }
-        });
-      });
-    },
-    { scope: root },
-  );
+function SectionHeading({
+  eyebrow,
+  title,
+  description,
+  centered = false,
+}: {
+  eyebrow: string;
+  title: ReactNode;
+  description?: string;
+  centered?: boolean;
+}) {
   return (
-    <section id="fitur" ref={root} aria-label="Fitur beOkay" className="relative">
-      {PANELS.map((p, i) => (
-        <article key={p.title} className={cn("panel sticky overflow-hidden rounded-t-[32px] text-white shadow-[0_-24px_60px_rgba(24,37,42,0.18)] md:rounded-t-[48px]", p.tone, i === 0 && "shadow-none")}>
-          <div className="panel-inner origin-top">
-            <div className="mx-auto grid max-w-[1440px] items-center gap-10 px-5 pt-20 pb-16 md:min-h-[100svh] md:grid-cols-[1.2fr_1fr] md:gap-12 md:px-[100px] md:py-20">
-              <div>
-                <p className="panel-text text-sm tracking-[0.12em] text-white/75 uppercase">{String(i + 1).padStart(2, "0")} / {String(PANELS.length).padStart(2, "0")}</p>
-                <h2 className="panel-text mt-4 text-4xl leading-[1.12] md:text-[56px] md:tracking-[-0.56px]">{p.title}</h2>
-                <p className="panel-text mt-8 max-w-[560px] text-lg leading-relaxed text-white/90 md:text-xl">{p.text}</p>
-              </div>
-              <Phone src={p.src} alt={p.alt} className="panel-phone mx-auto w-[56vw] max-w-[280px] md:max-w-[300px]" />
+    <div
+      className={`bo-section-heading${
+        centered
+          ? " bo-section-heading--center"
+          : ""
+      }`}
+      data-reveal
+    >
+      <span className="bo-kicker">
+        <span className="bo-kicker__line" />
+        {eyebrow}
+      </span>
+
+      <h2>{title}</h2>
+
+      {description && (
+        <p>{description}</p>
+      )}
+    </div>
+  );
+}
+
+function Intro() {
+  return (
+    <section
+      className="bo-intro bo-section"
+      id="ringkasan"
+    >
+      <div className="bo-container">
+        <SectionHeading
+          eyebrow="BUILT AROUND REAL LIFE"
+          title={
+            <>
+              Kesehatan bukan soal angka saja.{" "}
+              <span className="bo-text-accent">
+                Ini tentang keseharianmu.
+              </span>
+            </>
+          }
+          description="Catatan yang terpisah sering terasa membingungkan. beOkay membantu mengubahnya menjadi gambaran utuh yang lebih mudah dipahami dan ditindaklanjuti."
+          centered
+        />
+
+        <div className="bo-intro__benefits">
+          <article
+            className="bo-benefit"
+            data-reveal
+          >
+            <span className="bo-benefit__icon bo-benefit__icon--green">
+              <Activity size={23} />
+            </span>
+            <h3>Satu gambaran utuh</h3>
+            <p>
+              Satukan catatan makan,
+              aktivitas, tidur, dan data
+              perangkat yang kamu izinkan.
+            </p>
+          </article>
+
+          <article
+            className="bo-benefit"
+            data-reveal
+          >
+            <span className="bo-benefit__icon bo-benefit__icon--blue">
+              <Sparkles size={23} />
+            </span>
+            <h3>AI yang kontekstual</h3>
+            <p>
+              Pahami kebiasaanmu tanpa perlu
+              membaca dashboard yang rumit.
+            </p>
+          </article>
+
+          <article
+            className="bo-benefit"
+            data-reveal
+          >
+            <span className="bo-benefit__icon bo-benefit__icon--purple">
+              <Heart size={23} />
+            </span>
+            <h3>Berjalan sesuai ritmemu</h3>
+            <p>
+              Mulai dari langkah kecil dan
+              tetap bebas memilih yang tepat
+              untukmu.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Flow() {
+  return (
+    <section
+      className="bo-flow bo-section"
+      id="cara-kerja"
+    >
+      <div className="bo-container">
+        <div className="bo-flow__head">
+          <SectionHeading
+            eyebrow="HOW IT WORKS"
+            title={
+              <>
+                Lima langkah sederhana.
+                <br />
+                <span className="bo-text-accent">
+                  Semuanya mulai darimu.
+                </span>
+              </>
+            }
+            description="Tidak harus mengubah semuanya hari ini. Mulai dari satu catatan dan biarkan gambaran besarnya terbentuk."
+          />
+
+          <span
+            className="bo-flow__counter"
+            aria-hidden="true"
+          >
+            01 <span>/ 05</span>
+          </span>
+        </div>
+
+        <ol className="bo-flow__list">
+          {STEPS.map(
+            ({
+              title,
+              description,
+              Icon,
+            }, index) => (
+              <li
+                className="bo-flow__step"
+                data-reveal
+                key={title}
+              >
+                <div className="bo-flow__icon">
+                  <Icon
+                    size={25}
+                    strokeWidth={1.8}
+                  />
+                  <span>
+                    {String(index + 1).padStart(
+                      2,
+                      "0"
+                    )}
+                  </span>
+                </div>
+
+                <h3>{title}</h3>
+                <p>{description}</p>
+
+                {index < STEPS.length - 1 && (
+                  <ArrowRight
+                    className="bo-flow__arrow"
+                    size={19}
+                    aria-hidden="true"
+                  />
+                )}
+              </li>
+            )
+          )}
+        </ol>
+      </div>
+    </section>
+  );
+}
+
+function MiniChart() {
+  return (
+    <svg
+      className="bo-showcase-chart"
+      viewBox="0 0 520 190"
+      role="img"
+      aria-label="Ilustrasi garis tren aktivitas yang meningkat"
+    >
+      <defs>
+        <linearGradient
+          id="bo-chart-fill"
+          x1="0"
+          x2="0"
+          y1="0"
+          y2="1"
+        >
+          <stop
+            offset="0%"
+            stopColor="#23cdb7"
+            stopOpacity=".34"
+          />
+          <stop
+            offset="100%"
+            stopColor="#23cdb7"
+            stopOpacity="0"
+          />
+        </linearGradient>
+
+        <linearGradient
+          id="bo-chart-stroke"
+          x1="0"
+          x2="1"
+          y1="0"
+          y2="0"
+        >
+          <stop
+            offset="0%"
+            stopColor="#65ead7"
+          />
+          <stop
+            offset="100%"
+            stopColor="#5a9ffc"
+          />
+        </linearGradient>
+      </defs>
+
+      <path
+        d="M0 155H520M0 105H520M0 55H520"
+        stroke="#dce8e9"
+        strokeDasharray="5 9"
+      />
+
+      <path
+        d="M0 148 C46 150 56 120 100 129 S168 104 203 114 S269 67 305 82 S370 44 405 57 S465 21 520 24 V190 H0Z"
+        fill="url(#bo-chart-fill)"
+      />
+
+      <path
+        d="M0 148 C46 150 56 120 100 129 S168 104 203 114 S269 67 305 82 S370 44 405 57 S465 21 520 24"
+        fill="none"
+        stroke="url(#bo-chart-stroke)"
+        strokeWidth="5"
+        strokeLinecap="round"
+      />
+
+      <circle
+        cx="405"
+        cy="57"
+        r="8"
+        fill="#fff"
+        stroke="#3ab9c4"
+        strokeWidth="4"
+      />
+    </svg>
+  );
+}
+
+function Showcase() {
+  return (
+    <section
+      className="bo-showcase bo-section"
+      aria-label="Cuplikan aplikasi"
+    >
+      <div className="bo-container">
+        <div
+          className="bo-showcase__surface"
+          data-reveal
+        >
+          <div className="bo-showcase__copy">
+            <span className="bo-kicker bo-kicker--hero">
+              <span className="bo-kicker__line" />
+              YOUR DAY, IN FOCUS
+            </span>
+
+            <h2>
+              Semua bagian harimu.
+              <br />
+              <span>
+                Terasa lebih terhubung.
+              </span>
+            </h2>
+
+            <p>
+              Bukan sekadar menghitung.
+              Lihat perkembangan, pahami
+              konteks, dan temukan langkah
+              berikutnya dari hal-hal yang
+              benar-benar kamu lakukan.
+            </p>
+
+            <div className="bo-showcase__tag">
+              <CircleCheck size={18} />
+              Ringkasan sesuai data yang
+              tersedia
             </div>
           </div>
-          <div aria-hidden className="panel-shade pointer-events-none absolute inset-0 bg-black opacity-0" />
-        </article>
-      ))}
+
+          <div className="bo-showcase__art">
+            <div className="bo-showcase__chart-card">
+              <div className="bo-showcase__chart-head">
+                <span>Gambaran aktivitas</span>
+                <Activity size={19} />
+              </div>
+
+              <MiniChart />
+
+              <small>
+                Ilustrasi data, bukan hasil
+                pengguna
+              </small>
+            </div>
+
+            <div className="bo-showcase__phone">
+              <img
+                src="/img/screen-memory.webp"
+                alt="Contoh layar pengaturan ingatan asisten beOkay"
+                loading="lazy"
+                width={360}
+                height={780}
+              />
+            </div>
+
+            <div className="bo-showcase__floating">
+              <Sparkles size={18} />
+              <span>
+                Lebih personal.
+                <br />
+                <strong>
+                  Tetap dalam kendalimu.
+                </strong>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
   );
 }
 
-const PRIVACY = [
-  { title: "Persetujuan per tujuan", text: "Setiap pemakaian data punya persetujuannya sendiri dan bisa dicabut kapan saja." },
-  { title: "Ingatan yang bisa kamu atur", text: "Lihat, jeda, koreksi, atau hapus apa pun yang diingat asisten." },
-  { title: "Keselamatan didahulukan", text: "Bukan alat diagnosis. Keluhan mendesak selalu diarahkan ke tenaga kesehatan." },
-  { title: "Data milikmu", text: "Ekspor seluruh catatan atau hapus akun dari aplikasi." },
-];
+function Features() {
+  return (
+    <section
+      className="bo-features bo-section"
+      id="fitur"
+    >
+      <div className="bo-container">
+        <SectionHeading
+          eyebrow="FEATURES THAT MATTER"
+          title={
+            <>
+              Lebih dari aplikasi pencatat.
+              <br />
+              <span className="bo-text-accent">
+                Teman untuk terus bertumbuh.
+              </span>
+            </>
+          }
+          description="Kemampuan yang dirancang untuk saling melengkapi: catatan, pemahaman, saran, dan dukungan sosial."
+        />
+
+        <div className="bo-features__grid">
+          {FEATURES.map(
+            ({
+              number,
+              kicker,
+              title,
+              description,
+              image,
+              imageAlt,
+              tone,
+              Icon,
+            }) => (
+              <article
+                className={`bo-feature bo-feature--${tone}`}
+                key={number}
+                data-reveal
+              >
+                <div className="bo-feature__copy">
+                  <div className="bo-feature__top">
+                    <span className="bo-feature__number">
+                      {number} / 04
+                    </span>
+
+                    <span className="bo-feature__icon">
+                      <Icon
+                        size={22}
+                        strokeWidth={1.8}
+                      />
+                    </span>
+                  </div>
+
+                  <span className="bo-feature__kicker">
+                    {kicker}
+                  </span>
+
+                  <h3>{title}</h3>
+                  <p>{description}</p>
+                </div>
+
+                <div className="bo-feature__visual">
+                  <span
+                    className="bo-feature__halo"
+                    aria-hidden="true"
+                  />
+
+                  <div className="bo-feature__device">
+                    <img
+                      src={image}
+                      alt={imageAlt}
+                      width={360}
+                      height={780}
+                      loading="lazy"
+                    />
+                  </div>
+                </div>
+              </article>
+            )
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Journeys() {
+  const [active, setActive] = useState(0);
+
+  const current = JOURNEYS[active];
+  const Icon = current.Icon;
+
+  return (
+    <section
+      className="bo-journeys bo-section"
+      id="jalur"
+    >
+      <div className="bo-container">
+        <SectionHeading
+          eyebrow="A PATH FOR EVERY YOU"
+          title={
+            <>
+              Tidak semua orang memulai
+              <br />
+              dari{" "}
+              <span className="bo-text-accent">
+                tempat yang sama.
+              </span>
+            </>
+          }
+          description="Pilih jalur yang sesuai dengan kondisimu. Sistem mengikuti pilihanmu, bukan menebak diagnosis dari data."
+        />
+
+        <div
+          className="bo-journeys__layout"
+          data-reveal
+        >
+          <div
+            className="bo-journeys__tabs"
+            role="tablist"
+            aria-label="Jalur pendampingan"
+          >
+            {JOURNEYS.map(
+              (journey, index) => {
+                const JourneyIcon =
+                  journey.Icon;
+
+                return (
+                  <button
+                    key={journey.title}
+                    type="button"
+                    id={`bo-journey-tab-${index}`}
+                    role="tab"
+                    aria-selected={
+                      active === index
+                    }
+                    aria-controls="bo-journey-panel"
+                    tabIndex={
+                      active === index
+                        ? 0
+                        : -1
+                    }
+                    className={`bo-journeys__tab${
+                      active === index
+                        ? " bo-journeys__tab--active"
+                        : ""
+                    }`}
+                    onClick={() =>
+                      setActive(index)
+                    }
+                    onKeyDown={(event) => {
+                      if (
+                        event.key ===
+                          "ArrowDown" ||
+                        event.key ===
+                          "ArrowRight"
+                      ) {
+                        event.preventDefault();
+
+                        const next =
+                          (index + 1) %
+                          JOURNEYS.length;
+
+                        setActive(next);
+
+                        document
+                          .getElementById(
+                            `bo-journey-tab-${next}`
+                          )
+                          ?.focus();
+                      } else if (
+                        event.key ===
+                          "ArrowUp" ||
+                        event.key ===
+                          "ArrowLeft"
+                      ) {
+                        event.preventDefault();
+
+                        const next =
+                          (index +
+                            JOURNEYS.length -
+                            1) %
+                          JOURNEYS.length;
+
+                        setActive(next);
+
+                        document
+                          .getElementById(
+                            `bo-journey-tab-${next}`
+                          )
+                          ?.focus();
+                      }
+                    }}
+                  >
+                    <span className="bo-journeys__tab-icon">
+                      <JourneyIcon size={21} />
+                    </span>
+
+                    <span>
+                      {journey.title}
+                    </span>
+
+                    <ArrowUpRight
+                      className="bo-journeys__tab-arrow"
+                      size={20}
+                    />
+                  </button>
+                );
+              }
+            )}
+          </div>
+
+          <div
+            id="bo-journey-panel"
+            role="tabpanel"
+            aria-labelledby={`bo-journey-tab-${active}`}
+            className="bo-journeys__panel"
+            key={active}
+          >
+            <div className="bo-journeys__panel-top">
+              <span className="bo-journeys__badge">
+                <Icon size={16} />
+                {current.badge}
+              </span>
+
+              <BrandMark className="bo-journeys__watermark" />
+            </div>
+
+            <h3>{current.title}</h3>
+
+            <p>{current.description}</p>
+
+            <ul>
+              {current.bullets.map(
+                (bullet) => (
+                  <li key={bullet}>
+                    <Check size={16} />
+                    {bullet}
+                  </li>
+                )
+              )}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 function Privacy() {
   return (
-    <section id="privasi" className="mx-auto max-w-[1440px] px-5 py-28 md:px-[120px] md:py-40">
-      <h2 className="max-w-[900px] text-4xl leading-[1.15] text-ink md:text-5xl">Pribadi, proaktif, aman, dan dalam kendalimu</h2>
-      <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {PRIVACY.map((p) => (
-          <div key={p.title} className="rounded-3xl bg-white p-7">
-            <h3 className="text-xl font-medium text-ink-strong">{p.title}</h3>
-            <p className="mt-3 text-base leading-relaxed text-ink/90">{p.text}</p>
+    <section
+      className="bo-privacy bo-section"
+      id="privasi"
+    >
+      <div className="bo-container">
+        <div className="bo-privacy__layout">
+          <div className="bo-privacy__intro">
+            <SectionHeading
+              eyebrow="PRIVACY BY DESIGN"
+              title={
+                <>
+                  Datamu. Pilihanmu.
+                  <br />
+                  <span className="bo-text-accent">
+                    Selalu.
+                  </span>
+                </>
+              }
+              description="Kesehatan adalah hal personal. Karena itu kendali atas data, ingatan asisten, dan setiap saran harus tetap berada di tanganmu."
+            />
+
+            <div className="bo-privacy__seal">
+              <ShieldCheck size={23} />
+              Designed with consent-first
+              principles
+            </div>
           </div>
-        ))}
+
+          <div className="bo-privacy__cards">
+            {PRIVACY.map(
+              ({
+                title,
+                description,
+                Icon,
+              }) => (
+                <article
+                  className="bo-privacy__card"
+                  data-reveal
+                  key={title}
+                >
+                  <span>
+                    <Icon
+                      size={23}
+                      strokeWidth={1.8}
+                    />
+                  </span>
+
+                  <h3>{title}</h3>
+                  <p>{description}</p>
+                </article>
+              )
+            )}
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -415,53 +1370,144 @@ function Privacy() {
 
 function Cta() {
   return (
-    <section id="unduh-apk" className="bg-brand-deep">
-      <div className="mx-auto flex max-w-[1440px] flex-col items-center gap-8 px-5 py-28 text-center md:py-36">
-        <img src="/img/logo-mark.webp" alt="" aria-hidden width={88} height={88} className="size-20" />
-        <h2 className="text-4xl text-white md:text-5xl">Mulai perjalanan sehatmu</h2>
-        <Button asChild variant="light" size="lg">
-          <a href={APK_URL}>
-            <Download /> Unduh APK Android
-          </a>
-        </Button>
-        <div className="w-full max-w-[560px] rounded-3xl bg-white/10 p-6 text-left text-white">
-          <p className="text-sm text-white/80">Tautan langsung</p>
-          <a href={APK_URL} className="mt-1 block break-all text-lg font-medium underline underline-offset-4">{APK.url}</a>
-          <dl className="mt-4 grid grid-cols-3 gap-3 text-sm">
-            <div><dt className="text-white/70">Versi</dt><dd className="font-medium">{APK.version}</dd></div>
-            <div><dt className="text-white/70">Ukuran</dt><dd className="font-medium">{APK.size}</dd></div>
-            <div><dt className="text-white/70">Perangkat</dt><dd className="font-medium">Android arm64</dd></div>
-          </dl>
-          <p className="mt-4 text-xs text-white/70">SHA-256</p>
-          <p className="font-mono text-xs break-all text-white/90">{APK.sha256}</p>
+    <section
+      className="bo-cta"
+      id="unduh"
+    >
+      <div className="bo-container">
+        <div
+          className="bo-cta__panel"
+          data-reveal
+        >
+          <div
+            className="bo-cta__orb bo-cta__orb--one"
+            aria-hidden="true"
+          />
+          <div
+            className="bo-cta__orb bo-cta__orb--two"
+            aria-hidden="true"
+          />
+
+          <div className="bo-cta__content">
+            <div className="bo-kicker bo-kicker--hero">
+              <span className="bo-live-dot" />
+              YOUR NEXT CHAPTER STARTS HERE
+            </div>
+
+            <h2>
+              Langkah kecil hari ini.
+              <br />
+              <span>
+                Perubahan berarti nanti.
+              </span>
+            </h2>
+
+            <p>
+              Mulai mengenal pola hidupmu
+              dengan lebih baik. Satu hari,
+              satu keputusan, satu langkah
+              pada satu waktu.
+            </p>
+
+            <DownloadButton light>
+              Mulai dengan beOkay
+            </DownloadButton>
+
+            <div className="bo-cta__meta">
+              <span>
+                <Check size={15} />
+                Android APK
+              </span>
+              <span>
+                Versi {APK.version}
+              </span>
+              <span>{APK.size}</span>
+            </div>
+          </div>
+
+          <div
+            className="bo-cta__art"
+            aria-hidden="true"
+          >
+            <span className="bo-cta__art-ring" />
+
+            <BrandMark className="bo-cta__giant-mark" />
+
+            <span className="bo-cta__art-spark">
+              <Sparkles size={32} />
+            </span>
+          </div>
         </div>
+
+        <details className="bo-apk-details">
+          <summary>
+            Detail file & verifikasi
+            keamanan
+            <ChevronDown size={16} />
+          </summary>
+
+          <div>
+            <p>
+              Unduh hanya dari tautan resmi
+              di halaman ini. Cocokkan
+              SHA-256 berkas yang diunduh
+              jika ingin memverifikasi
+              integritasnya.
+            </p>
+
+            <code>{APK.sha256}</code>
+          </div>
+        </details>
       </div>
     </section>
   );
 }
 
-const FAQ = [
-  { q: "Apa itu beOkay?", a: "Aplikasi Android untuk mencatat dan menjaga kebiasaan sehat harian: makan, aktivitas, tidur, serta glukosa dan obat bila relevan. Asisten menyarankan satu langkah kecil berdasarkan catatanmu sendiri, dan tidak ada yang tersimpan tanpa persetujuanmu." },
-  { q: "Apakah beOkay alat diagnosis?", a: "Bukan. beOkay tidak mendiagnosis, tidak menghitung dosis, dan tidak menggantikan tenaga kesehatan. Pertanyaan seperti itu dijawab dengan arahan untuk menghubungi tenaga kesehatan.¹" },
-  { q: "Perlukah jam tangan pintar?", a: "Tidak. Catatan manual sudah cukup. Bila jam tangan atau aplikasi kebugaranmu menulis ke Health Connect, langkah, tidur, dan sesi latihan bisa diimpor setelah kamu mengizinkannya." },
-  { q: "Bagaimana dengan privasiku?", a: "Setiap pemakaian data punya persetujuan terpisah yang bisa dicabut. Ingatan asisten bisa dilihat, dijeda, dan dihapus. Kamu bisa mengekspor seluruh catatan atau menghapus akun dari aplikasi." },
-  { q: "Apakah beOkay gratis?", a: "Saat ini beOkay berstatus pilot dan bisa diunduh tanpa biaya." },
-  { q: "Bagaimana memasang APK-nya?", a: "Unduh berkas APK dari halaman ini, izinkan pemasangan dari sumber tersebut saat diminta Android, lalu buka beOkay." },
-];
-
 function Faq() {
   return (
-    <section id="tanya-jawab" className="bg-white">
-      <div className="mx-auto grid max-w-[1440px] gap-10 px-5 py-28 md:grid-cols-[1fr_2fr] md:gap-20 md:px-[60px] md:py-36">
-        <h2 className="text-5xl text-ink md:text-[64px]">Tanya jawab</h2>
-        <Accordion type="single" collapsible defaultValue="item-0">
-          {FAQ.map((f, i) => (
-            <AccordionItem key={f.q} value={`item-${i}`}>
-              <AccordionTrigger>{f.q}</AccordionTrigger>
-              <AccordionContent>{f.a}</AccordionContent>
-            </AccordionItem>
+    <section
+      className="bo-faq bo-section"
+      id="tanya-jawab"
+    >
+      <div className="bo-container bo-faq__layout">
+        <div className="bo-faq__intro">
+          <SectionHeading
+            eyebrow="GOOD TO KNOW"
+            title={
+              <>
+                Masih penasaran?
+                <br />
+                <span className="bo-text-accent">
+                  Kami jelaskan.
+                </span>
+              </>
+            }
+            description="Jawaban singkat untuk pertanyaan yang paling sering muncul tentang beOkay."
+          />
+        </div>
+
+        <div className="bo-faq__items">
+          {FAQ.map((item) => (
+            <details
+              className="bo-faq__item"
+              key={item.question}
+            >
+              <summary>
+                <span>
+                  {item.question}
+                </span>
+
+                <span className="bo-faq__toggle">
+                  <ChevronDown size={20} />
+                </span>
+              </summary>
+
+              <div className="bo-faq__answer">
+                {item.answer}
+              </div>
+            </details>
           ))}
-        </Accordion>
+        </div>
       </div>
     </section>
   );
@@ -469,45 +1515,210 @@ function Faq() {
 
 function Footer() {
   return (
-    <footer className="bg-white">
-      <div className="mx-auto max-w-[1440px] space-y-3 px-5 pb-10 text-[13px] leading-relaxed text-ink md:px-[60px]">
-        <p><sup>1</sup> beOkay bukan alat diagnosis dan tidak memberi saran medis. Konsultasikan perubahan pengobatan dan latihan dengan tenaga kesehatanmu.</p>
-        <p><sup>2</sup> Bacaan edukasi masih menunggu tinjauan klinisi dan belum ditampilkan di aplikasi produksi.</p>
-        <p><sup>3</sup> Angka dan tampilan pada halaman ini adalah contoh; hasil setiap orang berbeda.</p>
-      </div>
-      <div className="mx-auto flex max-w-[1440px] flex-col gap-6 border-t border-line px-5 py-10 md:flex-row md:items-center md:justify-between md:px-[60px]">
-        <img src="/img/logo-full.webp" alt="beOkay" width={130} height={40} className="h-9 w-auto" />
-        <nav className="flex flex-wrap gap-6 text-sm text-ink">
-          {NAV.map((n) => (
-            <a key={n.href} href={n.href} className="hover:text-brand">{n.label}</a>
-          ))}
-          <a href="/health" className="hover:text-brand">Status API</a>
-        </nav>
-        <p className="text-sm text-muted-foreground">© 2026 beOkay</p>
+    <footer className="bo-footer">
+      <div className="bo-container">
+        <div className="bo-footer__main">
+          <div>
+            <Brand inverse />
+
+            <p>
+              Small steps. A healthier story.
+              <br />
+              Satu langkah kecil,
+              setiap hari.
+            </p>
+          </div>
+
+          <div className="bo-footer__links">
+            <span>JELAJAHI</span>
+
+            {NAV.map((item) => (
+              <a
+                key={item.href}
+                href={item.href}
+              >
+                {item.label}
+              </a>
+            ))}
+          </div>
+
+          <div className="bo-footer__links">
+            <span>PRODUK</span>
+
+            <a
+              href={APK.href}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Unduh Android
+              <ArrowUpRight size={14} />
+            </a>
+
+            <a href="/health">
+              Status API
+              <ArrowUpRight size={14} />
+            </a>
+          </div>
+        </div>
+
+        <div className="bo-footer__disclaimer">
+          <p>
+            beOkay bukan alat diagnosis dan
+            tidak menggantikan tenaga kesehatan.
+            Jangan mengubah obat atau pengobatan
+            berdasarkan informasi aplikasi.
+            Konten edukasi klinis yang belum
+            ditinjau belum tersedia untuk
+            penggunaan produksi.
+          </p>
+
+          <p>
+            Angka, grafik, dan sebagian visual
+            pada halaman ini merupakan contoh
+            ilustratif, bukan hasil atau
+            jaminan kesehatan pengguna.
+          </p>
+        </div>
+
+        <div className="bo-footer__bottom">
+          <span>
+            © {new Date().getFullYear()} beOkay.
+            All rights reserved.
+          </span>
+
+          <span>
+            Made for better days
+            <Heart
+              size={14}
+              fill="currentColor"
+            />
+          </span>
+
+          <a href="#beranda">
+            Kembali ke atas ↑
+          </a>
+        </div>
       </div>
     </footer>
   );
 }
 
 export default function App() {
+  const root = useRef<HTMLDivElement>(null);
+
+  useGSAP(
+    () => {
+      const mm = gsap.matchMedia();
+
+      mm.add(
+        "(prefers-reduced-motion: no-preference)",
+        () => {
+          gsap.fromTo(
+            ".bo-hero-enter",
+            {
+              autoAlpha: 0,
+              y: 35,
+            },
+            {
+              autoAlpha: 1,
+              y: 0,
+              duration: 1.05,
+              stagger: 0.12,
+              ease: "power3.out",
+              delay: 0.1,
+            }
+          );
+
+          gsap.utils
+            .toArray<HTMLElement>(
+              "[data-reveal]"
+            )
+            .forEach((element) => {
+              gsap.fromTo(
+                element,
+                {
+                  autoAlpha: 0,
+                  y: 42,
+                },
+                {
+                  autoAlpha: 1,
+                  y: 0,
+                  duration: 0.9,
+                  ease: "power2.out",
+                  scrollTrigger: {
+                    trigger: element,
+                    start: "top 88%",
+                    once: true,
+                  },
+                }
+              );
+            });
+
+          gsap.to(
+            ".bo-hero__halo",
+            {
+              y: -65,
+              rotate: 13,
+              ease: "none",
+              scrollTrigger: {
+                trigger: ".bo-hero",
+                start: "top top",
+                end: "bottom top",
+                scrub: true,
+              },
+            }
+          );
+
+          gsap.to(
+            ".bo-showcase__phone",
+            {
+              y: -45,
+              ease: "none",
+              scrollTrigger: {
+                trigger: ".bo-showcase",
+                start: "top bottom",
+                end: "bottom top",
+                scrub: true,
+              },
+            }
+          );
+        }
+      );
+
+      return () => mm.revert();
+    },
+    {
+      scope: root,
+    }
+  );
+
   return (
-    <>
-      <a href="#ringkasan" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-full focus:bg-white focus:px-4 focus:py-2">Lewati ke isi</a>
+    <div
+      className="bo-app"
+      ref={root}
+    >
+      <a
+        className="bo-skip-link"
+        href="#ringkasan"
+      >
+        Lewati ke konten utama
+      </a>
+
       <Header />
+
       <main>
         <Hero />
-        <DownloadStrip />
         <Intro />
         <Flow />
-        <Collage />
+        <Showcase />
+        <Features />
         <Journeys />
-        <Screens />
-        <Panels />
         <Privacy />
         <Cta />
         <Faq />
       </main>
+
       <Footer />
-    </>
+    </div>
   );
 }
