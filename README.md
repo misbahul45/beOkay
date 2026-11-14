@@ -55,6 +55,22 @@ Semua instalasi dimulai dari **https://beokay-api.vercel.app**.
 4. **Verifikasi email.** Tautan verifikasi dikirim lewat Brevo dan berlaku 1 jam. Email bisa baru tiba beberapa menit setelah mendaftar; periksa juga folder **Spam** dan **Promosi**. Bila belum datang, ketuk **Kirim ulang tautan** di layar verifikasi.
 5. **Jalur dan persetujuan.** Jawab pertanyaan singkat tentang kondisimu, lalu pilih persetujuan per tujuan. Persetujuan opsional bisa ditarik kapan saja dari **Pengaturan**.
 
+
+### Akun demo
+
+Untuk mencoba tanpa mendaftar, tersedia akun demo di server produksi (`https://beokay-api.vercel.app`):
+
+| | |
+|---|---|
+| Email | `xninetzy@gmail.com` |
+| Kata sandi | `xninetzy123` |
+
+- Akun ini dibuat khusus untuk demo, email sudah terverifikasi, dan onboarding sudah selesai. Persetujuan opsional untuk asisten AI dan data perangkat sudah dinyalakan; papan peringkat dan berbagi pendamping dimatikan.
+- **Jangan menyimpan data kesehatan asli** di akun ini. Kata sandinya sengaja ditulis di README dan bisa dipakai siapa saja yang membaca halaman ini, sehingga data di dalamnya tidak bersifat pribadi.
+- Isinya bisa berubah atau dihapus sewaktu-waktu, dan kata sandi bisa diganti tanpa pemberitahuan.
+- Kredensial ini dicantumkan atas keputusan pemilik proyek (14 November 2026). Aturan kredensial di `AGENTS.md` (tidak ada kata sandi di berkas ter-track) tetap berlaku untuk kode, tes, skrip, dan koleksi Bruno; akun ini bukan rahasia dan tidak dipakai di mana pun di kode.
+- Untuk uji lokal pengembang, buat akun sintetis sendiri lewat API (kata sandi acak per eksekusi), jangan memakai akun demo produksi.
+
 <details>
 <summary>Rincian APK dan cara memeriksa keasliannya</summary>
 
