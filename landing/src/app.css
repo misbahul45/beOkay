@@ -1057,7 +1057,38 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   margin-bottom: 32px;
+}
+
+.bo-pending-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 5px 11px;
+  border: 1px solid #f1d189;
+  border-radius: 999px;
+  background: #fff5dc;
+  color: #7f5300;
+  font-family: "DM Sans", sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: .01em;
+}
+
+.bo-pending-badge svg {
+  flex: none;
+}
+
+.bo-pending-badge--spaced {
+  margin-top: 12px;
+}
+
+.bo-pending-badge--block {
+  display: flex;
+  margin-bottom: 10px;
 }
 
 

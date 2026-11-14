@@ -27,6 +27,7 @@ import {
   Heart,
   HeartHandshake,
   HeartPulse,
+  Hourglass,
   LockKeyhole,
   Menu,
   MoonStar,
@@ -73,6 +74,7 @@ const STEPS = [
     description:
       "Sinkronkan langkah, tidur, dan latihan melalui Health Connect dengan izinmu.",
     Icon: Watch,
+    pending: true,
   },
   {
     title: "Lihat gambaran utuh",
@@ -104,6 +106,7 @@ const FEATURES = [
       "Tampilan beranda aplikasi beOkay dengan ringkasan dan langkah berikutnya",
     tone: "mint",
     Icon: Target,
+    pending: false,
   },
   {
     title: "Lebih paham, tanpa menebak-nebak.",
@@ -114,6 +117,7 @@ const FEATURES = [
       "Tampilan integrasi dan status data perangkat di beOkay",
     tone: "blue",
     Icon: Watch,
+    pending: true,
   },
   {
     title: "Asisten yang tahu kapan harus berhenti.",
@@ -124,6 +128,7 @@ const FEATURES = [
       "Tampilan asisten beOkay dengan informasi dan label kepastian",
     tone: "violet",
     Icon: BrainCircuit,
+    pending: false,
   },
   {
     title: "Sehat bareng, tanpa adu angka kesehatan.",
@@ -134,6 +139,7 @@ const FEATURES = [
       "Tampilan progres misi tim di aplikasi beOkay",
     tone: "peach",
     Icon: HeartHandshake,
+    pending: false,
   },
 ] as const;
 
@@ -214,7 +220,8 @@ const FAQ = [
   {
     question: "Apakah harus mempunyai smartwatch?",
     answer:
-      "Tidak. Kamu tetap bisa mencatat secara manual. Jika perangkatmu mengirimkan data ke Health Connect, sebagian informasi dapat disinkronkan setelah kamu memberi izin.",
+      "Tidak. Kamu tetap bisa mencatat secara manual. Sinkronisasi data dari smartwatch melalui Health Connect masih disiapkan dan nantinya hanya berjalan setelah kamu memberi izin.",
+    pending: "Sinkronisasi smartwatch",
   },
   {
     question: "Bagaimana cara kerja asisten AI-nya?",
@@ -237,6 +244,31 @@ const FAQ = [
       "Unduh APK melalui tombol resmi pada halaman ini. Android mungkin akan meminta izin pemasangan dari sumber tersebut. Pastikan kamu mengunduh dari tautan resmi beOkay.",
   },
 ];
+
+function PendingBadge({
+  subject,
+  className,
+}: {
+  subject?: string;
+  className?: string;
+}) {
+  return (
+    <span
+      className={`bo-pending-badge${
+        className ? ` ${className}` : ""
+      }`}
+    >
+      <Hourglass
+        size={13}
+        strokeWidth={2.2}
+        aria-hidden="true"
+      />
+      {subject
+        ? `${subject} belum diimplementasikan`
+        : "Belum diimplementasikan"}
+    </span>
+  );
+}
 
 function supportsWebGL() {
   try {
@@ -729,6 +761,10 @@ function Intro() {
               aktivitas, tidur, dan data
               perangkat yang kamu izinkan.
             </p>
+            <PendingBadge
+              subject="Data perangkat"
+              className="bo-pending-badge--spaced"
+            />
           </article>
 
           <article
@@ -800,6 +836,7 @@ function Flow() {
               title,
               description,
               Icon,
+              pending,
             }, index) => (
               <li
                 className="bo-flow__step"
@@ -820,6 +857,9 @@ function Flow() {
                 </div>
 
                 <h3>{title}</h3>
+                {pending && (
+                  <PendingBadge className="bo-pending-badge--spaced" />
+                )}
                 <p>{description}</p>
 
                 {index < STEPS.length - 1 && (
@@ -1016,6 +1056,7 @@ function Features() {
               imageAlt,
               tone,
               Icon,
+              pending,
             }) => (
               <article
                 className={`bo-feature bo-feature--${tone}`}
@@ -1030,6 +1071,7 @@ function Features() {
                         strokeWidth={1.8}
                       />
                     </span>
+                    {pending && <PendingBadge />}
                   </div>
 
 
@@ -1414,6 +1456,12 @@ function Faq() {
               </summary>
 
               <div className="bo-faq__answer">
+                {item.pending && (
+                  <PendingBadge
+                    subject={item.pending}
+                    className="bo-pending-badge--block"
+                  />
+                )}
                 {item.answer}
               </div>
             </details>
