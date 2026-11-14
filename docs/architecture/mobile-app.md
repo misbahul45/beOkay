@@ -82,7 +82,7 @@ Sejak beOkay 3.0 Fase 1: shell dengan empat tujuan, yaitu **Beranda** (`/home`),
 | Form & detail | sejak 3.0 Fase 6 semua form pencatatan (glukosa, aktivitas, makan, obat, tujuan, profil, profil kesehatan, pengingat) memakai `form_kit.dart`: `FormHero` per domain, `FormSection` berjudul, `DateTimeTile`, `FormNote`, dan `SaveBar` tetap di bawah dengan catatan offline. Halaman detail (glukosa, makan, aktivitas, riwayat obat) memakai `detail_kit.dart`: `DetailHero` (nilai besar + chip waktu/sumber), `DetailSection` + `DetailRow` (label/nilai, bertumpuk pada teks besar), `DetailActions`, `RevisionTimeline`, dan bagian provenans |
 | Pengingat | server menyimpan aturan; klien menjadwalkan ≤ 60 notifikasi lokal dengan teks layar kunci generik; mode alarm *inexact* |
 | Push | `PushController` mendaftarkan token FCM bila `google-services.json` ada; bila tidak, aplikasi tetap berjalan dan melaporkan push "tidak tersedia" |
-| Health Connect | membaca **hanya** sesi olahraga, jarak, langkah (`READ_EXERCISE/DISTANCE/STEPS`); jenis tak dikenal → `other`; dikirim ke `/activities/import` |
+| Health Connect | membaca (hanya baca) sesi olahraga, jarak, langkah, detak jantung, detak jantung istirahat, tidur, berat, glukosa lewat satu adapter; sinkron lewat koordinator. Lihat [smartwatch-integration.md](smartwatch-integration.md) |
 | Ekspor | mengunduh JSON, menulis berkas sementara, membagikan lewat share sheet, lalu menghapus berkas |
 | Aksesibilitas | skala teks pengguna × sistem (maks 2,0), *reduce motion*, warna domain selalu disertai ikon dan label; kontras brand 9,9:1 menurut komentar tema |
 

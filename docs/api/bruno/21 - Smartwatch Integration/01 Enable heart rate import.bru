@@ -1,0 +1,32 @@
+meta {
+  name: Enable heart rate import
+  type: http
+  seq: 1
+}
+
+patch {
+  url: {{baseUrl}}/api/me/device-import/preferences
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  { "heartRate": true, "restingHeartRate": true, "steps": true, "sleep": true }
+}
+
+tests {
+  test("Heart rate and resting heart rate import are enabled per type", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.heartRate).to.equal(true);
+    expect(res.body.restingHeartRate).to.equal(true);
+  });
+}
+
+docs {
+  Every metric is off by default. Requires consent health_data_processing.
+}

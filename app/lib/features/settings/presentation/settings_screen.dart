@@ -185,8 +185,9 @@ class SettingsScreen extends ConsumerWidget {
             ),
             SettingsRow(
               icon: Icons.watch_outlined,
-              title: 'Data dari perangkat',
-              subtitle: 'Langkah, berat, glukosa, tidur dari Health Connect',
+              title: 'Perangkat & Kesehatan',
+              subtitle:
+                  'Langkah, detak jantung, tidur, dan lainnya dari Health Connect',
               onTap: () => context.push(Routes.devices),
             ),
             SettingsRow(

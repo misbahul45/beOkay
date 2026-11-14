@@ -1,0 +1,28 @@
+meta {
+  name: Device today availability
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/me/devices/today
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+tests {
+  test("Each metric reports an explicit availability, never a zero", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.heartRate.availability).to.equal("HAS_DATA");
+    expect(res.body.steps.availability).to.be.oneOf(["NO_DATA", "HAS_DATA", "STALE_DATA"]);
+    expect(res.body.heartRate.value.windowMinutes).to.equal(5);
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variable sessionToken is supplied by the runner.
+}

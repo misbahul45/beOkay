@@ -2,11 +2,11 @@ import { unionMinutes } from "../projections/daily-facts.model.ts";
 
 export const QUALITY_VERSION = "device-quality-v1";
 
-export const SIGNALS = ["steps", "sleep", "workouts"] as const;
+export const SIGNALS = ["steps", "sleep", "workouts", "heart_rate"] as const;
 export type Signal = (typeof SIGNALS)[number];
 
 export type QualityStatus = "OK" | "PARTIAL" | "NO_DATA" | "NOT_CONNECTED" | "STALE" | "CONFLICT" | "IMPLAUSIBLE";
-export type QualityFlag = "LATE_SYNC" | "MULTIPLE_ORIGINS" | "OVERLAPPING_SESSIONS" | "NEEDS_REVIEW_SESSIONS" | "DAY_IN_PROGRESS" | "VALUE_OUT_OF_RANGE";
+export type QualityFlag = "LATE_SYNC" | "MULTIPLE_ORIGINS" | "OVERLAPPING_SESSIONS" | "NEEDS_REVIEW_SESSIONS" | "DAY_IN_PROGRESS" | "VALUE_OUT_OF_RANGE" | "UNUSUAL_VALUE";
 export type ActivityInference = "OBSERVED" | "UNKNOWN";
 
 export const STALE_AFTER_HOURS = 48;
@@ -16,6 +16,7 @@ export const MAX_PLAUSIBLE_SLEEP_MINUTES = 16 * 60;
 
 export type StepsInput = { localDate: string; steps: number; dataOrigin: string | null; syncedAt: Date };
 export type SleepInput = { startedAt: Date; endedAt: Date; dataOrigin: string | null; createdAt: Date; localDate: string };
+export type HeartRateInput = { localDate: string; buckets: number; samples: number; needsReview: boolean; dataOrigin: string | null; syncedAt: Date };
 export type WorkoutInput = { startedAt: Date; durationMinutes: number; dataOrigin: string | null; receivedAt: Date; qualityStatus: string; localDate: string };
 
 export type DayQuality = {
@@ -98,6 +99,19 @@ export function assessWorkouts(localDate: string, rows: WorkoutInput[], ctx: Qua
   const value = counted.reduce((s, r) => s + r.durationMinutes, 0);
   const status: QualityStatus = counted.length < rows.length ? "CONFLICT" : localDate === ctx.today ? "PARTIAL" : "OK";
   return { signal: "workouts", localDate, status, flags, value, origins, inference: counted.length ? "OBSERVED" : "UNKNOWN" };
+}
+
+export function assessHeartRate(localDate: string, rows: HeartRateInput[], ctx: QualityContext): DayQuality {
+  const empty = base("heart_rate", localDate, ctx, rows.length > 0);
+  if (empty) return { signal: "heart_rate", localDate, ...empty, value: null, origins: [], inference: "UNKNOWN" };
+  const flags: QualityFlag[] = [];
+  const origins = uniq(rows.map((r) => r.dataOrigin));
+  if (origins.length > 1) flags.push("MULTIPLE_ORIGINS");
+  if (rows.some((r) => r.needsReview)) flags.push("UNUSUAL_VALUE");
+  if (rows.some((r) => r.syncedAt.getTime() - endOfDay(localDate).getTime() > LATE_SYNC_HOURS * 3_600_000)) flags.push("LATE_SYNC");
+  const today = localDate === ctx.today;
+  if (today) flags.push("DAY_IN_PROGRESS");
+  return { signal: "heart_rate", localDate, status: today ? "PARTIAL" : "OK", flags, value: rows.reduce((s, r) => s + r.samples, 0), origins, inference: "OBSERVED" };
 }
 
 export type SignalSummary = { signal: Signal; days: number; observedDays: number; coverage: number; statusCounts: Partial<Record<QualityStatus, number>>; reliable: boolean };

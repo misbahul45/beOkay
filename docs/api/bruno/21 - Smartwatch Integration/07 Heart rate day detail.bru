@@ -1,0 +1,31 @@
+meta {
+  name: Heart rate day detail
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/me/heart-rate/day?date={{today}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+script:pre-request {
+  bru.setVar("today", new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 10));
+}
+
+tests {
+  test("Day detail lists observed buckets only", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.buckets.length).to.be.greaterThan(0);
+    expect(res.body.buckets[0]).to.have.property("min");
+  });
+}
+
+docs {
+  Local date in Asia/Jakarta. Runtime variable sessionToken is supplied by the runner.
+}

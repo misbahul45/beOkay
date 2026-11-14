@@ -4,7 +4,7 @@ import { emitDomainEvent } from "../../infrastructure/queue/events.ts";
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
-export const RECORD_KINDS = ["meal", "glucose", "activity", "medication_intake", "goal_checkin", "vital", "lab", "steps", "sleep", "cgm", "energy_checkin"] as const;
+export const RECORD_KINDS = ["meal", "glucose", "activity", "medication_intake", "goal_checkin", "vital", "lab", "steps", "sleep", "cgm", "energy_checkin", "heart_rate"] as const;
 export type RecordKind = (typeof RECORD_KINDS)[number];
 export type RecordAction = "created" | "corrected" | "archived";
 

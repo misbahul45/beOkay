@@ -578,7 +578,7 @@ export const coachingService = {
     const stepAdjustments: M.Adjustment[] = [];
     for (const g of goalRows.filter((x) => x.goalType === "daily_steps" && x.period === "daily")) {
       const fromDay = M.addDays(asOf, -(M.STEPS_WINDOW_DAYS - 1));
-      const rows = await prisma.dailySteps.findMany({ where: { userId, localDate: { gte: asDate(fromDay), lte: asDate(asOf) } } });
+      const rows = await prisma.dailySteps.findMany({ where: { userId, source: { not: "simulated" }, localDate: { gte: asDate(fromDay), lte: asDate(asOf) } } });
       const byDay = new Map(rows.map((r) => [iso(r.localDate), r.steps]));
       const last = Array.from({ length: M.STEPS_WINDOW_DAYS }, (_, i) => byDay.get(M.addDays(fromDay, i)) ?? null);
       const adj = M.dailyStepsAdjustment({ id: g.id, title: g.title, target: g.targetValue.toNumber(), version: g.version }, last);

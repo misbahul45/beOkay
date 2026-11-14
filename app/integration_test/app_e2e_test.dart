@@ -136,7 +136,7 @@ Future<E2EBackend> _start(WidgetTester tester) async {
         reminderSchedulerProvider.overrideWithValue(FakeReminderScheduler()),
         httpClientProvider.overrideWithValue(backend.client),
         realtimeConnectorProvider.overrideWithValue(SilentRealtimeConnector()),
-        healthSignalsSourceProvider.overrideWithValue(null),
+        healthDataSourceProvider.overrideWithValue(null),
         deviceAuthenticatorProvider.overrideWithValue(_NoLock()),
         pushClientProvider.overrideWithValue(_NoPush()),
       ],

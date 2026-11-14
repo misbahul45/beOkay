@@ -74,6 +74,10 @@ const schema = z.object({
     .string()
     .default("true")
     .transform((value) => value === "true"),
+  DEVICE_SIMULATION_ENABLED: z
+    .string()
+    .default("false")
+    .transform((value) => value === "true"),
   NOTIFY_WORKER_ENABLED: z
     .string()
     .default("true")

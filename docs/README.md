@@ -55,7 +55,7 @@ Dokumen di bawah ini dibuat per tahap (P0–P3) sebagai catatan kerja dan bukti.
 | `design/` | spesifikasi FigCraft & riset UI (P0) | berkas desain FigCraft sendiri tidak ada di repo |
 | `reports/` | rencana & laporan implementasi per tahap | `p2-completion-report.md` memuat bukti pelatihan Kaggle dan deploy Modal |
 | `research/` | `trend-charts.md` | dasar desain grafik tren |
-| `testing/` | matriks & hasil uji (termasuk Appium, E2E P2) | `p2-e2e-matrix.md` |
+| `testing/` | matriks & hasil uji (termasuk Appium, E2E P2, simulasi jam tangan) | `p2-e2e-matrix.md`, `smartwatch-simulation.md` |
 | `repomix-output.xml` | paket otomatis seluruh kode | basi; kandidat dihapus (F-07) |
 
 Di luar `docs/`: `AGENTS.md` / `CLAUDE.md` (aturan kerja agen — sebagian usang, F-08), `ide.md` (blueprint produk 3.0: spesifikasi **target**, bukan status).

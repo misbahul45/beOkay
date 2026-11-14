@@ -16,13 +16,13 @@ async function computeRange(userId: string, dates: string[], tz: string): Promis
   const lo = zonedToUtc(from, "00:00", tz), hi = zonedToUtc(addDays(to, 1), "00:00", tz);
   const where = { userId, archivedAt: null };
   const [sessions, meals, glucose, intakes, checkins, steps, sleep] = await Promise.all([
-    prisma.activitySession.findMany({ where: { ...where, qualityStatus: { in: [...ACTIVITY_COUNTED_QUALITY] }, startedAt: { gte: lo, lt: hi } }, select: { startedAt: true, durationMinutes: true, source: true } }),
+    prisma.activitySession.findMany({ where: { ...where, source: { not: "simulated" }, qualityStatus: { in: [...ACTIVITY_COUNTED_QUALITY] }, startedAt: { gte: lo, lt: hi } }, select: { startedAt: true, durationMinutes: true, source: true, recordingMethod: true } }),
     prisma.mealLog.findMany({ where: { ...where, consumedAt: { gte: lo, lt: hi } }, select: { consumedAt: true, category: true } }),
     prisma.glucoseObservation.findMany({ where: { ...where, measuredAt: { gte: lo, lt: hi } }, select: { measuredAt: true } }),
     prisma.medicationIntake.findMany({ where: { ...where, status: "taken", eventAt: { gte: lo, lt: hi } }, select: { eventAt: true } }),
     prisma.goalCheckin.findMany({ where: { ...where, eventAt: { gte: lo, lt: hi } }, select: { eventAt: true } }),
-    prisma.dailySteps.findMany({ where: { userId, localDate: { gte: asDate(from), lte: asDate(to) } }, select: { localDate: true, steps: true, source: true } }),
-    prisma.sleepSession.findMany({ where: { userId, endedAt: { gte: lo, lt: hi } }, select: { startedAt: true, endedAt: true, durationMinutes: true, source: true } }),
+    prisma.dailySteps.findMany({ where: { userId, source: { not: "simulated" }, localDate: { gte: asDate(from), lte: asDate(to) } }, select: { localDate: true, steps: true, source: true } }),
+    prisma.sleepSession.findMany({ where: { userId, source: { not: "simulated" }, endedAt: { gte: lo, lt: hi } }, select: { startedAt: true, endedAt: true, durationMinutes: true, source: true } }),
   ]);
   return aggregateDays(
     dates,

@@ -1,6 +1,6 @@
-export const PROJECTION_VERSION = "daily-facts-v1";
+export const PROJECTION_VERSION = "daily-facts-v2";
 
-export type SessionRow = { startedAt: Date; durationMinutes: number; source: string };
+export type SessionRow = { startedAt: Date; durationMinutes: number; source: string; recordingMethod?: string | null };
 export type DatedRow = { at: Date };
 export type MealRow = { at: Date; category: string };
 export type StepsRow = { localDate: string; steps: number; source: string };
@@ -51,7 +51,7 @@ export function aggregateDays(dates: string[], inputs: DayInputs, localDateOf: (
     const f = touch(localDateOf(s.startedAt), s.source);
     if (!f) continue;
     f.activeMinutes += s.durationMinutes;
-    if (s.source === "manual") f.activeMinutesManual += s.durationMinutes;
+    if (s.source === "manual" || s.recordingMethod === "manual") f.activeMinutesManual += s.durationMinutes;
     else f.activeMinutesDevice += s.durationMinutes;
     f.sessionCount++;
     f.longestSessionMinutes = Math.max(f.longestSessionMinutes ?? 0, s.durationMinutes);

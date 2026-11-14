@@ -48,10 +48,10 @@ const Phone3D = lazy(
 
 const APK = {
   href: "https://beokay-api.vercel.app/beokay.apk",
-  version: "1.1.2",
-  size: "34,1 MB",
+  version: "1.2.0",
+  size: "34,3 MB",
   sha256:
-    "ac05625bc0ad84039dea563fb6dd98e2e2125a2be0e46568a97603c7edf405c4",
+    "75722d478fbab5f42773d40aa2cfebd48114e8b2a0880b73f43c896287a428e1",
 };
 
 const NAV = [
@@ -72,7 +72,7 @@ const STEPS = [
   {
     title: "Hubungkan perangkat",
     description:
-      "Sinkronkan langkah, tidur, dan latihan melalui Health Connect dengan izinmu.",
+      "Sinkronkan langkah, detak jantung, tidur, dan latihan melalui Health Connect dengan izinmu.",
     Icon: Watch,
     pending: true,
   },
@@ -111,7 +111,7 @@ const FEATURES = [
   {
     title: "Lebih paham, tanpa menebak-nebak.",
     description:
-      "Perangkat yang terhubung membantu merangkum gerak dan tidur; data yang tumpang tindih dihitung sekali.",
+      "Health Connect membantu merangkum gerak, detak jantung, dan tidur; data yang tumpang tindih dihitung sekali.",
     image: "/img/screen-devices.webp",
     imageAlt:
       "Tampilan integrasi dan status data perangkat di beOkay",
@@ -220,7 +220,7 @@ const FAQ = [
   {
     question: "Apakah harus mempunyai smartwatch?",
     answer:
-      "Tidak. Kamu tetap bisa mencatat secara manual. Sinkronisasi data dari smartwatch melalui Health Connect masih disiapkan dan nantinya hanya berjalan setelah kamu memberi izin.",
+      "Tidak. Kamu tetap bisa mencatat secara manual. Sinkronisasi dari Health Connect, termasuk data jam tangan yang ditulis aplikasi pendampingnya ke sana, hanya berjalan setelah kamu memberi izin. Fitur ini baru diuji dengan data sintetis di emulator, belum dengan jam tangan nyata.",
     pending: "Sinkronisasi smartwatch",
   },
   {
@@ -264,8 +264,8 @@ function PendingBadge({
         aria-hidden="true"
       />
       {subject
-        ? `${subject} belum diimplementasikan`
-        : "Belum diimplementasikan"}
+        ? `${subject}: diuji di emulator, belum di jam tangan nyata`
+        : "Diuji di emulator, belum di jam tangan nyata"}
     </span>
   );
 }

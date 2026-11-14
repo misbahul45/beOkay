@@ -171,8 +171,11 @@ Perubahan 3.0 Fase 6 (`challenge-lifecycle-v1`, `recognition-v1`):
 | Tabel | Fungsi |
 |---|---|
 | `daily_steps` | total langkah per `(user_id, source, local_date)`; `steps` 0–200.000; nilai diganti agregat terbaru |
-| `sleep_sessions` | `started_at`, `ended_at`, `duration_minutes` 1–1440, `external_id` unik per sumber |
-| `device_import_preferences` | `workouts`, `steps`, `weight`, `glucose`, `sleep` (bawaan `false`) |
+| `sleep_sessions` | `started_at`, `ended_at`, `duration_minutes` 1–1440, `external_id` unik per sumber; `recording_method`, `device_type`, `updated_at` (revisi dari vendor memperbarui baris) |
+| `device_import_preferences` | `workouts`, `steps`, `weight`, `glucose`, `sleep`, `heart_rate`, `resting_heart_rate` (bawaan `false`) |
+| `wearable_heart_rate_buckets` | bucket 5 menit per `(user_id, source, data_origin, bucket_start)`: `bpm_min/max/avg`, `sample_count`, `recording_method`, `device_type`, `quality_status`, `quality_flags`; CHECK domain 20–300 dan `min ≤ avg ≤ max` |
+| `wearable_resting_heart_rates` | per `(user_id, source, external_id)`: `measured_at`, `bpm` 20–300 |
+| `device_sync_checkpoints` | per `(user_id, source, metric)`: `cursor`, `last_attempt_at`, `last_success_at`, `last_error_code` |
 | `share_links` | `token_hash` SHA-256 unik, `period_days` 14/30/90, `expires_at` ≤ 7 hari, `revoked_at`, `access_count`, `last_accessed_at` |
 
 Perubahan: `glucose_observations` menerima `source = health_connect` (wajib `source_record_id`, `quality_status` `device_reported`/`needs_review`, `measurement_type` `capillary_blood`/`interstitial_fluid`/`unknown`) dengan indeks unik `(user_id, source, source_record_id)`; `vital_measurements.external_id` (wajib untuk `health_connect`, unik per sumber); `behavior_goals.goal_type` menerima `daily_steps`.
@@ -230,6 +233,7 @@ Perubahan: `food_reference` menambah `serving_min_g`, `serving_typical_g`, `serv
 | 25 | `20261111120000_community_lifecycle` | templat tantangan + seed, status `SCHEDULED/OPEN/CLOSED`, hasil peserta, pengakuan, sakelar sorotan + CHECK |
 | 26 | `20261111140000_notifications` | kotak masuk notifikasi dan preferensinya + CHECK |
 | 27 | `20261112090000_p8_measure_and_lighten` | `usage_events`, `vital_measurements`, `lab_results`, `feature_flags`, `incident_reports`; `record_revisions.vital_id/lab_id`; CHECK baru dan perluasan CHECK `coaching_actions` (`PROBLEM_SOLVING`, `HABIT_STEP`), `sync_operations` (`vital`, `lab`), `notifications` (`LAB_REMINDER`, `OPEN_CLINICAL`) |
+| 35 | `20261114150000_smartwatch_integration` | detak jantung, istirahat, checkpoint; sumber `simulated` di `daily_steps`, `sleep_sessions`, `activity_sessions`; kolom provenans tidur. Skrip turun: `prisma/rollback/20261114150000_smartwatch_integration.down.sql` |
 | 28 | `20261112120000_p9_devices_ops` | `daily_steps`, `sleep_sessions`, `device_import_preferences`, `share_links`; glukosa dari Health Connect; `vital_measurements.external_id`; tujuan `daily_steps` |
 | 29 | `20261112150000_p10_hybrid_agent` | `router_proposals`, `weekly_episodes`, kedaluwarsa memori dan jenis baru, tujuan consent `ai_message_understanding`, sakelar `llm_router`, penghentian `dish-classifier` |
 | 30 | `20261112180000_p11_ecosystem` | `education_modules`, `food_recipe_items`, `companion_links`, `cgm_imports`, `cgm_readings`, `community_reports`; kolom porsi/metode dan status `curated` di `food_reference`; `community_memberships.hidden_at`; perluasan CHECK consent, sakelar, pemakaian, notifikasi |

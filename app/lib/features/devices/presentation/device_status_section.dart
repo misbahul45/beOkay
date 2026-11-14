@@ -132,17 +132,6 @@ class _DeviceStatusSectionState extends ConsumerState<DeviceStatusSection> {
               ),
             ),
         ]),
-        if (status.origins.isNotEmpty)
-          card('ASAL DATA', [
-            Text(
-              status.origins.map(originLabel).join(' · '),
-              style: AppTypography.body,
-            ),
-            Text(
-              'Waktu tidur yang tumpang tindih dari dua perangkat hanya dihitung sekali.',
-              style: AppTypography.caption,
-            ),
-          ]),
         card('UNTUK RENCANA KECIL', [
           SwitchListTile(
             contentPadding: EdgeInsets.zero,

@@ -10,9 +10,6 @@ import 'package:app/core/theme/app_colors.dart';
 import 'package:app/features/app_lock/app_lock.dart';
 import 'package:app/features/auth/application/auth_controller.dart';
 import 'package:app/features/auth/data/session_user.dart';
-import 'package:app/features/devices/application/devices_controller.dart';
-import 'package:app/features/devices/data/health_signals.dart';
-import 'package:app/features/devices/presentation/devices_screen.dart';
 import 'package:app/core/widgets/pill_button.dart';
 import 'package:app/features/medication/application/medication_actions.dart';
 import 'package:app/features/share/data/share_repository.dart';
@@ -63,43 +60,6 @@ class _Api {
           as Map<String, dynamic>;
   int count(String path, String method) =>
       seen.where((r) => r.url.path == path && r.method == method).length;
-}
-
-class _FakeSignals implements HealthSignalsSource {
-  final granted = <SignalType>{};
-  final requested = <SignalType>[];
-  bool grant = true;
-  @override
-  Future<bool> available() async => true;
-  @override
-  Future<bool> hasAccess(SignalType type) async => granted.contains(type);
-  @override
-  Future<bool> requestAccess(SignalType type) async {
-    requested.add(type);
-    if (grant) granted.add(type);
-    return grant;
-  }
-
-  @override
-  Future<List<StepsDay>> readSteps(int days) async => const [
-    StepsDay('2026-11-11', 7200),
-    StepsDay('2026-11-12', 3100),
-  ];
-  @override
-  Future<List<DevicePoint>> read(
-    SignalType type,
-    DateTime from,
-    DateTime to,
-  ) async => type == SignalType.weight
-      ? [
-          DevicePoint(
-            'w1',
-            DateTime.utc(2026, 11, 11, 1),
-            DateTime.utc(2026, 11, 11, 1),
-            72.4,
-          ),
-        ]
-      : const [];
 }
 
 class _FakeAuthenticator implements DeviceAuthenticator {
@@ -193,75 +153,6 @@ Map<String, dynamic> _summary() => {
 
 void main() {
   setUpAll(() => initializeDateFormatting('id_ID'));
-
-  testWidgets(
-    'K-1: each device data type is switched on separately, asks for its own permission, and sync sends only enabled types',
-    (tester) async {
-      _tall(tester);
-      final api = _Api();
-      var prefs = {
-        'workouts': false,
-        'steps': false,
-        'weight': false,
-        'glucose': false,
-        'sleep': false,
-      };
-      api.extra = (r) {
-        if (r.url.path == '/api/me/device-import/preferences') {
-          if (r.method == 'PATCH') {
-            prefs = {
-              ...prefs,
-              ...(jsonDecode(r.body) as Map).cast<String, bool>(),
-            };
-          }
-          return _json(prefs);
-        }
-        if (r.url.path == '/api/me/device-import') {
-          return _json({
-            'steps': {'upserted': 2},
-            'weights': {'created': 0},
-            'glucose': {'created': 0},
-            'sleep': {'created': 0},
-          });
-        }
-        return null;
-      };
-      final source = _FakeSignals();
-      await _pump(
-        tester,
-        api,
-        const DevicesScreen(),
-        overrides: [healthSignalsSourceProvider.overrideWithValue(source)],
-      );
-      expect(find.text('Langkah harian'), findsOneWidget);
-      expect(
-        tester
-            .widget<PillButton>(
-              find.widgetWithText(PillButton, 'Sinkronkan 14 hari terakhir'),
-            )
-            .onPressed,
-        isNull,
-      );
-      await tester.tap(find.byType(Switch).first);
-      await tester.pumpAndSettle();
-      expect(source.requested, [SignalType.steps]);
-      expect(api.body('/api/me/device-import/preferences'), {'steps': true});
-      await tester.tap(find.text('Sinkronkan 14 hari terakhir'));
-      await tester.pumpAndSettle();
-      final sent = api.body('/api/me/device-import');
-      expect(sent['steps'], hasLength(2));
-      expect(sent['weights'], isEmpty);
-      expect(find.textContaining('2 hari langkah'), findsOneWidget);
-      source.grant = false;
-      await tester.tap(find.byType(Switch).at(1));
-      await tester.pumpAndSettle();
-      expect(
-        find.text('Izin berat badan belum diberikan di Health Connect.'),
-        findsOneWidget,
-      );
-      expect(api.count('/api/me/device-import/preferences', 'PATCH'), 1);
-    },
-  );
 
   testWidgets(
     'S-6: with the app lock on, a cold start is locked until the device verifies; sensitive actions ask again',

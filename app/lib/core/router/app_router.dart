@@ -61,6 +61,7 @@ import '../../features/clinical/presentation/clinical_forms.dart';
 import '../../features/clinical/presentation/clinical_history_screen.dart';
 import '../../features/reports/presentation/report_screen.dart';
 import '../../features/devices/presentation/devices_screen.dart';
+import '../../features/devices/presentation/heart_rate_screen.dart';
 import '../../features/share/presentation/summary_report_screen.dart';
 import '../../features/education/education.dart';
 import '../../features/cgm/cgm.dart';
@@ -291,6 +292,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: Routes.report, builder: (_, _) => const ReportScreen()),
       GoRoute(path: Routes.quick, redirect: (_, _) => '${Routes.home}?quick=1'),
       GoRoute(path: Routes.devices, builder: (_, _) => const DevicesScreen()),
+      GoRoute(
+        path: Routes.heartRate,
+        builder: (_, _) => const HeartRateScreen(),
+      ),
       GoRoute(path: Routes.journey, builder: (_, _) => const JourneyScreen()),
       GoRoute(
         path: Routes.summaryReport,

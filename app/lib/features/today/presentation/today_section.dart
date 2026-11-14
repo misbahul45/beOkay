@@ -17,6 +17,7 @@ import '../../medication/application/medication_controller.dart';
 import '../application/today_controller.dart';
 import 'today_extras.dart';
 import '../../devices/application/devices_controller.dart';
+import '../../devices/presentation/wearable_today_card.dart';
 
 /// Domain cards and recent events. Header and Quick Record live in HomeScreen.
 class TodaySection extends ConsumerStatefulWidget {
@@ -47,6 +48,7 @@ class _TodaySectionState extends ConsumerState<TodaySection>
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(deviceAutoSyncProvider);
     return ref
         .watch(todayProvider)
         .when(
@@ -171,6 +173,8 @@ class _TodaySectionState extends ConsumerState<TodaySection>
                     onPrimary: () => context.push(Routes.devices),
                   ),
                 ],
+                const SizedBox(height: 10),
+                const WearableTodayCard(),
                 const SizedBox(height: 10),
                 _MedicationCard(),
                 const SizedBox(height: 10),

@@ -76,6 +76,9 @@ model Users {
   dailySteps DailySteps[]
   sleepSessions SleepSession[]
   deviceImportPreference DeviceImportPreference?
+  wearableHeartRateBuckets WearableHeartRateBucket[]
+  wearableRestingHeartRates WearableRestingHeartRate[]
+  deviceSyncCheckpoints DeviceSyncCheckpoint[]
   shareLinks ShareLink[]
   routerProposals RouterProposal[]
   weeklyEpisodes WeeklyEpisode[]
@@ -1427,7 +1430,10 @@ model SleepSession {
   source          String   @default("health_connect")
   externalId      String   @map("external_id")
   dataOrigin      String?  @map("data_origin")
+  recordingMethod String?  @map("recording_method")
+  deviceType      String?  @map("device_type")
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   user            Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@unique([userId, source, externalId])
   @@index([userId, startedAt(sort: Desc)])
@@ -1442,9 +1448,69 @@ model DeviceImportPreference {
   weight    Boolean  @default(false)
   glucose   Boolean  @default(false)
   sleep     Boolean  @default(false)
+  heartRate        Boolean @default(false) @map("heart_rate")
+  restingHeartRate Boolean @default(false) @map("resting_heart_rate")
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
   user      Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@map("device_import_preferences")
+}
+
+model WearableHeartRateBucket {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  source          String   @default("health_connect")
+  dataOrigin      String   @default("unknown") @map("data_origin")
+  bucketStart     DateTime @map("bucket_start") @db.Timestamptz(6)
+  bpmMin          Int      @map("bpm_min")
+  bpmMax          Int      @map("bpm_max")
+  bpmAvg          Decimal  @map("bpm_avg") @db.Decimal(6, 2)
+  sampleCount     Int      @map("sample_count")
+  recordingMethod String?  @map("recording_method")
+  deviceType      String?  @map("device_type")
+  qualityStatus   String   @default("device_reported") @map("quality_status")
+  qualityFlags    String[] @default([]) @map("quality_flags")
+  importedAt      DateTime @default(now()) @map("imported_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user            Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, source, dataOrigin, bucketStart])
+  @@index([userId, bucketStart(sort: Desc)])
+  @@map("wearable_heart_rate_buckets")
+}
+
+model WearableRestingHeartRate {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  source          String   @default("health_connect")
+  dataOrigin      String?  @map("data_origin")
+  externalId      String   @map("external_id")
+  measuredAt      DateTime @map("measured_at") @db.Timestamptz(6)
+  bpm             Int
+  recordingMethod String?  @map("recording_method")
+  deviceType      String?  @map("device_type")
+  qualityStatus   String   @default("device_reported") @map("quality_status")
+  qualityFlags    String[] @default([]) @map("quality_flags")
+  importedAt      DateTime @default(now()) @map("imported_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user            Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, source, externalId])
+  @@index([userId, measuredAt(sort: Desc)])
+  @@map("wearable_resting_heart_rates")
+}
+
+model DeviceSyncCheckpoint {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  source        String    @default("health_connect")
+  metric        String
+  cursor        String?
+  lastAttemptAt DateTime? @map("last_attempt_at") @db.Timestamptz(6)
+  lastSuccessAt DateTime? @map("last_success_at") @db.Timestamptz(6)
+  lastErrorCode String?   @map("last_error_code")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user          Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, source, metric])
+  @@map("device_sync_checkpoints")
 }
 
 /// Tautan baca-saja berbatas waktu untuk tenaga kesehatan (Fase 9, K-9). Hanya hash token yang disimpan.

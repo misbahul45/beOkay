@@ -8,6 +8,7 @@ import { preferencesService } from "../preferences/preferences.service.ts";
 import { localRecordTime } from "../../shared/http/record-schema.ts";
 import { activityEnd } from "./activity.model.ts";
 import { overlaps, type ImportSession } from "./activity-import.model.ts";
+import { assertSimulationAllowed, simulationAllowed } from "../devices/simulation.ts";
 
 export type ImportOutcome = {
   externalId: string;
@@ -25,8 +26,9 @@ export type ImportOutcome = {
  * - tidak ada metrik yang dikarang: jarak/langkah tetap null bila tidak dikirim.
  */
 export const activityImportService = {
-  async import(userId: string, source: "health_connect" | "apple_health", sessions: ImportSession[], now = new Date()) {
+  async import(userId: string, source: "health_connect" | "apple_health" | "simulated", sessions: ImportSession[], now = new Date(), options: { simulationAllowed?: boolean } = {}) {
     await consentService.requireConsent(userId, "health_data_processing");
+    if (source === "simulated") assertSimulationAllowed(options.simulationAllowed ?? simulationAllowed());
     const { timezone } = await preferencesService.get(userId);
     const results: ImportOutcome[] = [];
     for (const s of sessions) {

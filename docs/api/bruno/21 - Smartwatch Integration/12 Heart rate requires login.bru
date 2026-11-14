@@ -1,0 +1,21 @@
+meta {
+  name: Heart rate requires login
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/api/me/heart-rate
+  body: none
+  auth: none
+}
+
+tests {
+  test("Unauthenticated request is rejected", function () {
+    expect(res.status).to.equal(401);
+  });
+}
+
+docs {
+  No Authorization header on purpose.
+}

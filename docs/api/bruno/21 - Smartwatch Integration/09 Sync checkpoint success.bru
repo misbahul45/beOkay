@@ -1,0 +1,33 @@
+meta {
+  name: Sync checkpoint success
+  type: http
+  seq: 9
+}
+
+put {
+  url: {{baseUrl}}/api/me/device-sync/checkpoints
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  { "metric": "heart_rate", "outcome": "success", "cursor": "2026-11-14T01:00:00.000Z" }
+}
+
+tests {
+  test("Success advances the cursor and clears the error", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.metric).to.equal("heart_rate");
+    expect(res.body.lastErrorCode).to.equal(null);
+    expect(res.body.lastSuccessAt).to.not.equal(null);
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variable sessionToken is supplied by the runner.
+}

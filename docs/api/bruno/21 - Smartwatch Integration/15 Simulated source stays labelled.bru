@@ -1,0 +1,36 @@
+meta {
+  name: Simulated source stays labelled
+  type: http
+  seq: 15
+}
+
+post {
+  url: {{baseUrl}}/api/me/device-import
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "source": "simulated",
+    "steps": [ { "localDate": "{{today}}", "steps": 9100, "dataOrigin": "beokay.simulator" } ],
+    "glucose": [ { "externalId": "sim-g-1", "measuredAt": "2026-11-14T01:00:00.000Z", "value": 100, "unit": "mg/dL" } ]
+  }
+}
+
+tests {
+  test("Simulated data is accepted only where simulation is enabled and is always labelled", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.simulated).to.equal(true);
+    expect(res.body.glucose.results[0].reason).to.equal("SIMULATED_NOT_SUPPORTED");
+  });
+}
+
+docs {
+  Run only against the isolated test API (DEVICE_SIMULATION_ENABLED=true). Production responds 403 SIMULATION_DISABLED. Runtime variable sessionToken is supplied by the runner.
+}

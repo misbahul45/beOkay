@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/a11y/announce.dart';
-import '../../../core/network/error_messages.dart';
+import '../../../core/router/routes.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/async_body.dart';
@@ -10,11 +12,23 @@ import '../../../core/widgets/info_card.dart';
 import '../../../core/widgets/page_scaffold.dart';
 import '../../../core/widgets/pill_button.dart';
 import '../../../core/widgets/settings_group.dart';
-import '../../clinical/application/clinical_controller.dart';
-import '../../today/application/today_controller.dart';
+import '../../../core/widgets/soft_card.dart';
 import '../application/devices_controller.dart';
-import '../data/health_signals.dart';
+import '../data/health_connect_source.dart';
+import '../data/health_source.dart';
+import '../domain/connection_state.dart';
+import '../domain/device_status.dart';
 import 'device_status_section.dart';
+import 'simulation_panel.dart';
+
+String agoText(DateTime? at) {
+  if (at == null) return 'belum pernah';
+  final d = DateTime.now().difference(at.toLocal());
+  if (d.inMinutes < 1) return 'baru saja';
+  if (d.inMinutes < 60) return '${d.inMinutes} menit lalu';
+  if (d.inHours < 48) return '${d.inHours} jam lalu';
+  return '${d.inDays} hari lalu';
+}
 
 class DevicesScreen extends ConsumerStatefulWidget {
   const DevicesScreen({super.key});
@@ -23,155 +37,371 @@ class DevicesScreen extends ConsumerStatefulWidget {
 }
 
 class _DevicesScreenState extends ConsumerState<DevicesScreen> {
-  bool busy = false;
-  String? message;
-  bool failed = false;
-
-  Future<void> toggle(SignalType t, bool on) async {
-    final source = ref.read(healthSignalsSourceProvider);
-    setState(() {
-      busy = true;
-      message = null;
-      failed = false;
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      if (mounted) ref.read(deviceConnectionProvider.notifier).refresh();
     });
-    try {
-      if (on && source != null) {
-        if (!await source.available()) {
-          setState(() {
-            failed = true;
-            message =
-                'Health Connect belum terpasang atau belum aktif di perangkat ini.';
-          });
-          return;
-        }
-        if (!await source.hasAccess(t) && !await source.requestAccess(t)) {
-          setState(() {
-            failed = true;
-            message =
-                'Izin ${t.label.toLowerCase()} belum diberikan di Health Connect.';
-          });
-          return;
-        }
-      }
-      await ref.read(deviceImportRepositoryProvider).setPreference(t, on);
-      ref.invalidate(devicePreferencesProvider);
-      if (mounted) {
-        announce(context, '${t.label} ${on ? 'dinyalakan' : 'dimatikan'}');
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          failed = true;
-          message = messageFor(e);
-        });
-      }
-    } finally {
-      if (mounted) setState(() => busy = false);
+  }
+
+  Future<void> _stop() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Hentikan sinkronisasi?'),
+        content: const Text(
+          'Semua jenis data dimatikan dan tidak ada data baru yang dibaca. Data yang sudah masuk tetap tersimpan dan bisa kamu hapus dari Privasi & data.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Hentikan'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await ref.read(deviceConnectionProvider.notifier).stopAll();
     }
   }
 
-  Future<void> sync(Map<SignalType, bool> prefs) async {
-    final source = ref.read(healthSignalsSourceProvider);
-    if (source == null) return;
-    setState(() {
-      busy = true;
-      message = null;
-      failed = false;
-    });
-    try {
-      final r = await syncDeviceSignals(
-        source,
-        ref.read(deviceImportRepositoryProvider),
-        prefs,
+  Future<void> _manage() async {
+    final opened = await openHealthConnectSettings();
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Buka Health Connect dari pengaturan Android untuk mengatur izin.',
+          ),
+        ),
       );
-      ref.invalidate(stepsSummaryProvider);
-      ref.invalidate(deviceStatusProvider);
-      ref.invalidate(todayProvider);
-      ref.invalidate(clinicalSummaryProvider);
-      final text = r.total == 0
-          ? 'Tidak ada data baru dari Health Connect.'
-          : 'Diperbarui: ${r.steps} hari langkah, ${r.weights} berat badan, ${r.glucose} glukosa, ${r.sleep} sesi tidur.';
-      setState(() => message = text);
-      if (mounted) announce(context, text);
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          failed = true;
-          message = messageFor(e);
-        });
-      }
-    } finally {
-      if (mounted) setState(() => busy = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final source = ref.watch(healthSignalsSourceProvider);
-    final prefs = ref.watch(devicePreferencesProvider);
+    final view = ref.watch(deviceConnectionProvider);
+    final controller = ref.read(deviceConnectionProvider.notifier);
+    ref.listen(deviceConnectionProvider.select((v) => v.message), (_, m) {
+      if (m != null && mounted) announce(context, m);
+    });
+    final source = ref.watch(healthDataSourceProvider);
+    final enabledAny = view.enabled.isNotEmpty;
     return PageScaffold(
-      title: 'Data dari perangkat',
+      title: 'Perangkat & Kesehatan',
+      onRefresh: controller.refresh,
       children: [
+        const SimulationBanner(),
         const InfoCard(
           tone: InfoTone.neutral,
           text:
-              'Setiap jenis data hanya dibaca bila kamu menyalakannya di sini dan memberi izin di Health Connect. beOkay tidak menulis apa pun ke Health Connect. Data perangkat ditandai "dari perangkat" dan bisa diarsipkan.',
+              'beOkay hanya membaca dari Health Connect dan tidak menulis apa pun ke sana. Setiap jenis data dibaca hanya bila kamu menyalakannya di sini dan memberi izin di Health Connect.',
         ),
         const SizedBox(height: AppSpacing.md),
-        const DeviceStatusSection(),
-        if (source == null)
+        if (source == null) ...[
           const InfoCard(
             text:
                 'Impor data perangkat hanya tersedia di Android dengan Health Connect.',
-          )
-        else
-          prefs.when(
-            loading: () => const SkeletonList(rows: 3),
-            error: (e, _) => ErrorState(
-              error: e,
-              onRetry: () => ref.invalidate(devicePreferencesProvider),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _SourcesCard(status: ref.watch(deviceStatusProvider).value),
+          const SizedBox(height: AppSpacing.md),
+          const DeviceStatusSection(),
+        ] else if (view.loading)
+          const SkeletonList(rows: 3)
+        else ...[
+          _ConnectionCard(
+            view: view,
+            onSync: enabledAny && !view.syncing
+                ? () => controller.syncNow()
+                : null,
+            onManage: _manage,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _SourcesCard(
+            status: view.status ?? ref.watch(deviceStatusProvider).value,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _MetricsGroup(view: view),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'Belum didukung: ${unsupportedMetricLabels.join(', ')}.',
+            style: AppTypography.caption,
+          ),
+          if (view.message != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Semantics(
+              liveRegion: true,
+              child: InfoCard(
+                tone: view.failed ? InfoTone.error : InfoTone.info,
+                text: view.message!,
+                action: view.failed && enabledAny
+                    ? TextButton(
+                        onPressed: view.syncing
+                            ? null
+                            : () => controller.syncNow(),
+                        child: const Text('Coba lagi'),
+                      )
+                    : null,
+              ),
             ),
-            data: (p) => Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          ],
+          const SizedBox(height: AppSpacing.md),
+          const DeviceStatusSection(),
+          if (view.enabled.contains(WearableMetric.heartRate) ||
+              view.enabled.contains(WearableMetric.restingHeartRate)) ...[
+            SettingsGroup(
               children: [
-                SettingsGroup(
-                  title: 'Jenis data',
-                  children: [
-                    for (final t in SignalType.values.where(
-                      (t) => t != SignalType.workouts,
-                    ))
-                      SettingsRow(
-                        title: t.label,
-                        subtitle: t.detail,
-                        trailing: Switch(
-                          value: p[t] == true,
-                          onChanged: busy ? null : (v) => toggle(t, v),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Sesi olahraga diimpor dari halaman Aktivitas.',
-                  style: AppTypography.caption,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                PillButton(
-                  label: 'Sinkronkan 14 hari terakhir',
-                  icon: Icons.sync,
-                  loading: busy,
-                  onPressed: p.values.any((v) => v) ? () => sync(p) : null,
+                SettingsRow(
+                  icon: Icons.monitor_heart_outlined,
+                  title: 'Detak jantung',
+                  subtitle: 'Rentang harian, istirahat, dan tren',
+                  onTap: () => context.push(Routes.heartRate),
                 ),
               ],
             ),
+            const SizedBox(height: AppSpacing.md),
+          ],
+          SettingsGroup(
+            title: 'Privasi',
+            children: [
+              SettingsRow(
+                icon: Icons.health_and_safety_outlined,
+                title: 'Kelola izin Health Connect',
+                subtitle:
+                    'Buka pengaturan sistem untuk mencabut atau memberi izin',
+                onTap: _manage,
+              ),
+              SettingsRow(
+                icon: Icons.folder_shared_outlined,
+                title: 'Privasi & data',
+                subtitle: 'Ekspor atau hapus data kesehatanmu',
+                onTap: () => context.push(Routes.privacyData),
+              ),
+              SettingsRow(
+                icon: Icons.stop_circle_outlined,
+                title: 'Hentikan sinkronisasi',
+                subtitle: 'Matikan semua jenis data sekaligus',
+                destructive: true,
+                onTap: enabledAny && !view.syncing ? _stop : null,
+              ),
+            ],
           ),
-        if (message != null) ...[
+          const SizedBox(height: AppSpacing.md),
+          const SimulationPanel(),
+        ],
+      ],
+    );
+  }
+}
+
+class _ConnectionCard extends StatelessWidget {
+  const _ConnectionCard({
+    required this.view,
+    required this.onSync,
+    required this.onManage,
+  });
+  final DeviceConnectionView view;
+  final VoidCallback? onSync;
+  final VoidCallback onManage;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = view.state;
+    final status = view.status;
+    final tone = switch (state) {
+      DeviceConnectionState.dataAvailable => InfoTone.info,
+      DeviceConnectionState.syncFailed ||
+      DeviceConnectionState.syncStale ||
+      DeviceConnectionState.notAuthorized => InfoTone.warning,
+      _ => InfoTone.neutral,
+    };
+    final watch = status?.watch ?? WatchVerification.notVerified;
+    final watchText = switch (watch) {
+      WatchVerification.notVerified =>
+        'Jam tangan: belum terverifikasi. Data di Health Connect tidak membuktikan ada jam tangan yang terpasang.',
+      WatchVerification.sourceDetected =>
+        'Jam tangan: sumber data menyatakan berasal dari jam tangan. Belum diuji dengan perangkat keras beOkay.',
+      WatchVerification.hardwareVerified =>
+        'Jam tangan: terverifikasi lewat uji perangkat keras.',
+    };
+    return SoftCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('HEALTH CONNECT', style: AppTypography.overline),
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            children: [
+              Expanded(
+                child: Semantics(
+                  header: true,
+                  child: Text(state.title, style: AppTypography.title),
+                ),
+              ),
+              if (view.syncing)
+                const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(state.explanation, style: AppTypography.secondary),
           const SizedBox(height: AppSpacing.sm),
-          InfoCard(
-            tone: failed ? InfoTone.error : InfoTone.info,
-            text: message!,
+          Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
+            children: [
+              StatusBadge(
+                label: view.platform == HealthPlatformState.available
+                    ? 'Health Connect tersedia'
+                    : 'Health Connect belum tersedia',
+                tone: view.platform == HealthPlatformState.available
+                    ? tone
+                    : InfoTone.warning,
+              ),
+              StatusBadge(
+                label:
+                    'Sinkron terakhir: ${agoText(view.lastSuccessAt ?? status?.lastSuccessfulSyncAt)}',
+              ),
+              StatusBadge(
+                label: view.backgroundRead
+                    ? 'Sinkron latar didukung'
+                    : 'Sinkron latar belum tersedia',
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(watchText, style: AppTypography.caption),
+          if (status?.lastDataAt != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              'Pengukuran terakhir: ${agoText(status!.lastDataAt)}',
+              style: AppTypography.caption,
+            ),
+          ],
+          const SizedBox(height: AppSpacing.md),
+          PillButton(
+            label: 'Sinkronkan sekarang',
+            icon: Icons.sync,
+            kind: PillButtonKind.ink,
+            loading: view.syncing,
+            onPressed: onSync,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          PillButton(
+            label: 'Kelola izin Health Connect',
+            kind: PillButtonKind.secondary,
+            onPressed: onManage,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SourcesCard extends StatelessWidget {
+  const _SourcesCard({required this.status});
+  final DeviceStatus? status;
+
+  @override
+  Widget build(BuildContext context) {
+    final apps = status?.sourceApplications ?? const <SourceApplication>[];
+    return SoftCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('ASAL DATA', style: AppTypography.overline),
+          const SizedBox(height: AppSpacing.xs),
+          if (apps.isEmpty && (status?.origins.isNotEmpty ?? false))
+            Text(
+              status!.origins.map(originLabel).join(' · '),
+              style: AppTypography.body,
+            )
+          else if (apps.isEmpty)
+            Text(
+              'Belum ada sumber data. Data dari ponsel tetap bisa masuk tanpa jam tangan.',
+              style: AppTypography.secondary,
+            )
+          else
+            for (final a in apps)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Icon(
+                      a.provenance == 'WATCH_RECORDED'
+                          ? Icons.watch_outlined
+                          : a.provenance == 'SIMULATED'
+                          ? Icons.science_outlined
+                          : Icons.smartphone_outlined,
+                      size: 18,
+                      color: AppColors.textSecondary,
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Expanded(
+                      child: Text(
+                        '${originLabel(a.dataOrigin)} · ${provenanceLabel(a.provenance)}',
+                        style: AppTypography.body,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricsGroup extends ConsumerWidget {
+  const _MetricsGroup({required this.view});
+  final DeviceConnectionView view;
+
+  String _subtitle(WearableMetric m) {
+    final on = view.prefs[m] == true;
+    if (!on) return m.detail;
+    final granted = view.granted.contains(m);
+    final signal = switch (m) {
+      WearableMetric.steps => 'steps',
+      WearableMetric.heartRate => 'heart_rate',
+      WearableMetric.sleep => 'sleep',
+      WearableMetric.workouts => 'workouts',
+      _ => null,
+    };
+    final s = signal == null
+        ? null
+        : view.status?.signals.where((x) => x.signal == signal).firstOrNull;
+    final parts = [
+      granted ? 'Izin diberikan' : 'Izin belum diberikan',
+      if (s != null) '${s.observedDays} dari ${s.days} hari ada data',
+      if (s != null && s.conflicts > 0) '${s.conflicts} hari perlu ditinjau',
+    ];
+    return parts.join(' · ');
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final controller = ref.read(deviceConnectionProvider.notifier);
+    return SettingsGroup(
+      title: 'Jenis data',
+      children: [
+        for (final m in WearableMetric.values)
+          SettingsRow(
+            title: m.label,
+            subtitle: _subtitle(m),
+            trailing: Switch(
+              value: view.prefs[m] == true,
+              onChanged: view.syncing ? null : (v) => controller.toggle(m, v),
+            ),
+          ),
       ],
     );
   }

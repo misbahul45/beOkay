@@ -1,0 +1,36 @@
+meta {
+  name: Disabled metric is rejected per record
+  type: http
+  seq: 14
+}
+
+post {
+  url: {{baseUrl}}/api/me/device-import
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "source": "health_connect",
+    "weights": [
+      { "externalId": "bruno-w-1", "measuredAt": "2026-11-14T01:00:00.000Z", "kg": 70 }
+    ]
+  }
+}
+
+tests {
+  test("Weight import stays disabled until the user enables it", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.weights.results[0].reason).to.equal("DEVICE_TYPE_DISABLED");
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variable sessionToken is supplied by the runner.
+}

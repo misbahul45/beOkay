@@ -1,0 +1,31 @@
+meta {
+  name: Heart rate summary
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/me/heart-rate?days=7
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+}
+
+tests {
+  test("Summary is descriptive, states its method and never zero-fills", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.series.length).to.equal(7);
+    expect(res.body.methodology).to.include("bukan rata-rata berbobot waktu");
+    expect(res.body.latest.windowMinutes).to.equal(5);
+    expect(res.body.restingLatest.bpm).to.equal(61);
+    expect(res.body.series[0].average).to.equal(null);
+    expect(res.body.notice).to.include("bukan diagnosis");
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variable sessionToken is supplied by the runner.
+}

@@ -17,7 +17,7 @@ export const fhirExportService = {
       prisma.glucoseObservation.findMany({ where: { ...live, qualityStatus: { in: [...GLUCOSE_COUNTED_QUALITY] } }, orderBy: { measuredAt: "asc" }, take: 20_000 }),
       prisma.labResult.findMany({ where: live, orderBy: { sampledAt: "asc" } }),
       prisma.vitalMeasurement.findMany({ where: live, orderBy: { measuredAt: "asc" } }),
-      prisma.dailySteps.findMany({ where: { userId }, orderBy: { localDate: "asc" } }),
+      prisma.dailySteps.findMany({ where: { userId, source: { not: "simulated" } }, orderBy: { localDate: "asc" } }),
     ]);
     const bundle = buildFhirBundle({
       patientId: user.id,

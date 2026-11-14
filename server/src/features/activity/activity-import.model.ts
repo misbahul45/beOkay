@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { recordTimestamp } from "../../shared/http/record-schema.ts";
 
-export const IMPORT_SOURCES = ["health_connect", "apple_health"] as const;
+export const IMPORT_SOURCES = ["health_connect", "apple_health", "simulated"] as const;
 
 export const importSessionSchema = z
   .object({

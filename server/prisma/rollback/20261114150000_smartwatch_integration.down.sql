@@ -1,0 +1,16 @@
+DELETE FROM "activity_sessions" WHERE "source" = 'simulated';
+DELETE FROM "daily_steps" WHERE "source" = 'simulated';
+DELETE FROM "sleep_sessions" WHERE "source" = 'simulated';
+ALTER TABLE "activity_sessions" DROP CONSTRAINT "activity_sessions_valid";
+ALTER TABLE "activity_sessions" ADD CONSTRAINT "activity_sessions_valid" CHECK (activity_type IN ('walking','cycling','running','strength','other') AND source IN ('manual','health_connect','apple_health') AND quality_status IN ('user_reported','device_reported','needs_review') AND ((source = 'manual' AND external_id IS NULL AND quality_status <> 'device_reported') OR (source <> 'manual' AND external_id IS NOT NULL AND length(btrim(external_id)) BETWEEN 1 AND 200 AND quality_status <> 'user_reported')) AND reported_intensity IN ('unknown','light','moderate','vigorous') AND duration_minutes BETWEEN 1 AND 1440 AND ended_at = started_at + duration_minutes * INTERVAL '1 minute' AND started_at >= '1900-01-01'::timestamptz AND (distance_km IS NULL OR distance_km BETWEEN 0 AND 1000) AND (steps IS NULL OR steps BETWEEN 0 AND 1000000) AND version > 0 AND length(create_hash) = 64 AND (notes IS NULL OR length(notes) <= 2000));
+ALTER TABLE "sleep_sessions" DROP CONSTRAINT "sleep_sessions_valid";
+ALTER TABLE "sleep_sessions" ADD CONSTRAINT "sleep_sessions_valid" CHECK ("source" IN ('health_connect') AND "ended_at" > "started_at" AND "duration_minutes" BETWEEN 1 AND 1440 AND length("external_id") BETWEEN 1 AND 200);
+ALTER TABLE "daily_steps" DROP CONSTRAINT "daily_steps_valid";
+ALTER TABLE "daily_steps" ADD CONSTRAINT "daily_steps_valid" CHECK ("source" IN ('health_connect') AND "steps" BETWEEN 0 AND 200000 AND "local_date" >= '2000-01-01');
+ALTER TABLE "sleep_sessions" DROP CONSTRAINT IF EXISTS "sleep_sessions_provenance_valid";
+ALTER TABLE "sleep_sessions" DROP COLUMN IF EXISTS "updated_at", DROP COLUMN IF EXISTS "recording_method", DROP COLUMN IF EXISTS "device_type";
+ALTER TABLE "device_import_preferences" DROP COLUMN IF EXISTS "heart_rate", DROP COLUMN IF EXISTS "resting_heart_rate";
+DROP TABLE IF EXISTS "device_sync_checkpoints";
+DROP TABLE IF EXISTS "wearable_resting_heart_rates";
+DROP TABLE IF EXISTS "wearable_heart_rate_buckets";
+DELETE FROM "_prisma_migrations" WHERE "migration_name" = '20261114150000_smartwatch_integration';

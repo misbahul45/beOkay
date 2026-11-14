@@ -1,19 +1,26 @@
 import { z } from "zod";
 import { recordTimestamp } from "../../shared/http/record-schema.ts";
+import { DEVICE_TYPES, RECORDING_METHODS } from "./provenance.ts";
 
 const externalId = z.string().trim().min(1).max(200);
 export const dataOrigin = z.string().trim().regex(/^[A-Za-z0-9_.]{1,200}$/).optional();
 const localDate = z.iso.date().refine((d) => d >= "2000-01-01" && Date.parse(d + "T00:00:00Z") <= Date.now() + 2 * 86_400_000, "invalid date");
+const device = z.enum(DEVICE_TYPES).optional();
+const recordingMethod = z.enum(RECORDING_METHODS).optional();
+const bpm = z.number().finite().min(0).max(1000);
+
+export const IMPORT_METRICS = ["steps", "heart_rate", "resting_heart_rate", "sleep", "workouts", "weight", "glucose"] as const;
+export type ImportMetric = (typeof IMPORT_METRICS)[number];
 
 export const devicePreferencesSchema = z
-  .object({ workouts: z.boolean(), steps: z.boolean(), weight: z.boolean(), glucose: z.boolean(), sleep: z.boolean() })
+  .object({ workouts: z.boolean(), steps: z.boolean(), weight: z.boolean(), glucose: z.boolean(), sleep: z.boolean(), heartRate: z.boolean(), restingHeartRate: z.boolean() })
   .partial()
   .strict()
   .refine((v) => Object.keys(v).length > 0, "no changes");
 
 export const deviceImportSchema = z
   .object({
-    source: z.literal("health_connect"),
+    source: z.enum(["health_connect", "simulated"]),
     steps: z.array(z.object({ localDate, steps: z.number().int().min(0).max(200000), dataOrigin }).strict()).max(62).default([]),
     weights: z.array(z.object({ externalId, measuredAt: recordTimestamp, kg: z.number().finite().min(10).max(500), dataOrigin }).strict()).max(100).default([]),
     glucose: z
@@ -32,10 +39,27 @@ export const deviceImportSchema = z
       )
       .max(300)
       .default([]),
-    sleep: z.array(z.object({ externalId, startedAt: recordTimestamp, endedAt: recordTimestamp, dataOrigin }).strict()).max(62).default([]),
+    sleep: z.array(z.object({ externalId, startedAt: recordTimestamp, endedAt: recordTimestamp, dataOrigin, recordingMethod, device }).strict()).max(62).default([]),
+    heartRate: z
+      .array(z.object({ bucketStart: recordTimestamp, bpmMin: bpm, bpmMax: bpm, bpmAvg: bpm, sampleCount: z.number().int().min(0).max(1_000_000), dataOrigin, recordingMethod, device }).strict())
+      .max(200)
+      .default([]),
+    restingHeartRate: z.array(z.object({ externalId, measuredAt: recordTimestamp, bpm, dataOrigin, recordingMethod, device }).strict()).max(62).default([]),
   })
   .strict()
-  .refine((v) => v.steps.length + v.weights.length + v.glucose.length + v.sleep.length > 0, "empty import");
+  .refine((v) => v.steps.length + v.weights.length + v.glucose.length + v.sleep.length + v.heartRate.length + v.restingHeartRate.length > 0, "empty import");
+
+export const syncCheckpointSchema = z
+  .object({
+    source: z.enum(["health_connect", "simulated"]).default("health_connect"),
+    metric: z.enum(IMPORT_METRICS),
+    outcome: z.enum(["attempt", "success", "failure"]),
+    errorCode: z.string().regex(/^[A-Z0-9_]{1,60}$/).optional(),
+    cursor: z.string().max(64).optional(),
+  })
+  .strict()
+  .refine((v) => (v.outcome === "failure") === Boolean(v.errorCode), "errorCode only with failure");
 
 export type DevicePreferencesInput = z.infer<typeof devicePreferencesSchema>;
 export type DeviceImportInput = z.infer<typeof deviceImportSchema>;
+export type SyncCheckpointInput = z.infer<typeof syncCheckpointSchema>;

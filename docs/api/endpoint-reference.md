@@ -255,8 +255,12 @@ Sejak Fase 8 setiap catatan glukosa memuat `alert` (`null` atau `{level: LOW|HIG
 
 | Metode | Path | Consent | Keterangan |
 |---|---|---|---|
-| GET · PATCH | `/api/me/device-import/preferences` | H (PATCH) | `{workouts, steps, weight, glucose, sleep}`, semua `false` secara bawaan; PATCH sebagian, diaudit `device_import_preferences_updated` |
+| GET · PATCH | `/api/me/device-import/preferences` | H (PATCH) | `{workouts, steps, weight, glucose, sleep, heartRate, restingHeartRate}`, semua `false` secara bawaan; PATCH sebagian, diaudit `device_import_preferences_updated` |
 | POST | `/api/me/device-import` | H | `{source: "health_connect", steps[≤62]: {localDate, steps}, weights[≤100]: {externalId, measuredAt, kg}, glucose[≤300]: {externalId, measuredAt, value, unit, specimen?, mealContext?}, sleep[≤62]: {externalId, startedAt, endedAt}}`; jenis yang dimatikan → `REJECTED/DEVICE_TYPE_DISABLED`; langkah per tanggal lokal diganti nilai terbaru (`upserted`/`unchanged`), tanggal di depan hari ini ditolak; berat → `vital_measurements` `source=health_connect`; glukosa → `glucose_observations` `source=health_connect`, `quality_status=device_reported` (dihitung di ringkasan, statistik, tren, konteks); semua idempoten per `(user, source, externalId)` |
+| POST | `/api/me/device-import` (tambahan) | H | menerima juga `heartRate[≤200]` (bucket 5 menit: `bucketStart,bpmMin,bpmMax,bpmAvg,sampleCount`), `restingHeartRate[≤62]`, `sleep[].device/recordingMethod`, dan `source: simulated` (hanya dev/uji, produksi `403 SIMULATION_DISABLED`); hasil per domain `created/updated/duplicate/unchanged/rejected/needsReview`. Rincian: [smartwatch-integration.md](smartwatch-integration.md) |
+| GET | `/api/me/heart-rate?days=7|14|30`, `/api/me/heart-rate/day?date=` | H | ringkasan dan rincian detak jantung deskriptif |
+| GET | `/api/me/devices/today` | H | ketersediaan per metrik (`HAS_DATA/NO_DATA/NOT_ENABLED/PERMISSION_REQUIRED/STALE_DATA`) |
+| GET · PUT | `/api/me/device-sync/checkpoints` | H | kursor dan galat sinkron per metrik |
 | GET | `/api/me/steps?days=7|14|30|90` | H | deret harian (`null` = tidak ada data), `daysWithData`, `medianSteps`, `latest` |
 | GET | `/api/me/sleep?days=` | H | sesi tidur + median durasi, tanpa penilaian kualitas |
 | GET | `/api/me/medications/upcoming?days=1..3` | H | kejadian obat yang belum dikonfirmasi dan belum lewat; teks layar kunci umum (tanpa nama obat) untuk notifikasi lokal dengan aksi "Sudah" |

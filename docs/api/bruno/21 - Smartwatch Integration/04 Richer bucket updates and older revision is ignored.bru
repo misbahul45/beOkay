@@ -1,0 +1,39 @@
+meta {
+  name: Richer bucket updates and older revision is ignored
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/me/device-import
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "source": "health_connect",
+    "heartRate": [
+      { "bucketStart": "{{hrBucketC}}", "bpmMin": 70, "bpmMax": 120, "bpmAvg": 96, "sampleCount": 5, "dataOrigin": "com.example.healthsource", "recordingMethod": "automatic", "device": "watch" },
+      { "bucketStart": "{{hrBucketB}}", "bpmMin": 64, "bpmMax": 80, "bpmAvg": 70, "sampleCount": 1, "dataOrigin": "com.example.healthsource", "recordingMethod": "automatic", "device": "watch" }
+    ]
+  }
+}
+
+tests {
+  test("A bucket with more samples updates; one with fewer samples is kept as stored", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.heartRate.results[0].status).to.equal("UPDATED");
+    expect(res.body.heartRate.results[1].status).to.equal("UNCHANGED");
+    expect(res.body.heartRate.results[1].reason).to.equal("OLDER_REVISION");
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variable sessionToken is supplied by the runner.
+}

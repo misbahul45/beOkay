@@ -1,0 +1,36 @@
+meta {
+  name: Import resting heart rate
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/me/device-import
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "source": "health_connect",
+    "restingHeartRate": [
+      { "externalId": "bruno-rhr-1", "measuredAt": "{{restingAt}}", "bpm": 61, "dataOrigin": "com.example.healthsource", "device": "watch" }
+    ]
+  }
+}
+
+tests {
+  test("Resting heart rate is created once", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.restingHeartRate.created).to.equal(1);
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variable sessionToken is supplied by the runner.
+}

@@ -1,9 +1,10 @@
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:health/health.dart';
 
 import '../../../core/network/account_scoped_repository.dart';
+import '../../devices/data/health_connect_source.dart';
+import '../../devices/data/health_source.dart';
 
 /// Satu sesi olahraga dari perangkat, sudah dipetakan ke bentuk beOkay. Jarak/langkah kosong bila tidak jelas.
 final _originPattern = RegExp(r'^[A-Za-z0-9_.]{1,200}$');
@@ -21,6 +22,7 @@ class DeviceSession {
     this.steps,
     this.dataOrigin,
     this.recordingMethod,
+    this.deviceType,
   });
   final String externalId, activityType;
   final DateTime startedAt;
@@ -29,6 +31,7 @@ class DeviceSession {
   final int? steps;
   final String? dataOrigin;
   final String? recordingMethod;
+  final String? deviceType;
 
   Map<String, dynamic> toJson() => {
     'externalId': externalId,
@@ -39,6 +42,7 @@ class DeviceSession {
     'steps': ?steps,
     'dataOrigin': ?validOrigin(dataOrigin),
     'recordingMethod': ?recordingMethod,
+    'device': ?deviceType,
   };
 }
 
@@ -83,79 +87,46 @@ int? durationMinutesFrom(DateTime from, DateTime to) {
   return rounded > 1440 ? null : rounded;
 }
 
-/// Health Connect (Android) lewat paket `health`. iOS/HealthKit sengaja tidak didukung: belum dikonfigurasi/diverifikasi.
 class HealthConnectSource implements DeviceActivitySource {
-  HealthConnectSource([Health? health]) : _health = health ?? Health();
-  final Health _health;
-  bool _configured = false;
-  static const _types = [HealthDataType.WORKOUT];
-  static const _access = [HealthDataAccess.READ];
+  HealthConnectSource([HealthDataSource? source])
+    : _source = source ?? HealthConnectDataSource();
+  final HealthDataSource _source;
 
   @override
-  String get sourceKey => 'health_connect';
+  String get sourceKey => _source.sourceKey;
   @override
   String get displayName => 'Health Connect';
 
-  Future<void> _configure() async {
-    if (_configured) return;
-    await _health.configure();
-    _configured = true;
-  }
-
   @override
   Future<DeviceSourceStatus> status() async {
-    if (!Platform.isAndroid) return DeviceSourceStatus.unsupportedPlatform;
-    await _configure();
-    if (!await _health.isHealthConnectAvailable()) {
-      return DeviceSourceStatus.notInstalled;
-    }
-    final granted = await _health.hasPermissions(_types, permissions: _access);
-    return granted == true
-        ? DeviceSourceStatus.ready
-        : DeviceSourceStatus.needsPermission;
+    final caps = await _source.capabilities();
+    return switch (caps.platform) {
+      HealthPlatformState.unsupportedPlatform =>
+        DeviceSourceStatus.unsupportedPlatform,
+      HealthPlatformState.healthConnectUnavailable ||
+      HealthPlatformState.installRequired => DeviceSourceStatus.notInstalled,
+      HealthPlatformState.available =>
+        await _source.hasAccess(WearableMetric.workouts)
+            ? DeviceSourceStatus.ready
+            : DeviceSourceStatus.needsPermission,
+    };
   }
 
   @override
-  Future<bool> requestAccess() async {
-    await _configure();
-    return _health.requestAuthorization(_types, permissions: _access);
-  }
+  Future<bool> requestAccess() =>
+      _source.requestAccess(WearableMetric.workouts);
 
   @override
   Future<List<DeviceSession>> readWorkouts({
     required DateTime from,
     required DateTime to,
-  }) async {
-    await _configure();
-    final points = await _health.getHealthDataFromTypes(
-      types: _types,
-      startTime: from,
-      endTime: to,
-    );
-    final out = <DeviceSession>[];
-    for (final p in _health.removeDuplicates(points)) {
-      final v = p.value;
-      if (v is! WorkoutHealthValue) continue;
-      final minutes = durationMinutesFrom(p.dateFrom, p.dateTo);
-      if (minutes == null) continue;
-      out.add(
-        DeviceSession(
-          externalId: p.uuid,
-          activityType: mapWorkoutType(v.workoutActivityType.name),
-          startedAt: p.dateFrom.toUtc(),
-          durationMinutes: minutes,
-          distanceKm: distanceKmFrom(
-            v.totalDistance,
-            v.totalDistanceUnit?.name,
-          ),
-          steps: v.totalStepsUnit?.name == 'COUNT' ? v.totalSteps : null,
-          dataOrigin: p.sourceId,
-          recordingMethod: p.recordingMethod.name,
-        ),
-      );
-    }
-    return out;
-  }
+  }) async => (await _source.read(
+    HealthReadRequest(
+      metrics: const {WearableMetric.workouts},
+      from: from,
+      to: to,
+    ),
+  )).workouts;
 }
 
 /// Null di platform yang tidak didukung (juga di tes) sehingga bagian impor disembunyikan.

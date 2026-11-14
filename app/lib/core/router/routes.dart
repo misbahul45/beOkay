@@ -53,6 +53,7 @@ abstract final class Routes {
   static const addLab = '/clinical/labs/new';
   static const report = '/settings/report';
   static const devices = '/settings/devices';
+  static const heartRate = '/settings/devices/heart-rate';
   static const quick = '/quick';
   static const summaryReport = '/settings/summary-report';
   static const appLock = '/settings/app-lock';

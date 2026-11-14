@@ -36,7 +36,7 @@
 | Situs dan API (satu URL) | **https://beokay-api.vercel.app** |
 | Unduh APK | **https://beokay-api.vercel.app/beokay.apk** (diteruskan ke `beokay-app.vercel.app`) |
 | Status API | https://beokay-api.vercel.app/health |
-| Versi aplikasi | 1.1.2 (build 4), Android 8.0+ 64-bit |
+| Versi aplikasi | 1.2.0 (build 5), Android 8.0+ 64-bit |
 
 ## Isi
 
@@ -60,10 +60,10 @@ Semua instalasi dimulai dari **https://beokay-api.vercel.app**.
 
 | | |
 |---|---|
-| Versi | 1.1.2 (build 4), ditandatangani dengan kunci rilis pribadi; push FCM aktif dan diuji di emulator |
+| Versi | 1.2.0 (build 5), ditandatangani dengan kunci rilis pribadi; menambah detak jantung dan sinkron Health Connect (diuji di emulator dengan data sintetis, belum dengan jam tangan nyata) |
 | Cocok untuk | Android 8.0+ berprosesor 64-bit (arm64-v8a) |
-| Ukuran | 34,1 MB (34.093.040 byte) |
-| SHA-256 | `ac05625bc0ad84039dea563fb6dd98e2e2125a2be0e46568a97603c7edf405c4` |
+| Ukuran | 34,3 MB (34.306.352 byte) |
+| SHA-256 | `75722d478fbab5f42773d40aa2cfebd48114e8b2a0880b73f43c896287a428e1` |
 | Server | `https://beokay-api.vercel.app` |
 
 ```bash
@@ -307,7 +307,7 @@ Rahasia di luar API: kunci rilis Android (`~/beokay-release.jks`, `app/android/k
 
 ## Status dan keterbatasan
 
-Verifikasi terakhir yang tercatat (14 November 2026, 1.1.2): `flutter analyze` bersih · Flutter **251/251** tes · backend `tsc` bersih dan **462/462** tes (81 berkas) · koleksi Bruno 120/120 · uji pulih cadangan OK · uji asap produksi **20/20**. Level bukti: fungsi teknis terbukti di lingkungan uji (level 1); belum ada klaim hasil klinis.
+Verifikasi terakhir yang tercatat (14 November 2026, 1.2.0): `flutter analyze` bersih · Flutter **290/290** tes · backend `tsc` bersih dan **480/480** tes (83 berkas) · koleksi Bruno 15/15 untuk folder jam tangan (sebelumnya 120/120) · uji emulator Health Connect nyata (connect/revoked/recovered) lulus · uji pulih cadangan OK (14 Nov, sebelum 1.2.0). Level bukti: fungsi teknis terbukti di lingkungan uji (level 1); belum ada klaim hasil klinis.
 
 Belum selesai atau butuh pihak lain:
 

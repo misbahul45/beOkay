@@ -1,0 +1,36 @@
+meta {
+  name: Invalid timestamp rejected
+  type: http
+  seq: 13
+}
+
+post {
+  url: {{baseUrl}}/api/me/device-import
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{sessionToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "source": "health_connect",
+    "heartRate": [
+      { "bucketStart": "kemarin", "bpmMin": 60, "bpmMax": 80, "bpmAvg": 70, "sampleCount": 3 }
+    ]
+  }
+}
+
+tests {
+  test("Malformed bucket timestamp is a validation error", function () {
+    expect(res.status).to.equal(400);
+    expect(res.body.error.code).to.equal("VALIDATION_ERROR");
+  });
+}
+
+docs {
+  Isolated synthetic fixtures only; runtime variable sessionToken is supplied by the runner.
+}
