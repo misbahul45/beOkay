@@ -36,7 +36,7 @@
 | Situs dan API (satu URL) | **https://beokay-api.vercel.app** |
 | Unduh APK | **https://beokay-api.vercel.app/beokay.apk** (diteruskan ke `beokay-app.vercel.app`) |
 | Status API | https://beokay-api.vercel.app/health |
-| Versi aplikasi | 1.2.0 (build 5), Android 8.0+ 64-bit |
+| Versi aplikasi | 1.2.1 (build 6), Android 8.0+ 64-bit |
 
 ## Isi
 
@@ -76,10 +76,10 @@ Untuk mencoba tanpa mendaftar, tersedia akun demo di server produksi (`https://b
 
 | | |
 |---|---|
-| Versi | 1.2.0 (build 5), ditandatangani dengan kunci rilis pribadi; menambah detak jantung dan sinkron Health Connect (diuji di emulator dengan data sintetis, belum dengan jam tangan nyata) |
+| Versi | 1.2.1 (build 6), ditandatangani dengan kunci rilis pribadi; menambah detak jantung dan sinkron Health Connect (diuji di emulator dengan data sintetis, belum dengan jam tangan nyata); 1.2.1 memperbaiki hari tanpa data yang terkirim sebagai 0 langkah |
 | Cocok untuk | Android 8.0+ berprosesor 64-bit (arm64-v8a) |
 | Ukuran | 34,3 MB (34.306.352 byte) |
-| SHA-256 | `75722d478fbab5f42773d40aa2cfebd48114e8b2a0880b73f43c896287a428e1` |
+| SHA-256 | `3b20540fc6c0edf3ea9baab6b1d92e60dfb74c978881119864b5cc60bc35a7be` |
 | Server | `https://beokay-api.vercel.app` |
 
 ```bash
@@ -323,7 +323,7 @@ Rahasia di luar API: kunci rilis Android (`~/beokay-release.jks`, `app/android/k
 
 ## Status dan keterbatasan
 
-Verifikasi terakhir yang tercatat (14 November 2026, 1.2.0): `flutter analyze` bersih · Flutter **290/290** tes · backend `tsc` bersih dan **480/480** tes (83 berkas) · koleksi Bruno 15/15 untuk folder jam tangan (sebelumnya 120/120) · uji emulator Health Connect nyata (connect/revoked/recovered) lulus · uji pulih cadangan OK (14 Nov, sebelum 1.2.0). Level bukti: fungsi teknis terbukti di lingkungan uji (level 1); belum ada klaim hasil klinis.
+Verifikasi terakhir yang tercatat (14 November 2026, 1.2.1): `flutter analyze` bersih · Flutter **290/290** tes · backend `tsc` bersih dan **480/480** tes (83 berkas) · koleksi Bruno 15/15 untuk folder jam tangan (sebelumnya 120/120) · uji emulator Health Connect nyata (connect/revoked/recovered) lulus · uji pulih cadangan OK (14 Nov, sebelum 1.2.0). Level bukti: fungsi teknis terbukti di lingkungan uji (level 1); belum ada klaim hasil klinis.
 
 Belum selesai atau butuh pihak lain:
 

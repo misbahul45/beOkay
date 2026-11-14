@@ -15,6 +15,8 @@ Lihat [audit](../audits/smartwatch-integration-audit.md). Tambahan yang baru ket
 1. Pembacaan `WORKOUT` lewat paket `health` **diam-diam kosong** bila izin langkah, jarak, dan kalori total tidak dipegang (paket membaca ketiganya untuk tiap sesi dan melempar `SecurityException`). Impor latihan 4.0 karenanya tidak akan pernah mengembalikan sesi di perangkat nyata. Diperbaiki: izin itu diminta bersama latihan, dan `READ_TOTAL_CALORIES_BURNED` ditambah ke manifes. Kalori tidak disimpan.
 2. `HealthDataPoint.sourceId` kosong di Android; nama paket ada di `sourceName`. Provenans 4.0 (`dataOrigin`) karenanya kosong. Diperbaiki.
 3. `flutter test integration_test` mencopot aplikasi setelah selesai sehingga izin hilang; gunakan `--no-uninstall` (lihat panduan uji).
+4. `getTotalStepsInInterval` mengembalikan **0**, bukan `null`, untuk hari tanpa rekaman. Klien lama mengirim 0 langkah untuk semua hari kosong sehingga hari tanpa data tampak "ada data" dan kartu Langkah menulis "Median 7 hari 0". Terlihat saat aplikasi dijalankan di emulator. Diperbaiki di 1.2.1: total 0 dianggap tidak ada data dan tidak dikirim (normalizer dan adapter; ada tes). APK 1.2.0 yang sempat terbit membawa perilaku lama; baris 0 yang sudah terkirim tidak dihapus otomatis.
+5. Lencana "Sinkron latar didukung" mencerminkan kemampuan Android, bukan fitur beOkay (sinkron latar belum ada). Diganti menjadi "Sinkron saat aplikasi dibuka".
 
 ## C. Arsitektur
 
@@ -58,7 +60,8 @@ Lihat [panduan uji](../testing/smartwatch-simulation.md).
 | Emulator, fase `revoked` (izin detak jantung dicabut dengan `pm revoke`) | lulus: pesan "Detak jantung: Izin Health Connect belum diberikan", keadaan `syncFailed`, server `SYNC_FAILED`/`PERMISSION_DENIED`, data lama tidak berubah |
 | Emulator, fase `recovered` (izin diberikan lagi) | lulus: keadaan kembali `dataAvailable`, `syncState OK`, hitungan data tidak berubah |
 | Migrasi produksi | `Database schema is up to date!` (35 migrasi); cabang cadangan Neon `pre-smartwatch-20261114` dibuat lebih dulu |
-| APK rilis 1.2.0 | ditandatangani `CN=beOkay`, `versionCode` 2005, URL API produksi tertanam, peluncuran di emulator tanpa crash; terbit di `beokay-app`, unduhan lewat `/beokay.apk` cocok SHA-256 `75722d47…28e1` |
+| APK rilis 1.2.0 | ditandatangani `CN=beOkay`, `versionCode` 2005, URL API produksi tertanam, peluncuran di emulator tanpa crash; terbit di `beokay-app`; digantikan 1.2.1 (lihat bawah) |
+| APK rilis 1.2.1 | memperbaiki langkah 0 untuk hari tanpa data dan lencana sinkron latar; `versionCode` 2006, penanda tangan sama (`3dd5f626…d629`), SHA-256 `3b20540f…a7be`, terbit di `beokay-app` |
 | Deploy API + landing | `vercel deploy --prod` dari root: status Ready, alias `beokay-api.vercel.app`, fungsi di `sin1`; `/health` `db: true`; `/api/me/heart-rate`, `/api/me/devices/today`, `/api/me/device-sync/checkpoints`, `/api/me/device-import/preferences` tanpa sesi → 401; bundel landing memuat teks baru dan SHA APK baru; `DEVICE_SIMULATION_ENABLED` tidak ada di env produksi |
 | Produksi dengan sesi pengguna | **tidak diverifikasi**: membuat sesi sintetis langsung di DB produksi diblokir pengaman, dan tidak dicari jalan lain. Penolakan sumber simulasi pada konfigurasi produksi diuji lewat `TEST-20` dan tes unit penjaga (`NODE_ENV=production` selalu menolak), bukan lewat panggilan produksi |
 

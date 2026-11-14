@@ -48,10 +48,10 @@ const Phone3D = lazy(
 
 const APK = {
   href: "https://beokay-api.vercel.app/beokay.apk",
-  version: "1.2.0",
+  version: "1.2.1",
   size: "34,3 MB",
   sha256:
-    "75722d478fbab5f42773d40aa2cfebd48114e8b2a0880b73f43c896287a428e1",
+    "3b20540fc6c0edf3ea9baab6b1d92e60dfb74c978881119864b5cc60bc35a7be",
 };
 
 const NAV = [
