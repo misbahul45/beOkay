@@ -37,7 +37,7 @@ import {
   Watch,
   X,
 } from "lucide-react";
-import "./App.css";
+import "./app.css";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
