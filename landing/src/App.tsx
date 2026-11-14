@@ -96,8 +96,6 @@ const STEPS = [
 
 const FEATURES = [
   {
-    number: "01",
-    kicker: "DAILY COACH",
     title: "Langkah kecil yang terasa mungkin.",
     description:
       "Saran mengikuti catatanmu, bukan target sempurna. Setiap tindakan menunggu keputusanmu.",
@@ -108,8 +106,6 @@ const FEATURES = [
     Icon: Target,
   },
   {
-    number: "02",
-    kicker: "CONNECTED WELLNESS",
     title: "Lebih paham, tanpa menebak-nebak.",
     description:
       "Perangkat yang terhubung membantu merangkum gerak dan tidur; data yang tumpang tindih dihitung sekali.",
@@ -120,8 +116,6 @@ const FEATURES = [
     Icon: Watch,
   },
   {
-    number: "03",
-    kicker: "THOUGHTFUL AI",
     title: "Asisten yang tahu kapan harus berhenti.",
     description:
       "Penjelasan menyertakan batas kepastian. Pertanyaan medis berisiko dialihkan ke tenaga kesehatan.",
@@ -132,8 +126,6 @@ const FEATURES = [
     Icon: BrainCircuit,
   },
   {
-    number: "04",
-    kicker: "BETTER TOGETHER",
     title: "Sehat bareng, tanpa adu angka kesehatan.",
     description:
       "Misi tim merayakan konsistensi bersama dengan menampilkan progres agregat, bukan data kesehatan pribadi.",
@@ -148,7 +140,6 @@ const FEATURES = [
 const JOURNEYS = [
   {
     title: "Pencegahan",
-    badge: "Build healthy habits",
     description:
       "Untuk kamu yang pernah diberi tahu tenaga kesehatan bahwa kamu berisiko atau mengalami prediabetes. Mulai dari kebiasaan kecil dan pengingat pemeriksaan rutin.",
     bullets: [
@@ -160,7 +151,6 @@ const JOURNEYS = [
   },
   {
     title: "Dukungan diabetes tipe 2",
-    badge: "Stay informed",
     description:
       "Catat asupan, aktivitas, glukosa, dan obat bila relevan. Keputusan diagnosis serta pengobatan tetap bersama tenaga kesehatan.",
     bullets: [
@@ -172,7 +162,6 @@ const JOURNEYS = [
   },
   {
     title: "Gaya hidup sehat",
-    badge: "Feel your best",
     description:
       "Beri ruang untuk bergerak, makan, dan istirahat lebih teratur tanpa harus mengejar rutinitas yang sempurna.",
     bullets: [
@@ -268,44 +257,6 @@ function supportsWebGL() {
   }
 }
 
-function BrandMark({
-  className = "",
-}: {
-  className?: string;
-}) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 64 64"
-      fill="none"
-      aria-hidden="true"
-    >
-      <rect
-        x="2"
-        y="2"
-        width="60"
-        height="60"
-        rx="21"
-        fill="currentColor"
-        fillOpacity="0.10"
-      />
-      <path
-        d="M17 34.5c3.5-10.5 10-16.5 16-16.5 6.8 0 10.6 4.5 10.6 10.3 0 6-4.6 10.2-10.2 10.2-4.1 0-7.2-2.6-7.2-6.4 0-3.2 2.6-5.3 5.2-5.3 2.3 0 4.1 1.5 4.1 3.7"
-        stroke="currentColor"
-        strokeWidth="5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle
-        cx="46.2"
-        cy="43"
-        r="4.2"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
 function Brand({
   inverse = false,
 }: {
@@ -313,22 +264,21 @@ function Brand({
 }) {
   return (
     <a
-      className={`bo-brand${
-        inverse ? " bo-brand--inverse" : ""
-      }`}
+      className="bo-brand"
       href="#beranda"
       aria-label="beOkay, kembali ke beranda"
     >
-      <BrandMark className="bo-brand__mark" />
-      <span>
-        be
-        <span className="bo-brand__accent">
-          Okay
-        </span>
-        <span className="bo-brand__period">
-          .
-        </span>
-      </span>
+      <img
+        className="bo-brand__logo"
+        src={
+          inverse
+            ? "/img/logo-full-dark.webp"
+            : "/img/logo-full.webp"
+        }
+        alt=""
+        width={520}
+        height={161}
+      />
     </a>
   );
 }
@@ -584,10 +534,6 @@ function Hero() {
 
       <div className="bo-container bo-hero__layout">
         <div className="bo-hero__content">
-          <div className="bo-kicker bo-kicker--hero bo-hero-enter">
-            <span className="bo-live-dot" />
-            YOUR EVERYDAY WELLNESS COMPANION
-          </div>
 
           <h1 className="bo-hero__title bo-hero-enter">
             Hidup lebih sehat.
@@ -708,8 +654,8 @@ function Hero() {
       <a
         className="bo-hero__scroll"
         href="#ringkasan"
+        aria-label="Gulir ke ringkasan"
       >
-        <span>SCROLL TO EXPLORE</span>
         <ArrowDown size={17} />
       </a>
 
@@ -722,12 +668,10 @@ function Hero() {
 }
 
 function SectionHeading({
-  eyebrow,
   title,
   description,
   centered = false,
 }: {
-  eyebrow: string;
   title: ReactNode;
   description?: string;
   centered?: boolean;
@@ -741,10 +685,6 @@ function SectionHeading({
       }`}
       data-reveal
     >
-      <span className="bo-kicker">
-        <span className="bo-kicker__line" />
-        {eyebrow}
-      </span>
 
       <h2>{title}</h2>
 
@@ -763,7 +703,6 @@ function Intro() {
     >
       <div className="bo-container">
         <SectionHeading
-          eyebrow="BUILT AROUND REAL LIFE"
           title={
             <>
               Kesehatan bukan soal angka saja.{" "}
@@ -835,7 +774,6 @@ function Flow() {
       <div className="bo-container">
         <div className="bo-flow__head">
           <SectionHeading
-            eyebrow="HOW IT WORKS"
             title={
               <>
                 Lima langkah sederhana.
@@ -989,10 +927,6 @@ function Showcase() {
           data-reveal
         >
           <div className="bo-showcase__copy">
-            <span className="bo-kicker bo-kicker--hero">
-              <span className="bo-kicker__line" />
-              YOUR DAY, IN FOCUS
-            </span>
 
             <h2>
               Semua bagian harimu.
@@ -1009,12 +943,6 @@ function Showcase() {
               berikutnya dari hal-hal yang
               benar-benar kamu lakukan.
             </p>
-
-            <div className="bo-showcase__tag">
-              <CircleCheck size={18} />
-              Ringkasan sesuai data yang
-              tersedia
-            </div>
           </div>
 
           <div className="bo-showcase__art">
@@ -1067,7 +995,6 @@ function Features() {
     >
       <div className="bo-container">
         <SectionHeading
-          eyebrow="FEATURES THAT MATTER"
           title={
             <>
               Lebih dari aplikasi pencatat.
@@ -1083,8 +1010,6 @@ function Features() {
         <div className="bo-features__grid">
           {FEATURES.map(
             ({
-              number,
-              kicker,
               title,
               description,
               image,
@@ -1094,15 +1019,11 @@ function Features() {
             }) => (
               <article
                 className={`bo-feature bo-feature--${tone}`}
-                key={number}
+                key={title}
                 data-reveal
               >
                 <div className="bo-feature__copy">
                   <div className="bo-feature__top">
-                    <span className="bo-feature__number">
-                      {number} / 04
-                    </span>
-
                     <span className="bo-feature__icon">
                       <Icon
                         size={22}
@@ -1111,9 +1032,6 @@ function Features() {
                     </span>
                   </div>
 
-                  <span className="bo-feature__kicker">
-                    {kicker}
-                  </span>
 
                   <h3>{title}</h3>
                   <p>{description}</p>
@@ -1148,7 +1066,6 @@ function Journeys() {
   const [active, setActive] = useState(0);
 
   const current = JOURNEYS[active];
-  const Icon = current.Icon;
 
   return (
     <section
@@ -1157,7 +1074,6 @@ function Journeys() {
     >
       <div className="bo-container">
         <SectionHeading
-          eyebrow="A PATH FOR EVERY YOU"
           title={
             <>
               Tidak semua orang memulai
@@ -1278,12 +1194,13 @@ function Journeys() {
             key={active}
           >
             <div className="bo-journeys__panel-top">
-              <span className="bo-journeys__badge">
-                <Icon size={16} />
-                {current.badge}
-              </span>
-
-              <BrandMark className="bo-journeys__watermark" />
+              <img
+                className="bo-journeys__watermark"
+                src="/img/logo-mark.webp"
+                alt=""
+                width={384}
+                height={384}
+              />
             </div>
 
             <h3>{current.title}</h3>
@@ -1317,7 +1234,6 @@ function Privacy() {
         <div className="bo-privacy__layout">
           <div className="bo-privacy__intro">
             <SectionHeading
-              eyebrow="PRIVACY BY DESIGN"
               title={
                 <>
                   Datamu. Pilihanmu.
@@ -1329,12 +1245,6 @@ function Privacy() {
               }
               description="Kesehatan adalah hal personal. Karena itu kendali atas data, ingatan asisten, dan setiap saran harus tetap berada di tanganmu."
             />
-
-            <div className="bo-privacy__seal">
-              <ShieldCheck size={23} />
-              Designed with consent-first
-              principles
-            </div>
           </div>
 
           <div className="bo-privacy__cards">
@@ -1389,10 +1299,6 @@ function Cta() {
           />
 
           <div className="bo-cta__content">
-            <div className="bo-kicker bo-kicker--hero">
-              <span className="bo-live-dot" />
-              YOUR NEXT CHAPTER STARTS HERE
-            </div>
 
             <h2>
               Langkah kecil hari ini.
@@ -1431,7 +1337,13 @@ function Cta() {
           >
             <span className="bo-cta__art-ring" />
 
-            <BrandMark className="bo-cta__giant-mark" />
+            <img
+              className="bo-cta__giant-mark"
+              src="/img/logo-mark.webp"
+              alt=""
+              width={384}
+              height={384}
+            />
 
             <span className="bo-cta__art-spark">
               <Sparkles size={32} />
@@ -1472,7 +1384,6 @@ function Faq() {
       <div className="bo-container bo-faq__layout">
         <div className="bo-faq__intro">
           <SectionHeading
-            eyebrow="GOOD TO KNOW"
             title={
               <>
                 Masih penasaran?

@@ -138,34 +138,19 @@ body {
 .bo-brand {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
   flex: none;
-  font: 800 24px/1 Manrope, sans-serif;
-  letter-spacing: -.09em;
-  color: #112c37;
 }
 
-.bo-brand--inverse {
-  color: #fff;
+.bo-brand__logo {
+  display: block;
+  height: 40px;
+  width: auto;
 }
 
-.bo-brand__mark {
-  width: 38px;
-  height: 38px;
-  color: #0bbda8;
-}
 
-.bo-brand__accent {
-  color: #0fb6a4;
-}
 
-.bo-brand--inverse .bo-brand__accent {
-  color: #b4fff0;
-}
 
-.bo-brand__period {
-  color: #2f91ff;
-}
+
 
 .bo-nav {
   display: flex;
@@ -280,37 +265,9 @@ body {
   background: #fff;
 }
 
-.bo-kicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 11px;
-  line-height: 1.4;
-  font-weight: 800;
-  letter-spacing: .15em;
-  color: #078d86;
-}
 
-.bo-kicker--hero {
-  color: #a1f9e7;
-}
 
-.bo-kicker__line {
-  width: 22px;
-  height: 1px;
-  background: currentColor;
-}
 
-.bo-live-dot {
-  display: inline-block;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #6afed2;
-  box-shadow:
-    0 0 0 5px rgba(106, 254, 210, .11),
-    0 0 18px rgba(106, 254, 210, .5);
-}
 
 .bo-section-heading {
   max-width: 840px;
@@ -322,7 +279,7 @@ body {
 }
 
 .bo-section-heading h2 {
-  margin-top: 24px;
+  margin-top: 0;
   font-size: clamp(38px, 4.15vw, 62px);
   line-height: 1.17;
   letter-spacing: -.065em;
@@ -464,7 +421,7 @@ body {
 }
 
 .bo-hero__title {
-  margin-top: 35px !important;
+  margin-top: 0 !important;
   max-width: 810px;
   font-size: clamp(55px, 5.4vw, 84px);
   line-height: 1.105;
@@ -950,7 +907,7 @@ body {
 }
 
 .bo-showcase__copy h2 {
-  margin-top: 28px;
+  margin-top: 0;
   font-size: clamp(36px, 3.6vw, 54px);
   line-height: 1.2;
   letter-spacing: -.066em;
@@ -968,19 +925,6 @@ body {
   line-height: 1.85;
 }
 
-.bo-showcase__tag {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: fit-content;
-  margin-top: 30px;
-  border: 1px solid #4e7b7f;
-  border-radius: 99px;
-  padding: 12px 15px;
-  color: #b6f8e8;
-  font-size: 11px;
-  font-weight: 700;
-}
 
 .bo-showcase__art {
   position: relative;
@@ -1116,12 +1060,6 @@ body {
   margin-bottom: 32px;
 }
 
-.bo-feature__number {
-  color: #668088;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: .13em;
-}
 
 .bo-feature__icon {
   width: 46px;
@@ -1134,17 +1072,10 @@ body {
   background: rgba(255, 255, 255, .42);
 }
 
-.bo-feature__kicker {
-  display: block;
-  color: #277368;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .14em;
-}
 
 .bo-feature h3 {
   max-width: 440px;
-  margin-top: 15px;
+  margin-top: 0;
   font-size: clamp(28px, 2.65vw, 39px);
   line-height: 1.2;
   letter-spacing: -.065em;
@@ -1323,25 +1254,13 @@ body {
 .bo-journeys__panel-top {
   display: flex;
   align-items: start;
-  justify-content: space-between;
+  justify-content: flex-end;
 }
 
-.bo-journeys__badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 13px;
-  border-radius: 99px;
-  background: #fff;
-  color: #128a78;
-  font-size: 11px;
-  font-weight: 800;
-}
 
 .bo-journeys__watermark {
   width: 52px;
-  color: #0fb59e;
-  opacity: .7;
+  height: auto;
 }
 
 .bo-journeys__panel h3 {
@@ -1395,15 +1314,6 @@ body {
   padding-top: 30px;
 }
 
-.bo-privacy__seal {
-  margin-top: 32px;
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 12px;
-  font-weight: 800;
-  color: #197f73;
-}
 
 .bo-privacy__cards {
   display: grid;
@@ -1509,7 +1419,7 @@ body {
 }
 
 .bo-cta__content h2 {
-  margin-top: 27px;
+  margin-top: 0;
   font-size: clamp(39px, 4.2vw, 62px);
   letter-spacing: -.07em;
   line-height: 1.18;
@@ -1570,8 +1480,7 @@ body {
 .bo-cta__giant-mark {
   position: relative;
   width: 240px;
-  color: #b1ffee;
-  transform: rotate(-15deg);
+  height: auto;
   filter: drop-shadow(
     10px 25px 20px rgba(0, 22, 30, .25)
   );
@@ -1967,14 +1876,10 @@ body {
     height: 70px;
   }
 
-  .bo-brand {
-    font-size: 23px;
+  .bo-brand__logo {
+    height: 34px;
   }
 
-  .bo-brand__mark {
-    width: 33px;
-    height: 33px;
-  }
 
   .bo-header__cta {
     display: none;
