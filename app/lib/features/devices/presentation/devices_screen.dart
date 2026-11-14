@@ -271,11 +271,7 @@ class _ConnectionCard extends StatelessWidget {
                 label:
                     'Sinkron terakhir: ${agoText(view.lastSuccessAt ?? status?.lastSuccessfulSyncAt)}',
               ),
-              StatusBadge(
-                label: view.backgroundRead
-                    ? 'Sinkron latar didukung'
-                    : 'Sinkron latar belum tersedia',
-              ),
+              const StatusBadge(label: 'Sinkron saat aplikasi dibuka'),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),

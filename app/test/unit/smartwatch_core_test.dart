@@ -351,6 +351,24 @@ void main() {
         );
         expect(batch.steps.single.localDate, '2026-11-13');
         expect(batch.steps.single.steps, 1200);
+        final zero = normalizer.normalize(
+          HealthReadResult(
+            measurements: [
+              RawMeasurement(
+                id: 'z',
+                metric: WearableMetric.steps,
+                value: 0,
+                unit: 'count',
+                startTime: DateTime(2026, 11, 12),
+                endTime: DateTime(2026, 11, 13),
+              ),
+            ],
+          ),
+        );
+        expect(zero.steps, isEmpty);
+        expect(zero.rejected, isEmpty);
+        expect(zero.isEmpty, isTrue);
+
         expect(normalizer.normalize(const HealthReadResult()).isEmpty, isTrue);
       },
     );

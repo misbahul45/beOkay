@@ -197,7 +197,7 @@ class HealthConnectDataSource implements HealthDataSource {
         end,
         includeManualEntry: false,
       );
-      if (total == null) continue;
+      if (total == null || total == 0) continue;
       out.add(
         RawMeasurement(
           id: 'steps:${start.millisecondsSinceEpoch}',

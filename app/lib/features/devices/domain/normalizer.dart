@@ -95,6 +95,9 @@ class HealthNormalizer {
       switch (m.metric) {
         case WearableMetric.steps:
           final date = isoDate(m.startTime);
+          if (m.value == 0) {
+            break;
+          }
           if (m.value < 0 || m.value > 200000 || date.compareTo(today) > 0) {
             reject('STEPS_INVALID');
           } else {
